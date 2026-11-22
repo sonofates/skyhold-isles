@@ -1,0 +1,5066 @@
+{
+  "total": 259,
+  "byKind": {
+    "buttonLabelClip": 229,
+    "lowFill": 16,
+    "tightGap": 2,
+    "textUnder12": 6,
+    "layout:cut": 6
+  },
+  "byScreen": {
+    "title": {
+      "total": 0,
+      "byKind": {}
+    },
+    "map": {
+      "total": 36,
+      "byKind": {
+        "buttonLabelClip": 36
+      }
+    },
+    "brief": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "brief-fresh": {
+      "total": 7,
+      "byKind": {
+        "buttonLabelClip": 7
+      }
+    },
+    "brief-modes": {
+      "total": 13,
+      "byKind": {
+        "buttonLabelClip": 13
+      }
+    },
+    "brief-locked": {
+      "total": 6,
+      "byKind": {
+        "lowFill": 6
+      }
+    },
+    "heroes": {
+      "total": 26,
+      "byKind": {
+        "buttonLabelClip": 26
+      }
+    },
+    "workshop": {
+      "total": 0,
+      "byKind": {}
+    },
+    "herosel": {
+      "total": 0,
+      "byKind": {}
+    },
+    "heroes-node": {
+      "total": 22,
+      "byKind": {
+        "tightGap": 2,
+        "buttonLabelClip": 20
+      }
+    },
+    "logbook": {
+      "total": 0,
+      "byKind": {}
+    },
+    "beltpick": {
+      "total": 6,
+      "byKind": {
+        "buttonLabelClip": 6
+      }
+    },
+    "logbook-feats": {
+      "total": 0,
+      "byKind": {}
+    },
+    "daily": {
+      "total": 4,
+      "byKind": {
+        "lowFill": 4
+      }
+    },
+    "market": {
+      "total": 0,
+      "byKind": {}
+    },
+    "store": {
+      "total": 12,
+      "byKind": {
+        "textUnder12": 6,
+        "lowFill": 6
+      }
+    },
+    "settings-general": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-audio": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-graphics": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-controls": {
+      "total": 0,
+      "byKind": {}
+    },
+    "credits": {
+      "total": 0,
+      "byKind": {}
+    },
+    "story": {
+      "total": 0,
+      "byKind": {}
+    },
+    "story-3beat": {
+      "total": 14,
+      "byKind": {
+        "layout:cut": 6,
+        "buttonLabelClip": 8
+      }
+    },
+    "hud": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-ring": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-tower": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-spec-hint": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-foe": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-coach": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-spec-card": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-codex": {
+      "total": 5,
+      "byKind": {
+        "buttonLabelClip": 5
+      }
+    },
+    "hud-newfoe": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-pause": {
+      "total": 12,
+      "byKind": {
+        "buttonLabelClip": 12
+      }
+    },
+    "hud-codex-spec": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-confirm": {
+      "total": 0,
+      "byKind": {}
+    },
+    "end-lost": {
+      "total": 0,
+      "byKind": {}
+    },
+    "end-won": {
+      "total": 0,
+      "byKind": {}
+    }
+  },
+  "results": [
+    {
+      "key": "beltpick-667x375-en",
+      "name": "beltpick",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[beltpick2d-market]",
+          "text": "Open the Market",
+          "detail": "label outside viewport (243,360-348,377)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[beltpick2d-done]",
+          "text": "Close",
+          "detail": "label outside viewport (420,360-454,377)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-beltpick",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.955
+        }
+      ]
+    },
+    {
+      "key": "beltpick-667x375-tr",
+      "name": "beltpick",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[beltpick2d-market]",
+          "text": "Pazara git",
+          "detail": "label outside viewport (261,360-328,377)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[beltpick2d-done]",
+          "text": "Kapat",
+          "detail": "label outside viewport (400,360-437,377)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-beltpick",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.953
+        }
+      ]
+    },
+    {
+      "key": "beltpick-844x390-en",
+      "name": "beltpick",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-beltpick",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.894
+        }
+      ]
+    },
+    {
+      "key": "beltpick-844x390-tr",
+      "name": "beltpick",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[beltpick2d-market]",
+          "text": "Pazara git",
+          "detail": "label clipped by div.pu-sheet-body.more-below (text y=360..377 vs box y=56..365)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[beltpick2d-done]",
+          "text": "Kapat",
+          "detail": "label clipped by div.pu-sheet-body.more-below (text y=360..377 vs box y=56..365)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-beltpick",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.925
+        }
+      ]
+    },
+    {
+      "key": "beltpick-932x430-en",
+      "name": "beltpick",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-beltpick",
+          "w": 920,
+          "h": 402,
+          "scrolling": false,
+          "fillRatio": 0.853
+        }
+      ]
+    },
+    {
+      "key": "beltpick-932x430-tr",
+      "name": "beltpick",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-beltpick",
+          "w": 920,
+          "h": 402,
+          "scrolling": false,
+          "fillRatio": 0.845
+        }
+      ]
+    },
+    {
+      "key": "brief-667x375-en",
+      "name": "brief",
+      "size": "667x375",
+      "lang": "en",
+      "count": 4,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Ironoak",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-bowless]",
+          "text": "BowlessArcher Towers cannot be built+1",
+          "detail": "label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-glassSanctuary]",
+          "text": "Glass SanctuaryOnly 8 lives (Workshop lives ignore",
+          "detail": "label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Endless tideWaves keep coming past wave 10. No cha",
+          "detail": "label outside viewport (104,407-185,424)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.856
+        }
+      ]
+    },
+    {
+      "key": "brief-667x375-tr",
+      "name": "brief",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 4,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Demirmeşe",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-bowless]",
+          "text": "YaysızOkçu Kulesi kurulamaz+1",
+          "detail": "label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-glassSanctuary]",
+          "text": "Cam SığınakYalnızca 8 can (Atölye canları sayılmaz",
+          "detail": "label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz",
+          "detail": "label outside viewport (104,407-195,424)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.856
+        }
+      ]
+    },
+    {
+      "key": "brief-844x390-en",
+      "name": "brief",
+      "size": "844x390",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Ironoak",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.8
+        }
+      ]
+    },
+    {
+      "key": "brief-844x390-tr",
+      "name": "brief",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Demirmeşe",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.809
+        }
+      ]
+    },
+    {
+      "key": "brief-932x430-en",
+      "name": "brief",
+      "size": "932x430",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Ironoak",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.709
+        }
+      ]
+    },
+    {
+      "key": "brief-932x430-tr",
+      "name": "brief",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Demirmeşe",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.717
+        }
+      ]
+    },
+    {
+      "key": "brief-fresh-667x375-en",
+      "name": "brief-fresh",
+      "size": "667x375",
+      "lang": "en",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-bowless]",
+          "text": "BowlessArcher Towers cannot be builtEarned",
+          "detail": "label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-glassSanctuary]",
+          "text": "Glass SanctuaryOnly 8 lives (Workshop lives ignore",
+          "detail": "label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Endless tideWaves keep coming past wave 10. No cha",
+          "detail": "label outside viewport (104,407-185,424)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.863
+        }
+      ]
+    },
+    {
+      "key": "brief-fresh-667x375-tr",
+      "name": "brief-fresh",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-bowless]",
+          "text": "YaysızOkçu Kulesi kurulamazKazanıldı",
+          "detail": "label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-glassSanctuary]",
+          "text": "Cam SığınakYalnızca 8 can (Atölye canları sayılmaz",
+          "detail": "label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz",
+          "detail": "label outside viewport (104,407-195,424)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.863
+        }
+      ]
+    },
+    {
+      "key": "brief-fresh-844x390-en",
+      "name": "brief-fresh",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.826
+        }
+      ]
+    },
+    {
+      "key": "brief-fresh-844x390-tr",
+      "name": "brief-fresh",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz",
+          "detail": "label spills out of button (91x17 vs 341x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.831
+        }
+      ]
+    },
+    {
+      "key": "brief-fresh-932x430-en",
+      "name": "brief-fresh",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.73
+        }
+      ]
+    },
+    {
+      "key": "brief-fresh-932x430-tr",
+      "name": "brief-fresh",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.737
+        }
+      ]
+    },
+    {
+      "key": "brief-locked-667x375-en",
+      "name": "brief-locked",
+      "size": "667x375",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-brief",
+          "text": "",
+          "detail": "fill 37.4% (< 60%, non-scrolling; sheet 655x367 in 667x375)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief",
+          "w": 655,
+          "h": 367,
+          "scrolling": false,
+          "fillRatio": 0.374
+        }
+      ]
+    },
+    {
+      "key": "brief-locked-667x375-tr",
+      "name": "brief-locked",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-brief",
+          "text": "",
+          "detail": "fill 40.7% (< 60%, non-scrolling; sheet 655x367 in 667x375)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief",
+          "w": 655,
+          "h": 367,
+          "scrolling": false,
+          "fillRatio": 0.407
+        }
+      ]
+    },
+    {
+      "key": "brief-locked-844x390-en",
+      "name": "brief-locked",
+      "size": "844x390",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-brief",
+          "text": "",
+          "detail": "fill 32.3% (< 60%, non-scrolling; sheet 832x382 in 844x390)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief",
+          "w": 832,
+          "h": 382,
+          "scrolling": false,
+          "fillRatio": 0.323
+        }
+      ]
+    },
+    {
+      "key": "brief-locked-844x390-tr",
+      "name": "brief-locked",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-brief",
+          "text": "",
+          "detail": "fill 34.7% (< 60%, non-scrolling; sheet 832x382 in 844x390)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief",
+          "w": 832,
+          "h": 382,
+          "scrolling": false,
+          "fillRatio": 0.347
+        }
+      ]
+    },
+    {
+      "key": "brief-locked-932x430-en",
+      "name": "brief-locked",
+      "size": "932x430",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-brief",
+          "text": "",
+          "detail": "fill 27.6% (< 60%, non-scrolling; sheet 920x422 in 932x430)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.276
+        }
+      ]
+    },
+    {
+      "key": "brief-locked-932x430-tr",
+      "name": "brief-locked",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-brief",
+          "text": "",
+          "detail": "fill 29.5% (< 60%, non-scrolling; sheet 920x422 in 932x430)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.295
+        }
+      ]
+    },
+    {
+      "key": "brief-modes-667x375-en",
+      "name": "brief-modes",
+      "size": "667x375",
+      "lang": "en",
+      "count": 4,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Ironoak",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-bowless]",
+          "text": "BowlessArcher Towers cannot be builtEarned",
+          "detail": "label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-glassSanctuary]",
+          "text": "Glass SanctuaryOnly 8 lives (Workshop lives ignore",
+          "detail": "label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Endless tideWaves keep coming past wave 10. No cha",
+          "detail": "label outside viewport (104,407-185,424)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.863
+        }
+      ]
+    },
+    {
+      "key": "brief-modes-667x375-tr",
+      "name": "brief-modes",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 4,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Demirmeşe",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-bowless]",
+          "text": "YaysızOkçu Kulesi kurulamazKazanıldı",
+          "detail": "label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode[brief2d-ch-glassSanctuary]",
+          "text": "Cam SığınakYalnızca 8 can (Atölye canları sayılmaz",
+          "detail": "label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz",
+          "detail": "label outside viewport (104,407-195,424)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.863
+        }
+      ]
+    },
+    {
+      "key": "brief-modes-844x390-en",
+      "name": "brief-modes",
+      "size": "844x390",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Ironoak",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.826
+        }
+      ]
+    },
+    {
+      "key": "brief-modes-844x390-tr",
+      "name": "brief-modes",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Demirmeşe",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-mode.endless[brief2d-endless]",
+          "text": "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz",
+          "detail": "label spills out of button (91x17 vs 341x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.831
+        }
+      ]
+    },
+    {
+      "key": "brief-modes-932x430-en",
+      "name": "brief-modes",
+      "size": "932x430",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Ironoak",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.73
+        }
+      ]
+    },
+    {
+      "key": "brief-modes-932x430-tr",
+      "name": "brief-modes",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-chip-pick[brief2d-hero-change]",
+          "text": "10Bran Demirmeşe",
+          "detail": "label spills out of button (12x15 vs 49x46)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-brief.has-modes",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.737
+        }
+      ]
+    },
+    {
+      "key": "credits-667x375-en",
+      "name": "credits",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-credits",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.802
+        }
+      ]
+    },
+    {
+      "key": "credits-667x375-tr",
+      "name": "credits",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-credits",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.781
+        }
+      ]
+    },
+    {
+      "key": "credits-844x390-en",
+      "name": "credits",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-credits",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.628
+        }
+      ]
+    },
+    {
+      "key": "credits-844x390-tr",
+      "name": "credits",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-credits",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.652
+        }
+      ]
+    },
+    {
+      "key": "credits-932x430-en",
+      "name": "credits",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-credits",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.582
+        }
+      ]
+    },
+    {
+      "key": "credits-932x430-tr",
+      "name": "credits",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-credits",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.602
+        }
+      ]
+    },
+    {
+      "key": "daily-667x375-en",
+      "name": "daily",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.red.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.863
+        }
+      ]
+    },
+    {
+      "key": "daily-667x375-tr",
+      "name": "daily",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.red.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.868
+        }
+      ]
+    },
+    {
+      "key": "daily-844x390-en",
+      "name": "daily",
+      "size": "844x390",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.red.pu-meta",
+          "text": "",
+          "detail": "fill 46.5% (< 60%, non-scrolling; sheet 832x382 in 844x390)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.red.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": false,
+          "fillRatio": 0.465
+        }
+      ]
+    },
+    {
+      "key": "daily-844x390-tr",
+      "name": "daily",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.red.pu-meta",
+          "text": "",
+          "detail": "fill 47.2% (< 60%, non-scrolling; sheet 832x382 in 844x390)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.red.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": false,
+          "fillRatio": 0.472
+        }
+      ]
+    },
+    {
+      "key": "daily-932x430-en",
+      "name": "daily",
+      "size": "932x430",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.red.pu-meta",
+          "text": "",
+          "detail": "fill 40.5% (< 60%, non-scrolling; sheet 920x422 in 932x430)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.red.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.405
+        }
+      ]
+    },
+    {
+      "key": "daily-932x430-tr",
+      "name": "daily",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.red.pu-meta",
+          "text": "",
+          "detail": "fill 41.1% (< 60%, non-scrolling; sheet 920x422 in 932x430)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.red.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.411
+        }
+      ]
+    },
+    {
+      "key": "end-lost-667x375-en",
+      "name": "end-lost",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-lost-667x375-tr",
+      "name": "end-lost",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-lost-844x390-en",
+      "name": "end-lost",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-lost-844x390-tr",
+      "name": "end-lost",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-lost-932x430-en",
+      "name": "end-lost",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-lost-932x430-tr",
+      "name": "end-lost",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-won-667x375-en",
+      "name": "end-won",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-won-667x375-tr",
+      "name": "end-won",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-won-844x390-en",
+      "name": "end-won",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-won-844x390-tr",
+      "name": "end-won",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-won-932x430-en",
+      "name": "end-won",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "end-won-932x430-tr",
+      "name": "end-won",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "heroes-667x375-en",
+      "name": "heroes",
+      "size": "667x375",
+      "lang": "en",
+      "count": 5,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_oak_2]",
+          "text": "Bronze Rim",
+          "detail": "label outside viewport (73,370-135,385)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_iron_2]",
+          "text": "Battering Ram",
+          "detail": "label outside viewport (173,370-251,385)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_2]",
+          "text": "Tall Standard",
+          "detail": "label outside viewport (283,370-359,385)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "heroes-667x375-tr",
+      "name": "heroes",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 5,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_oak_2]",
+          "text": "Tunç Kenar",
+          "detail": "label outside viewport (73,370-135,385)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_iron_2]",
+          "text": "Koçbaşı",
+          "detail": "label outside viewport (191,370-233,385)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_2]",
+          "text": "Yüce Sancak",
+          "detail": "label outside viewport (286,370-355,385)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "heroes-844x390-en",
+      "name": "heroes",
+      "size": "844x390",
+      "lang": "en",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.available[tree2d-node-bran_van_1]",
+          "text": "Sturdy Guard",
+          "detail": "label outside viewport (158,398-196,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_2]",
+          "text": "Tall Standard",
+          "detail": "label outside viewport (218,398-270,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_3]",
+          "text": "Oath of Steel",
+          "detail": "label outside viewport (289,398-332,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_4]",
+          "text": "Evergreen Watch",
+          "detail": "label outside viewport (350,398-405,427)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "heroes-844x390-tr",
+      "name": "heroes",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.available[tree2d-node-bran_van_1]",
+          "text": "Sağlam Nöbet",
+          "detail": "label outside viewport (156,398-198,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_2]",
+          "text": "Yüce Sancak",
+          "detail": "label outside viewport (222,398-262,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_3]",
+          "text": "Çelik Yemini",
+          "detail": "label outside viewport (289,398-326,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_4]",
+          "text": "Solmayan Nöbet",
+          "detail": "label outside viewport (345,398-401,427)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "heroes-932x430-en",
+      "name": "heroes",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "heroes-932x430-tr",
+      "name": "heroes",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "heroes-node-667x375-en",
+      "name": "heroes-node",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.983
+        }
+      ]
+    },
+    {
+      "key": "heroes-node-667x375-tr",
+      "name": "heroes-node",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.983
+        }
+      ]
+    },
+    {
+      "key": "heroes-node-844x390-en",
+      "name": "heroes-node",
+      "size": "844x390",
+      "lang": "en",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.available[tree2d-node-bran_van_1]",
+          "text": "Sturdy Guard",
+          "detail": "label outside viewport (158,398-196,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_2]",
+          "text": "Tall Standard",
+          "detail": "label outside viewport (218,398-270,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_3]",
+          "text": "Oath of Steel",
+          "detail": "label outside viewport (289,398-332,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_4]",
+          "text": "Evergreen Watch",
+          "detail": "label outside viewport (350,398-405,427)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "heroes-node-844x390-tr",
+      "name": "heroes-node",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.available[tree2d-node-bran_van_1]",
+          "text": "Sağlam Nöbet",
+          "detail": "label outside viewport (156,398-198,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_2]",
+          "text": "Yüce Sancak",
+          "detail": "label outside viewport (222,398-262,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_3]",
+          "text": "Çelik Yemini",
+          "detail": "label outside viewport (289,398-326,427)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hnode.locked[tree2d-node-bran_van_4]",
+          "text": "Solmayan Nöbet",
+          "detail": "label outside viewport (345,398-401,427)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "heroes-node-932x430-en",
+      "name": "heroes-node",
+      "size": "932x430",
+      "lang": "en",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "tightGap",
+          "at": "button.pu-plank.pu-letter.small[tree2d-reset] <-> button.pu-round.pu-sheet-close[hero2d-tree-close]",
+          "text": "Reset (free) /",
+          "detail": "gap 6.0px (< 8px)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.976
+        }
+      ]
+    },
+    {
+      "key": "heroes-node-932x430-tr",
+      "name": "heroes-node",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "tightGap",
+          "at": "button.pu-plank.pu-letter.small[tree2d-reset] <-> button.pu-round.pu-sheet-close[hero2d-tree-close]",
+          "text": "Sıfırla (ücretsiz) /",
+          "detail": "gap 6.0px (< 8px)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small.on[tree2d-tab-bran]",
+          "text": "9",
+          "detail": "label spills out of button (6x15 vs 50x50)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-hero-tab.small[tree2d-tab-wren]",
+          "text": "3",
+          "detail": "label spills out of button (7x15 vs 50x50)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-tree",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.976
+        }
+      ]
+    },
+    {
+      "key": "herosel-667x375-en",
+      "name": "herosel",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-sel",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.95
+        }
+      ]
+    },
+    {
+      "key": "herosel-667x375-tr",
+      "name": "herosel",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-sel",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.95
+        }
+      ]
+    },
+    {
+      "key": "herosel-844x390-en",
+      "name": "herosel",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-sel",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.944
+        }
+      ]
+    },
+    {
+      "key": "herosel-844x390-tr",
+      "name": "herosel",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-sel",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.944
+        }
+      ]
+    },
+    {
+      "key": "herosel-932x430-en",
+      "name": "herosel",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-sel",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.891
+        }
+      ]
+    },
+    {
+      "key": "herosel-932x430-tr",
+      "name": "herosel",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-hero-sel",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.91
+        }
+      ]
+    },
+    {
+      "key": "hud-667x375-en",
+      "name": "hud",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-667x375-tr",
+      "name": "hud",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-844x390-en",
+      "name": "hud",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-844x390-tr",
+      "name": "hud",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-932x430-en",
+      "name": "hud",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-932x430-tr",
+      "name": "hud",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-coach-667x375-en",
+      "name": "hud-coach",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-coach-667x375-tr",
+      "name": "hud-coach",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-coach-844x390-en",
+      "name": "hud-coach",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-coach-844x390-tr",
+      "name": "hud-coach",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-coach-932x430-en",
+      "name": "hud-coach",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-coach-932x430-tr",
+      "name": "hud-coach",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-codex-667x375-en",
+      "name": "hud-codex",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-cx-tile[codex-tile-healer]",
+          "text": "Grove Mender",
+          "detail": "label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-cx-tile[codex-tile-splitter]",
+          "text": "Cinder Splitling",
+          "detail": "label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.968
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-667x375-tr",
+      "name": "hud-codex",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-cx-tile[codex-tile-healer]",
+          "text": "Koru Şifacısı",
+          "detail": "label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-cx-tile[codex-tile-splitter]",
+          "text": "Kor Bölünen",
+          "detail": "label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.968
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-844x390-en",
+      "name": "hud-codex",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.966
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-844x390-tr",
+      "name": "hud-codex",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-cx-tile[codex-tile-warden]",
+          "text": "Kalkan Muhafızı",
+          "detail": "label clipped by div.pu-sheet-body (text y=351..379 vs box y=56..365)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.966
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-932x430-en",
+      "name": "hud-codex",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.97
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-932x430-tr",
+      "name": "hud-codex",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.97
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-spec-667x375-en",
+      "name": "hud-codex-spec",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.968
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-spec-667x375-tr",
+      "name": "hud-codex-spec",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.968
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-spec-844x390-en",
+      "name": "hud-codex-spec",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.968
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-spec-844x390-tr",
+      "name": "hud-codex-spec",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.968
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-spec-932x430-en",
+      "name": "hud-codex-spec",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.972
+        }
+      ]
+    },
+    {
+      "key": "hud-codex-spec-932x430-tr",
+      "name": "hud-codex-spec",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-codex",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.972
+        }
+      ]
+    },
+    {
+      "key": "hud-confirm-667x375-en",
+      "name": "hud-confirm",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-confirm",
+          "w": 500,
+          "h": 177,
+          "scrolling": false,
+          "fillRatio": 0.639
+        }
+      ]
+    },
+    {
+      "key": "hud-confirm-667x375-tr",
+      "name": "hud-confirm",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-confirm",
+          "w": 500,
+          "h": 177,
+          "scrolling": false,
+          "fillRatio": 0.726
+        }
+      ]
+    },
+    {
+      "key": "hud-confirm-844x390-en",
+      "name": "hud-confirm",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-confirm",
+          "w": 500,
+          "h": 177,
+          "scrolling": false,
+          "fillRatio": 0.639
+        }
+      ]
+    },
+    {
+      "key": "hud-confirm-844x390-tr",
+      "name": "hud-confirm",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-confirm",
+          "w": 500,
+          "h": 177,
+          "scrolling": false,
+          "fillRatio": 0.726
+        }
+      ]
+    },
+    {
+      "key": "hud-confirm-932x430-en",
+      "name": "hud-confirm",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-confirm",
+          "w": 500,
+          "h": 177,
+          "scrolling": false,
+          "fillRatio": 0.639
+        }
+      ]
+    },
+    {
+      "key": "hud-confirm-932x430-tr",
+      "name": "hud-confirm",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-confirm",
+          "w": 500,
+          "h": 177,
+          "scrolling": false,
+          "fillRatio": 0.726
+        }
+      ]
+    },
+    {
+      "key": "hud-foe-667x375-en",
+      "name": "hud-foe",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-foe-667x375-tr",
+      "name": "hud-foe",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-foe-844x390-en",
+      "name": "hud-foe",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-foe-844x390-tr",
+      "name": "hud-foe",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-foe-932x430-en",
+      "name": "hud-foe",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-foe-932x430-tr",
+      "name": "hud-foe",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-newfoe-667x375-en",
+      "name": "hud-newfoe",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-newfoe-667x375-tr",
+      "name": "hud-newfoe",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-newfoe-844x390-en",
+      "name": "hud-newfoe",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-newfoe-844x390-tr",
+      "name": "hud-newfoe",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-newfoe-932x430-en",
+      "name": "hud-newfoe",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-newfoe-932x430-tr",
+      "name": "hud-newfoe",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-pause-667x375-en",
+      "name": "hud-pause",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-pause-667x375-tr",
+      "name": "hud-pause",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-pause-844x390-en",
+      "name": "hud-pause",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-pause-844x390-tr",
+      "name": "hud-pause",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-pause-932x430-en",
+      "name": "hud-pause",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-pause-932x430-tr",
+      "name": "hud-pause",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-ring-667x375-en",
+      "name": "hud-ring",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-ring-667x375-tr",
+      "name": "hud-ring",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-ring-844x390-en",
+      "name": "hud-ring",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-ring-844x390-tr",
+      "name": "hud-ring",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-ring-932x430-en",
+      "name": "hud-ring",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-ring-932x430-tr",
+      "name": "hud-ring",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-spec-card-667x375-en",
+      "name": "hud-spec-card",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-spec",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.971
+        }
+      ]
+    },
+    {
+      "key": "hud-spec-card-667x375-tr",
+      "name": "hud-spec-card",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-spec",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.971
+        }
+      ]
+    },
+    {
+      "key": "hud-spec-card-844x390-en",
+      "name": "hud-spec-card",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-spec",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.975
+        }
+      ]
+    },
+    {
+      "key": "hud-spec-card-844x390-tr",
+      "name": "hud-spec-card",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-spec",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.975
+        }
+      ]
+    },
+    {
+      "key": "hud-spec-card-932x430-en",
+      "name": "hud-spec-card",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-spec",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.978
+        }
+      ]
+    },
+    {
+      "key": "hud-spec-card-932x430-tr",
+      "name": "hud-spec-card",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-spec",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.978
+        }
+      ]
+    },
+    {
+      "key": "hud-spec-hint-667x375-en",
+      "name": "hud-spec-hint",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-spec-hint-667x375-tr",
+      "name": "hud-spec-hint",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-spec-hint-844x390-en",
+      "name": "hud-spec-hint",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-spec-hint-844x390-tr",
+      "name": "hud-spec-hint",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-spec-hint-932x430-en",
+      "name": "hud-spec-hint",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-spec-hint-932x430-tr",
+      "name": "hud-spec-hint",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-tower-667x375-en",
+      "name": "hud-tower",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-tower-667x375-tr",
+      "name": "hud-tower",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-tower-844x390-en",
+      "name": "hud-tower",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-tower-844x390-tr",
+      "name": "hud-tower",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-tower-932x430-en",
+      "name": "hud-tower",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Codex",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "hud-tower-932x430-tr",
+      "name": "hud-tower",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[codex2d-open]",
+          "text": "Rehber",
+          "detail": "label spills out of button (38x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-codex-btn[settings2d-open]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "logbook-667x375-en",
+      "name": "logbook",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "logbook-667x375-tr",
+      "name": "logbook",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "logbook-844x390-en",
+      "name": "logbook",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "logbook-844x390-tr",
+      "name": "logbook",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "logbook-932x430-en",
+      "name": "logbook",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "logbook-932x430-tr",
+      "name": "logbook",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "logbook-feats-667x375-en",
+      "name": "logbook-feats",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "logbook-feats-667x375-tr",
+      "name": "logbook-feats",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "logbook-feats-844x390-en",
+      "name": "logbook-feats",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "logbook-feats-844x390-tr",
+      "name": "logbook-feats",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "logbook-feats-932x430-en",
+      "name": "logbook-feats",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "logbook-feats-932x430-tr",
+      "name": "logbook-feats",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "map-667x375-en",
+      "name": "map",
+      "size": "667x375",
+      "lang": "en",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-hero-mapbtn[map2d-heroes]",
+          "text": "Heroes12",
+          "detail": "label spills out of button (37x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-market-btn[map2d-market]",
+          "text": "Market28New",
+          "detail": "label spills out of button (39x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-workshop]",
+          "text": "Workshop7",
+          "detail": "label spills out of button (53x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-logbook]",
+          "text": "Logbook",
+          "detail": "label spills out of button (48x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-daily]",
+          "text": "Daily",
+          "detail": "label spills out of button (28x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-settings]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "map-667x375-tr",
+      "name": "map",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-hero-mapbtn[map2d-heroes]",
+          "text": "Kahramanlar12",
+          "detail": "label spills out of button (73x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-market-btn[map2d-market]",
+          "text": "Pazar28Yeni",
+          "detail": "label spills out of button (33x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-workshop]",
+          "text": "Atölye7",
+          "detail": "label spills out of button (37x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-logbook]",
+          "text": "Defter",
+          "detail": "label spills out of button (34x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-daily]",
+          "text": "Günlük",
+          "detail": "label spills out of button (40x15 vs 44x44)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-settings]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 44x44)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "map-844x390-en",
+      "name": "map",
+      "size": "844x390",
+      "lang": "en",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-hero-mapbtn[map2d-heroes]",
+          "text": "Heroes12",
+          "detail": "label spills out of button (37x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-market-btn[map2d-market]",
+          "text": "Market28New",
+          "detail": "label spills out of button (39x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-workshop]",
+          "text": "Workshop7",
+          "detail": "label spills out of button (53x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-logbook]",
+          "text": "Logbook",
+          "detail": "label spills out of button (48x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-daily]",
+          "text": "Daily",
+          "detail": "label spills out of button (28x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-settings]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 46x46)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "map-844x390-tr",
+      "name": "map",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-hero-mapbtn[map2d-heroes]",
+          "text": "Kahramanlar12",
+          "detail": "label spills out of button (73x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-market-btn[map2d-market]",
+          "text": "Pazar28Yeni",
+          "detail": "label spills out of button (33x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-workshop]",
+          "text": "Atölye7",
+          "detail": "label spills out of button (37x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-logbook]",
+          "text": "Defter",
+          "detail": "label spills out of button (34x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-daily]",
+          "text": "Günlük",
+          "detail": "label spills out of button (40x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-settings]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 46x46)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "map-932x430-en",
+      "name": "map",
+      "size": "932x430",
+      "lang": "en",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-hero-mapbtn[map2d-heroes]",
+          "text": "Heroes12",
+          "detail": "label spills out of button (37x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-market-btn[map2d-market]",
+          "text": "Market28New",
+          "detail": "label spills out of button (39x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-workshop]",
+          "text": "Workshop7",
+          "detail": "label spills out of button (53x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-logbook]",
+          "text": "Logbook",
+          "detail": "label spills out of button (48x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-daily]",
+          "text": "Daily",
+          "detail": "label spills out of button (28x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-settings]",
+          "text": "Settings",
+          "detail": "label spills out of button (44x15 vs 46x46)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "map-932x430-tr",
+      "name": "map",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 6,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-hero-mapbtn[map2d-heroes]",
+          "text": "Kahramanlar12",
+          "detail": "label spills out of button (73x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round.pu-market-btn[map2d-market]",
+          "text": "Pazar28Yeni",
+          "detail": "label spills out of button (33x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-workshop]",
+          "text": "Atölye7",
+          "detail": "label spills out of button (37x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-logbook]",
+          "text": "Defter",
+          "detail": "label spills out of button (34x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-daily]",
+          "text": "Günlük",
+          "detail": "label spills out of button (40x15 vs 46x46)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-round[map2d-settings]",
+          "text": "Ayarlar",
+          "detail": "label spills out of button (44x15 vs 46x46)"
+        }
+      ],
+      "panelMetrics": []
+    },
+    {
+      "key": "market-667x375-en",
+      "name": "market",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-market",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.973
+        }
+      ]
+    },
+    {
+      "key": "market-667x375-tr",
+      "name": "market",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-market",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.973
+        }
+      ]
+    },
+    {
+      "key": "market-844x390-en",
+      "name": "market",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-market",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "market-844x390-tr",
+      "name": "market",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-market",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "market-932x430-en",
+      "name": "market",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-market",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.979
+        }
+      ]
+    },
+    {
+      "key": "market-932x430-tr",
+      "name": "market",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-market",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.979
+        }
+      ]
+    },
+    {
+      "key": "settings-audio-667x375-en",
+      "name": "settings-audio",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": false,
+          "fillRatio": 0.866
+        }
+      ]
+    },
+    {
+      "key": "settings-audio-667x375-tr",
+      "name": "settings-audio",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": false,
+          "fillRatio": 0.866
+        }
+      ]
+    },
+    {
+      "key": "settings-audio-844x390-en",
+      "name": "settings-audio",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": false,
+          "fillRatio": 0.826
+        }
+      ]
+    },
+    {
+      "key": "settings-audio-844x390-tr",
+      "name": "settings-audio",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": false,
+          "fillRatio": 0.826
+        }
+      ]
+    },
+    {
+      "key": "settings-audio-932x430-en",
+      "name": "settings-audio",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.732
+        }
+      ]
+    },
+    {
+      "key": "settings-audio-932x430-tr",
+      "name": "settings-audio",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": false,
+          "fillRatio": 0.732
+        }
+      ]
+    },
+    {
+      "key": "settings-controls-667x375-en",
+      "name": "settings-controls",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.19
+        }
+      ]
+    },
+    {
+      "key": "settings-controls-667x375-tr",
+      "name": "settings-controls",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.19
+        }
+      ]
+    },
+    {
+      "key": "settings-controls-844x390-en",
+      "name": "settings-controls",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.181
+        }
+      ]
+    },
+    {
+      "key": "settings-controls-844x390-tr",
+      "name": "settings-controls",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.181
+        }
+      ]
+    },
+    {
+      "key": "settings-controls-932x430-en",
+      "name": "settings-controls",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.16
+        }
+      ]
+    },
+    {
+      "key": "settings-controls-932x430-tr",
+      "name": "settings-controls",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.16
+        }
+      ]
+    },
+    {
+      "key": "settings-general-667x375-en",
+      "name": "settings-general",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.973
+        }
+      ]
+    },
+    {
+      "key": "settings-general-667x375-tr",
+      "name": "settings-general",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.973
+        }
+      ]
+    },
+    {
+      "key": "settings-general-844x390-en",
+      "name": "settings-general",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.976
+        }
+      ]
+    },
+    {
+      "key": "settings-general-844x390-tr",
+      "name": "settings-general",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.976
+        }
+      ]
+    },
+    {
+      "key": "settings-general-932x430-en",
+      "name": "settings-general",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.979
+        }
+      ]
+    },
+    {
+      "key": "settings-general-932x430-tr",
+      "name": "settings-general",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.979
+        }
+      ]
+    },
+    {
+      "key": "settings-graphics-667x375-en",
+      "name": "settings-graphics",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.973
+        }
+      ]
+    },
+    {
+      "key": "settings-graphics-667x375-tr",
+      "name": "settings-graphics",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.973
+        }
+      ]
+    },
+    {
+      "key": "settings-graphics-844x390-en",
+      "name": "settings-graphics",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.976
+        }
+      ]
+    },
+    {
+      "key": "settings-graphics-844x390-tr",
+      "name": "settings-graphics",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.976
+        }
+      ]
+    },
+    {
+      "key": "settings-graphics-932x430-en",
+      "name": "settings-graphics",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.979
+        }
+      ]
+    },
+    {
+      "key": "settings-graphics-932x430-tr",
+      "name": "settings-graphics",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-settings",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.979
+        }
+      ]
+    },
+    {
+      "key": "store-667x375-en",
+      "name": "store",
+      "size": "667x375",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "textUnder12",
+          "at": "div.pu-store-empty.pu-ink-soft",
+          "text": "The store did not answer. Check your connection an",
+          "detail": "11.5px (< 12px)"
+        },
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "text": "",
+          "detail": "fill 31.8% (< 60%, non-scrolling; sheet 655x268 in 667x375)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "w": 655,
+          "h": 268,
+          "scrolling": false,
+          "fillRatio": 0.318
+        }
+      ]
+    },
+    {
+      "key": "store-667x375-tr",
+      "name": "store",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "textUnder12",
+          "at": "div.pu-store-empty.pu-ink-soft",
+          "text": "Mağaza yanıt vermedi. Bağlantını denetleyip yenide",
+          "detail": "11.5px (< 12px)"
+        },
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "text": "",
+          "detail": "fill 34.8% (< 60%, non-scrolling; sheet 655x268 in 667x375)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "w": 655,
+          "h": 268,
+          "scrolling": false,
+          "fillRatio": 0.348
+        }
+      ]
+    },
+    {
+      "key": "store-844x390-en",
+      "name": "store",
+      "size": "844x390",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "textUnder12",
+          "at": "div.pu-store-empty.pu-ink-soft",
+          "text": "The store did not answer. Check your connection an",
+          "detail": "11.5px (< 12px)"
+        },
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "text": "",
+          "detail": "fill 28.1% (< 60%, non-scrolling; sheet 832x268 in 844x390)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "w": 832,
+          "h": 268,
+          "scrolling": false,
+          "fillRatio": 0.281
+        }
+      ]
+    },
+    {
+      "key": "store-844x390-tr",
+      "name": "store",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "textUnder12",
+          "at": "div.pu-store-empty.pu-ink-soft",
+          "text": "Mağaza yanıt vermedi. Bağlantını denetleyip yenide",
+          "detail": "11.5px (< 12px)"
+        },
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "text": "",
+          "detail": "fill 30.3% (< 60%, non-scrolling; sheet 832x268 in 844x390)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "w": 832,
+          "h": 268,
+          "scrolling": false,
+          "fillRatio": 0.303
+        }
+      ]
+    },
+    {
+      "key": "store-932x430-en",
+      "name": "store",
+      "size": "932x430",
+      "lang": "en",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "textUnder12",
+          "at": "div.pu-store-empty.pu-ink-soft",
+          "text": "The store did not answer. Check your connection an",
+          "detail": "11.5px (< 12px)"
+        },
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "text": "",
+          "detail": "fill 26.8% (< 60%, non-scrolling; sheet 920x268 in 932x430)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "w": 920,
+          "h": 268,
+          "scrolling": false,
+          "fillRatio": 0.268
+        }
+      ]
+    },
+    {
+      "key": "store-932x430-tr",
+      "name": "store",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 2,
+      "violations": [
+        {
+          "kind": "textUnder12",
+          "at": "div.pu-store-empty.pu-ink-soft",
+          "text": "Mağaza yanıt vermedi. Bağlantını denetleyip yenide",
+          "detail": "11.5px (< 12px)"
+        },
+        {
+          "kind": "lowFill",
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "text": "",
+          "detail": "fill 28.8% (< 60%, non-scrolling; sheet 920x268 in 932x430)"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta.pu-store",
+          "w": 920,
+          "h": 268,
+          "scrolling": false,
+          "fillRatio": 0.288
+        }
+      ]
+    },
+    {
+      "key": "story-3beat-667x375-en",
+      "name": "story-3beat",
+      "size": "667x375",
+      "lang": "en",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[story2d-skip]",
+          "text": "Skip",
+          "detail": "label outside viewport (72,384-99,401)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "Next",
+          "detail": "label outside viewport (552,382-592,403)"
+        },
+        {
+          "kind": "layout:cut",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "Next",
+          "detail": "main action cut by div.pu-sheet-body.more-below"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.339
+        }
+      ]
+    },
+    {
+      "key": "story-3beat-667x375-tr",
+      "name": "story-3beat",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[story2d-skip]",
+          "text": "Geç",
+          "detail": "label outside viewport (72,403-96,420)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "İleri",
+          "detail": "label outside viewport (555,401-588,422)"
+        },
+        {
+          "kind": "layout:cut",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "İleri",
+          "detail": "main action cut by div.pu-sheet-body.more-below"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.341
+        }
+      ]
+    },
+    {
+      "key": "story-3beat-844x390-en",
+      "name": "story-3beat",
+      "size": "844x390",
+      "lang": "en",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[story2d-skip]",
+          "text": "Skip",
+          "detail": "label clipped by div.pu-sheet-body.more-below (text y=361..378 vs box y=46..366)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "Next",
+          "detail": "label clipped by div.pu-sheet-body.more-below (text y=359..380 vs box y=46..366)"
+        },
+        {
+          "kind": "layout:cut",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "Next",
+          "detail": "main action cut by div.pu-sheet-body.more-below"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.339
+        }
+      ]
+    },
+    {
+      "key": "story-3beat-844x390-tr",
+      "name": "story-3beat",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 3,
+      "violations": [
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.small[story2d-skip]",
+          "text": "Geç",
+          "detail": "label clipped by div.pu-sheet-body.more-below (text y=361..378 vs box y=46..366)"
+        },
+        {
+          "kind": "buttonLabelClip",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "İleri",
+          "detail": "label clipped by div.pu-sheet-body.more-below (text y=359..380 vs box y=46..366)"
+        },
+        {
+          "kind": "layout:cut",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "İleri",
+          "detail": "main action cut by div.pu-sheet-body.more-below"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.338
+        }
+      ]
+    },
+    {
+      "key": "story-3beat-932x430-en",
+      "name": "story-3beat",
+      "size": "932x430",
+      "lang": "en",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "layout:cut",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "Next",
+          "detail": "main action cut by div.pu-sheet-body.more-below"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.315
+        }
+      ]
+    },
+    {
+      "key": "story-3beat-932x430-tr",
+      "name": "story-3beat",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 1,
+      "violations": [
+        {
+          "kind": "layout:cut",
+          "at": "button.pu-plank.pu-letter.primary[story2d-next]",
+          "text": "İleri",
+          "detail": "main action cut by div.pu-sheet-body.more-below"
+        }
+      ],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.315
+        }
+      ]
+    },
+    {
+      "key": "story-667x375-en",
+      "name": "story",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 655,
+          "h": 342,
+          "scrolling": false,
+          "fillRatio": 0.721
+        }
+      ]
+    },
+    {
+      "key": "story-667x375-tr",
+      "name": "story",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 655,
+          "h": 342,
+          "scrolling": false,
+          "fillRatio": 0.715
+        }
+      ]
+    },
+    {
+      "key": "story-844x390-en",
+      "name": "story",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 832,
+          "h": 357,
+          "scrolling": false,
+          "fillRatio": 0.65
+        }
+      ]
+    },
+    {
+      "key": "story-844x390-tr",
+      "name": "story",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 832,
+          "h": 357,
+          "scrolling": false,
+          "fillRatio": 0.645
+        }
+      ]
+    },
+    {
+      "key": "story-932x430-en",
+      "name": "story",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 920,
+          "h": 397,
+          "scrolling": false,
+          "fillRatio": 0.621
+        }
+      ]
+    },
+    {
+      "key": "story-932x430-tr",
+      "name": "story",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-story",
+          "w": 920,
+          "h": 397,
+          "scrolling": false,
+          "fillRatio": 0.617
+        }
+      ]
+    },
+    {
+      "key": "title-667x375-en",
+      "name": "title",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "title-667x375-tr",
+      "name": "title",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "title-844x390-en",
+      "name": "title",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "title-844x390-tr",
+      "name": "title",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "title-932x430-en",
+      "name": "title",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "title-932x430-tr",
+      "name": "title",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": []
+    },
+    {
+      "key": "workshop-667x375-en",
+      "name": "workshop",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "workshop-667x375-tr",
+      "name": "workshop",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 655,
+          "h": 367,
+          "scrolling": true,
+          "fillRatio": 0.969
+        }
+      ]
+    },
+    {
+      "key": "workshop-844x390-en",
+      "name": "workshop",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "workshop-844x390-tr",
+      "name": "workshop",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 832,
+          "h": 382,
+          "scrolling": true,
+          "fillRatio": 0.974
+        }
+      ]
+    },
+    {
+      "key": "workshop-932x430-en",
+      "name": "workshop",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    },
+    {
+      "key": "workshop-932x430-tr",
+      "name": "workshop",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": [],
+      "panelMetrics": [
+        {
+          "at": "div.pu-sheet.pu-meta",
+          "w": 920,
+          "h": 422,
+          "scrolling": true,
+          "fillRatio": 0.977
+        }
+      ]
+    }
+  ]
+}

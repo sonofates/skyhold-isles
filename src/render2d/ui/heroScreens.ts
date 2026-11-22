@@ -289,7 +289,7 @@ function fitTree({ body, main, grid, ends: endMedals, capRow, capMedal }: TreePa
   // lock zoom to 1 and let the sheet body scroll instead of cramming unreadable nodes.
   const phone = document.documentElement.classList.contains('pu-phone');
   const [layout, zoom]: readonly [TreeLayout, number] = phone
-    ? [window.innerWidth >= 780 ? 'across' : 'down', 1]
+    ? [window.innerWidth >= 860 ? 'across' : 'down', 1]
     : pickTreeFit(fits);
   apply(layout, zoom);
   body.scrollTop = top;

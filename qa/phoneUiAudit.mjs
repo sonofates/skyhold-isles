@@ -110,6 +110,8 @@ const makeSave = (stars, unlocked, extra = {}) =>
 
 const SEED = makeSave([3, 3, 2, 3, 1, 2, 3, 2, 3], 9);
 const FRESH = makeSave([], 0, {
+  challengeClears: Array.from({ length: N }, () => []),
+  difficultyWins: { easy: pad([], 0), normal: pad([], 0), hard: pad([], 0) },
   heroes: { selectedHero: 'bran', roster: { bran: { xp: 0, skills: [] } } },
 });
 const STORY_SEEN = JSON.stringify(IDS.flatMap((id) => [`${id}:intro`, `${id}:outro`]));
@@ -119,6 +121,7 @@ const SCREENS = [
   ['title', '?title=1&titlemenu=1', SEED, 'title'],
   ['map', '', SEED, null],
   ['brief', '?screen=brief&island=1', SEED, null],
+  ['brief-fresh', '?screen=brief&island=0', FRESH, null],
   ['brief-modes', '?screen=brief&island=0&pick=bowless', SEED, null],
   ['brief-locked', '?screen=brief&island=12', SEED, null],
   ['workshop', '?screen=workshop', SEED, null],
@@ -130,13 +133,14 @@ const SCREENS = [
   ['daily', '?screen=daily', SEED, null],
   ['market', '?screen=market', SEED, null],
   ['beltpick', '?screen=brief&island=1', SEED, 'beltpick'],
-  ['store', '?screen=store&iapmock=1', SEED, null],
+  ['store', '?screen=store&iapmock=1', SEED, 'store', { nativeIos: true }],
   ['settings-general', '?screen=settings&settab=general', SEED, null],
   ['settings-audio', '?screen=settings&settab=audio', SEED, null],
   ['settings-graphics', '?screen=settings&settab=graphics', SEED, null],
   ['settings-controls', '?screen=settings&settab=controls', SEED, null],
   ['credits', '?screen=credits', SEED, null],
   ['story', '?level=i02&story=intro', SEED, 'story', { storySeen: false }],
+  ['story-3beat', '?level=l1c&story=intro', SEED, 'story', { storySeen: false }],
   ['hud', '?level=i02&hero=bran', SEED, 'hud'],
   ['hud-ring', '?level=i02&hero=bran', SEED, 'ring'],
   ['hud-tower', '?level=i02&hero=bran', SEED, 'tower'],
@@ -148,6 +152,7 @@ const SCREENS = [
   ['hud-codex', '?level=i09&hero=bran', SEED, 'codex'],
   ['hud-codex-spec', '?level=i09&hero=bran', SEED, 'codexSpec'],
   ['hud-pause', '?level=i02&hero=bran', SEED, 'pause'],
+  ['hud-confirm', '?level=i02&hero=bran', SEED, 'confirm'],
   ['end-won', '?level=i02&hero=bran', SEED, 'win'],
   ['end-lost', '?level=i02&hero=bran', SEED, 'lose'],
 ];
@@ -368,14 +373,277 @@ function phoneAuditInPage(baseProblems) {
     }
   }
 
-  // 3. Sheet/panel viewport overflow check
+  // 3. Sheet/panel viewport & safe-area clip check, panel fill ratio (< 0.6 when not scrolling),
+  //    and button label clipping check.
+  const unionArea = (rects) => {
+    if (!rects.length) return 0;
+    const xs = [...new Set(rects.flatMap((r) => [r.x0, r.x1]))].sort((a, b) => a - b);
+    let area = 0;
+    for (let i = 0; i < xs.length - 1; i++) {
+      const dx = xs[i + 1] - xs[i];
+      if (dx <= 0.1) continue;
+      const mx = (xs[i] + xs[i + 1]) / 2;
+      const ys = [];
+      for (const r of rects) {
+        if (r.x0 <= mx && r.x1 >= mx) ys.push([r.y0, r.y1]);
+      }
+      if (!ys.length) continue;
+      ys.sort((a, b) => a[0] - b[0]);
+      let cur0 = ys[0][0];
+      let cur1 = ys[0][1];
+      let span = 0;
+      for (let j = 1; j < ys.length; j++) {
+        if (ys[j][0] <= cur1) cur1 = Math.max(cur1, ys[j][1]);
+        else {
+          span += Math.max(0, cur1 - cur0);
+          cur0 = ys[j][0];
+          cur1 = ys[j][1];
+        }
+      }
+      span += Math.max(0, cur1 - cur0);
+      area += dx * span;
+    }
+    return area;
+  };
+
+  // Safe area bounds (when env(safe-area-inset-*) is set in CSS)
+  const firstPu = document.querySelector('.pu');
+  const puCs = firstPu ? getComputedStyle(firstPu) : null;
+  const safeT = parseFloat(puCs?.getPropertyValue('--safe-t') || '0') || 0;
+  const safeR = parseFloat(puCs?.getPropertyValue('--safe-r') || '0') || 0;
+  const safeB = parseFloat(puCs?.getPropertyValue('--safe-b') || '0') || 0;
+  const safeL = parseFloat(puCs?.getPropertyValue('--safe-l') || '0') || 0;
+  const safeMinX = safeL;
+  const safeMaxX = W - safeR;
+  const safeMinY = safeT;
+  const safeMaxY = H - safeB;
+
+  const panelMetrics = [];
+
   for (const root of roots) {
     const sheets = root.matches('.pu-sheet') ? [root] : Array.from(root.querySelectorAll('.pu-sheet'));
     for (const sh of sheets) {
       if (!isVisible(sh)) continue;
       const r = sh.getBoundingClientRect();
-      if (r.left < -1 || r.top < -1 || r.right > W + 1 || r.bottom > H + 1) {
-        add('viewportClip', label(sh), '', `sheet ${Math.round(r.left)},${Math.round(r.top)}-${Math.round(r.right)},${Math.round(r.bottom)} outside ${W}x${H}`);
+      if (r.left < safeMinX - 1 || r.top < safeMinY - 1 || r.right > safeMaxX + 1 || r.bottom > safeMaxY + 1) {
+        add('viewportClip', label(sh), '', `sheet ${Math.round(r.left)},${Math.round(r.top)}-${Math.round(r.right)},${Math.round(r.bottom)} outside safe ${safeMinX},${safeMinY}-${safeMaxX},${safeMaxY}`);
+      }
+      const closeBtn = sh.querySelector(':scope > .pu-sheet-close');
+      if (closeBtn && isVisible(closeBtn)) {
+        const cr = closeBtn.getBoundingClientRect();
+        if (cr.left < safeMinX - 1 || cr.top < safeMinY - 1 || cr.right > safeMaxX + 1 || cr.bottom > safeMaxY + 1) {
+          add('viewportClip', label(closeBtn), 'close', `close btn ${Math.round(cr.left)},${Math.round(cr.top)}-${Math.round(cr.right)},${Math.round(cr.bottom)} outside safe`);
+        }
+      }
+
+      // Check if sheet scrolls vertically
+      const scrollEls = [sh, ...sh.querySelectorAll('*')].filter((el) => {
+        if (!isVisible(el)) return false;
+        const cs = getComputedStyle(el);
+        return (cs.overflowY === 'auto' || cs.overflowY === 'scroll') && el.scrollHeight > el.clientHeight + 4;
+      });
+      const scrolling = scrollEls.length > 0;
+
+      // Measure inner parchment area (excluding 9-slice border frame)
+      const scs = getComputedStyle(sh);
+      const bt = parseFloat(scs.borderTopWidth) || 0;
+      const br = parseFloat(scs.borderRightWidth) || 0;
+      const bb = parseFloat(scs.borderBottomWidth) || 0;
+      const bl = parseFloat(scs.borderLeftWidth) || 0;
+      const inner = {
+        x0: r.left + bl,
+        y0: r.top + bt,
+        x1: r.right - br,
+        y1: r.bottom - bb,
+      };
+      const innerW = Math.max(1, inner.x1 - inner.x0);
+      const innerH = Math.max(1, inner.y1 - inner.y0);
+      const innerArea = innerW * innerH;
+
+      // Collect semantic content blocks (without flex-stretched empty wrappers)
+      const BLOCK_SEL = [
+        '.pu-set-row',
+        '.pu-tabs',
+        '.pu-brief-row',
+        '.pu-brief-medal',
+        '.pu-loadout',
+        '.pu-mode',
+        '.pu-modes-head',
+        '.pu-diff-row',
+        '.pu-diff-desc',
+        '.pu-brief-play',
+        '.pu-daily-island',
+        '.pu-chips',
+        '.pu-rule',
+        '.pu-story-kicker',
+        '.pu-panel:not(:only-child)',
+        '.pu-vignette',
+        '.pu-panel-text',
+        '.pu-story-actions > *',
+        '.pu-confirm-text',
+        '.pu-confirm-row > *',
+        '.pu-credits-sec',
+        '.pu-credits-thanks',
+        '.pu-store-intro',
+        '.pu-store-empty',
+        '.pu-store-item',
+        '.pu-store-foot > *',
+        '.pu-beltpick-item',
+        '.pu-beltpick-foot > *',
+        '.pu-meta-head',
+        '.pu-meta-note',
+        '.pu-meta-foot',
+        '.pu-hero-roster',
+        '.pu-hero-art',
+        '.pu-hero-info > *',
+        '.pu-hero-actions > *',
+        '.pu-market-stall',
+        '.pu-market-belt',
+        '.pu-market-item',
+        '.pu-spec-kicker',
+        '.pu-spec-col',
+        '.pu-spec-note',
+        '.pu-ws-col',
+        '.pu-lb-totals',
+        '.pu-ledger-row',
+        '.pu-feat',
+        '.pu-cx-tabs',
+        '.pu-cx-grid',
+        '.pu-cx-detail',
+        '.pu-hero-tree-top',
+        '.pu-hero-tree-main',
+      ].join(', ');
+
+      const blockRects = [];
+      const matched = Array.from(sh.querySelectorAll(BLOCK_SEL)).filter((el) => {
+        if (!isVisible(el)) return false;
+        if (el.closest('.pu-sheet-title, .pu-sheet-close')) return false;
+        return true;
+      });
+      for (const el of matched) {
+        const er = el.getBoundingClientRect();
+        if (er.width < 2 || er.height < 2) continue;
+        // Pad each block slightly (+6px) to account for normal inter-item gaps/margins
+        const x0 = Math.max(inner.x0, er.left - 6);
+        const y0 = Math.max(inner.y0, er.top - 6);
+        const x1 = Math.min(inner.x1, er.right + 6);
+        const y1 = Math.min(inner.y1, er.bottom + 6);
+        if (x1 > x0 && y1 > y0) blockRects.push({ x0, y0, x1, y1 });
+      }
+      // Also include any visible direct buttons inside sheet body not already covered
+      for (const el of sh.querySelectorAll('button, [role="button"]')) {
+        if (!isVisible(el) || el.classList.contains('pu-sheet-close')) continue;
+        const er = el.getBoundingClientRect();
+        if (er.width < 2 || er.height < 2) continue;
+        const x0 = Math.max(inner.x0, er.left - 6);
+        const y0 = Math.max(inner.y0, er.top - 6);
+        const x1 = Math.min(inner.x1, er.right + 6);
+        const y1 = Math.min(inner.y1, er.bottom + 6);
+        if (x1 > x0 && y1 > y0) blockRects.push({ x0, y0, x1, y1 });
+      }
+
+      const contentArea = unionArea(blockRects);
+      const fillRatio = contentArea / innerArea;
+      panelMetrics.push({
+        at: label(sh),
+        w: Math.round(r.width),
+        h: Math.round(r.height),
+        scrolling,
+        fillRatio: Number(fillRatio.toFixed(3)),
+      });
+      if (!scrolling && fillRatio < 0.6) {
+        add(
+          'lowFill',
+          label(sh),
+          '',
+          `fill ${(fillRatio * 100).toFixed(1)}% (< 60%, non-scrolling; sheet ${Math.round(r.width)}x${Math.round(r.height)} in ${W}x${H})`,
+        );
+      }
+    }
+  }
+
+  // 3b. Button label clipping check: catches any button whose label is clipped by the viewport,
+  //     by its own box, or by an ancestor container (including action/footer buttons pushed past a
+  //     scroll box edge, like the story panel's Skip / Next buttons).
+  const ACTION_BTN_SEL = [
+    '.pu-story-actions button',
+    '.pu-brief-actions button',
+    '.pu-hero-actions button',
+    '.pu-confirm-row button',
+    '.pu-store-foot button',
+    '.pu-beltpick-foot button',
+    '.pu-pause-menu button',
+    '.pu-plank.primary',
+    '.pu-sheet-close',
+  ].join(', ');
+  const FLOATING_LABEL_SEL = '.pu-round-label, .pu-badge, .pu-hero-lvl, .pu-market-count, .pu-market-new, .pu-beltchip-uses, .pu-market-owned, .pu-market-slotn';
+  const LIST_SCROLLER_SEL =
+    '.pu-ws-cols, .pu-ledger, .pu-cx-grid, .pu-market-grid, .pu-market .pu-sheet-body, .pu-hero-tree .pu-sheet-body, .pu-hero-sel-grid, .pu-brief-body, .pu-beltpick-grid, .pu-settings .pu-sheet-body, .pu-map-scroll';
+  for (const root of roots) {
+    for (const btn of root.querySelectorAll('button, [role="button"], [role="tab"], [role="radio"]')) {
+      if (!isVisible(btn)) continue;
+      if (btn.closest('.pu-map-scroll')) continue;
+      const br = btn.getBoundingClientRect();
+      if (br.width < 2 || br.height < 2) continue;
+      const isAction = btn.matches(ACTION_BTN_SEL);
+      const inListScroller = !!btn.closest(LIST_SCROLLER_SEL);
+      const clippedBtn = clipToScrollAncestors(br, btn);
+      const partlyScrolled = clippedBtn.width < br.width - 1 || clippedBtn.height < br.height - 1;
+      const scrolledOut = isScrolledOut(br, btn);
+      if ((scrolledOut || partlyScrolled) && !isAction && inListScroller) continue;
+      const btnText = (btn.textContent || '').trim();
+      if (!btnText) continue;
+
+      // Check every visible text node inside the button
+      const tw = document.createTreeWalker(btn, NodeFilter.SHOW_TEXT);
+      let labelClipped = null;
+      for (let tn = tw.nextNode(); tn; tn = tw.nextNode()) {
+        if (!(tn.nodeValue || '').trim()) continue;
+        const pe = tn.parentElement;
+        if (!pe || !isVisible(pe)) continue;
+        const rng = document.createRange();
+        rng.selectNodeContents(tn);
+        const tr = rng.getBoundingClientRect();
+        if (tr.width < 0.5 || tr.height < 0.5) continue;
+        const isFloating = !!pe.closest(FLOATING_LABEL_SEL);
+        // Clipped by viewport / safe area
+        if (tr.left < safeMinX - 1 || tr.top < safeMinY - 1 || tr.right > safeMaxX + 1 || tr.bottom > safeMaxY + 1) {
+          labelClipped = `label outside viewport (${Math.round(tr.left)},${Math.round(tr.top)}-${Math.round(tr.right)},${Math.round(tr.bottom)})`;
+          break;
+        }
+        // Clipped by button's own box (skip intentional floating captions/badges outside round/portrait buttons)
+        if (!isFloating && (tr.left < br.left - 1.5 || tr.right > br.right + 1.5 || tr.top < br.top - 2 || tr.bottom > br.bottom + 2)) {
+          labelClipped = `label spills out of button (${Math.round(tr.width)}x${Math.round(tr.height)} vs ${Math.round(br.width)}x${Math.round(br.height)})`;
+          break;
+        }
+        // Clipped by any clipping/scrolling ancestor
+        for (let a = btn.parentElement; a && a !== document.body; a = a.parentElement) {
+          const acs = getComputedStyle(a);
+          const cy = acs.overflowY === 'hidden' || acs.overflowY === 'clip' || acs.overflowY === 'auto' || acs.overflowY === 'scroll';
+          const cx = acs.overflowX === 'hidden' || acs.overflowX === 'clip' || acs.overflowX === 'auto' || acs.overflowX === 'scroll';
+          if (!cx && !cy) continue;
+          // Skip list-scroll rows that are intentionally scrolled partly at the edge of a scrolling list
+          if (!isAction && inListScroller && (acs.overflowY === 'auto' || acs.overflowY === 'scroll')) continue;
+          const ar = a.getBoundingClientRect();
+          const ax0 = ar.left + a.clientLeft;
+          const ay0 = ar.top + a.clientTop;
+          const ax1 = ax0 + a.clientWidth;
+          const ay1 = ay0 + a.clientHeight;
+          if ((cx && (tr.left < ax0 - 1 || tr.right > ax1 + 1)) || (cy && (tr.top < ay0 - 1 || tr.bottom > ay1 + 1))) {
+            labelClipped = `label clipped by ${label(a)} (text y=${Math.round(tr.top)}..${Math.round(tr.bottom)} vs box y=${Math.round(ay0)}..${Math.round(ay1)})`;
+            break;
+          }
+        }
+        if (labelClipped) break;
+      }
+      if (!labelClipped && (btn.scrollWidth > btn.clientWidth + 2 || btn.scrollHeight > btn.clientHeight + 2)) {
+        const bcs = getComputedStyle(btn);
+        if (bcs.overflowX === 'hidden' || bcs.overflowX === 'clip' || bcs.overflowY === 'hidden' || bcs.overflowY === 'clip') {
+          labelClipped = `button content overflow (${btn.scrollWidth}x${btn.scrollHeight} > ${btn.clientWidth}x${btn.clientHeight})`;
+        }
+      }
+      if (labelClipped) {
+        add('buttonLabelClip', label(btn), btnText, labelClipped);
       }
     }
   }
@@ -387,7 +655,7 @@ function phoneAuditInPage(baseProblems) {
     }
   }
 
-  return { violations, targetCount: targets.length };
+  return { violations, targetCount: targets.length, panelMetrics };
 }
 
 async function act(page, action, key, size) {
@@ -504,11 +772,24 @@ async function act(page, action, key, size) {
       await page.click('[data-testid="codex-tile-tesla"]', { timeout: 15000 }).catch(() => undefined);
       await page.waitForTimeout(700);
       break;
+    case 'store':
+      await page.waitForSelector('[data-testid="store2d-buy-full_unlock"], [data-testid="store2d"]', { timeout: 15000 }).catch(() => undefined);
+      await page.waitForTimeout(700);
+      break;
     case 'pause':
       await p0();
       await page.waitForTimeout(450);
       await page.keyboard.press('Escape');
       await page.waitForTimeout(450);
+      break;
+    case 'confirm':
+      await p0();
+      await page.waitForTimeout(450);
+      await page.keyboard.press('Escape');
+      await page.waitForSelector('[data-testid="pause2d-restart"]', { timeout: 10000 }).catch(() => undefined);
+      await page.click('[data-testid="pause2d-restart"]', { timeout: 10000 }).catch(() => undefined);
+      await page.waitForSelector('.pu-confirm', { timeout: 10000 }).catch(() => undefined);
+      await page.waitForTimeout(500);
       break;
     case 'newfoe':
       await p0();
@@ -535,6 +816,9 @@ async function seedContext(ctx, seed, lang, opt = {}) {
   await ctx.addInitScript(
     ([s, seen, l, o]) => {
       try {
+        if (o.nativeIos) {
+          window.CapacitorCustomPlatform = { name: 'ios' };
+        }
         if (sessionStorage.getItem('qa-seeded')) return;
         sessionStorage.setItem('qa-seeded', '1');
         localStorage.clear();
@@ -581,10 +865,9 @@ if (DESKTOP_SHOTS) {
     { key: '1440x900', w: 1440, h: 900, dpr: 1, touch: false },
   ];
   const desktopScreens = [
-    ['map', '', SEED, null],
-    ['hud', '?level=i02&hero=bran', SEED, 'hud'],
-    ['heroes', '?screen=heroes', SEED, null],
+    ['brief', '?screen=brief&island=1', SEED, null],
     ['workshop', '?screen=workshop', SEED, null],
+    ['end-won', '?level=i02&hero=bran', SEED, 'win'],
   ];
   for (const size of desktopSizes) {
     for (const [name, query, seed, action] of desktopScreens) {
@@ -660,7 +943,7 @@ async function runOne(lang, size, [name, query, seed, action, opt = {}]) {
     for (const pe of pageErrors) {
       phone.violations.push({ kind: 'pageerror', at: 'page', text: '', detail: pe });
     }
-    results.push({ key, name, size: size.key, lang, count: phone.violations.length, violations: phone.violations });
+    results.push({ key, name, size: size.key, lang, count: phone.violations.length, violations: phone.violations, panelMetrics: phone.panelMetrics });
     if (SHOTS && SHOT_SIZES.includes(size.key)) {
       await page.screenshot({ path: `${SHOTS}/${lang}-${size.key}-${name}.jpg`, type: 'jpeg', quality: 75, scale: 'css', animations: 'disabled', timeout: 60000 });
     }
@@ -711,6 +994,16 @@ const lines = [
   ...Object.entries(byScreen)
     .sort((a, b) => b[1].total - a[1].total)
     .map(([name, info]) => `  ${name.padEnd(20)} ${String(info.total).padStart(4)}  ${JSON.stringify(info.byKind)}`),
+  '',
+  'Panel fill metrics (932x430 tr):',
+  ...results
+    .filter((r) => r.size === '932x430' && r.lang === 'tr' && r.panelMetrics?.length)
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .flatMap((r) =>
+      r.panelMetrics.map(
+        (m) => `  ${r.name.padEnd(20)} ${String(m.w).padStart(4)}x${String(m.h).padEnd(4)} fill=${(m.fillRatio * 100).toFixed(1).padStart(5)}% ${m.scrolling ? '(scroll)' : '(static)'} ${m.at}`,
+      ),
+    ),
   '',
   'Details:',
   ...results

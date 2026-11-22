@@ -1,0 +1,329 @@
+Phone UI Audit: 222 runs (en+tr x 932x430, 844x390, 667x375)
+Total violations: 259 {"buttonLabelClip":229,"lowFill":16,"tightGap":2,"textUnder12":6,"layout:cut":6}
+
+Per-screen totals:
+  map                    36  {"buttonLabelClip":36}
+  heroes                 26  {"buttonLabelClip":26}
+  heroes-node            22  {"tightGap":2,"buttonLabelClip":20}
+  story-3beat            14  {"layout:cut":6,"buttonLabelClip":8}
+  brief-modes            13  {"buttonLabelClip":13}
+  brief                  12  {"buttonLabelClip":12}
+  store                  12  {"textUnder12":6,"lowFill":6}
+  hud                    12  {"buttonLabelClip":12}
+  hud-ring               12  {"buttonLabelClip":12}
+  hud-tower              12  {"buttonLabelClip":12}
+  hud-spec-hint          12  {"buttonLabelClip":12}
+  hud-foe                12  {"buttonLabelClip":12}
+  hud-coach              12  {"buttonLabelClip":12}
+  hud-newfoe             12  {"buttonLabelClip":12}
+  hud-pause              12  {"buttonLabelClip":12}
+  brief-fresh             7  {"buttonLabelClip":7}
+  brief-locked            6  {"lowFill":6}
+  beltpick                6  {"buttonLabelClip":6}
+  hud-codex               5  {"buttonLabelClip":5}
+  daily                   4  {"lowFill":4}
+  title                   0  {}
+  workshop                0  {}
+  herosel                 0  {}
+  logbook                 0  {}
+  logbook-feats           0  {}
+  market                  0  {}
+  settings-general        0  {}
+  settings-audio          0  {}
+  settings-graphics       0  {}
+  settings-controls       0  {}
+  credits                 0  {}
+  story                   0  {}
+  hud-spec-card           0  {}
+  hud-codex-spec          0  {}
+  hud-confirm             0  {}
+  end-lost                0  {}
+  end-won                 0  {}
+
+Panel fill metrics (932x430 tr):
+  beltpick              920x402  fill= 84.5% (static) div.pu-sheet.pu-meta.pu-beltpick
+  brief                 920x422  fill= 71.7% (static) div.pu-sheet.pu-brief.has-modes
+  brief-fresh           920x422  fill= 73.7% (static) div.pu-sheet.pu-brief.has-modes
+  brief-locked          920x422  fill= 29.5% (static) div.pu-sheet.pu-brief
+  brief-modes           920x422  fill= 73.7% (static) div.pu-sheet.pu-brief.has-modes
+  credits               920x422  fill= 60.2% (scroll) div.pu-sheet.pu-meta.pu-credits
+  daily                 920x422  fill= 41.1% (static) div.pu-sheet.red.pu-meta
+  heroes                920x422  fill= 97.7% (scroll) div.pu-sheet.pu-meta.pu-hero-tree
+  heroes-node           920x422  fill= 97.6% (scroll) div.pu-sheet.pu-meta.pu-hero-tree
+  herosel               920x422  fill= 91.0% (scroll) div.pu-sheet.pu-meta.pu-hero-sel
+  hud-codex             920x422  fill= 97.0% (scroll) div.pu-sheet.pu-meta.pu-codex
+  hud-codex-spec        920x422  fill= 97.2% (scroll) div.pu-sheet.pu-meta.pu-codex
+  hud-confirm           500x177  fill= 72.6% (static) div.pu-sheet.pu-confirm
+  hud-spec-card         920x422  fill= 97.8% (scroll) div.pu-sheet.pu-meta.pu-spec
+  logbook               920x422  fill= 97.7% (scroll) div.pu-sheet.pu-meta
+  logbook-feats         920x422  fill= 97.7% (scroll) div.pu-sheet.pu-meta
+  market                920x422  fill= 97.9% (scroll) div.pu-sheet.pu-meta.pu-market
+  settings-audio        920x422  fill= 73.2% (static) div.pu-sheet.pu-meta.pu-settings
+  settings-controls     920x422  fill= 16.0% (scroll) div.pu-sheet.pu-meta.pu-settings
+  settings-general      920x422  fill= 97.9% (scroll) div.pu-sheet.pu-meta.pu-settings
+  settings-graphics     920x422  fill= 97.9% (scroll) div.pu-sheet.pu-meta.pu-settings
+  store                 920x268  fill= 28.8% (static) div.pu-sheet.pu-meta.pu-store
+  story                 920x397  fill= 61.7% (static) div.pu-sheet.pu-story
+  story-3beat           920x422  fill= 31.5% (scroll) div.pu-sheet.pu-story
+  workshop              920x422  fill= 97.7% (scroll) div.pu-sheet.pu-meta
+
+Details:
+  beltpick-667x375-en: [buttonLabelClip] button.pu-plank.pu-letter.small[beltpick2d-market] "Open the Market" — label outside viewport (243,360-348,377)
+  beltpick-667x375-en: [buttonLabelClip] button.pu-plank.pu-letter.small[beltpick2d-done] "Close" — label outside viewport (420,360-454,377)
+  beltpick-667x375-tr: [buttonLabelClip] button.pu-plank.pu-letter.small[beltpick2d-market] "Pazara git" — label outside viewport (261,360-328,377)
+  beltpick-667x375-tr: [buttonLabelClip] button.pu-plank.pu-letter.small[beltpick2d-done] "Kapat" — label outside viewport (400,360-437,377)
+  beltpick-844x390-tr: [buttonLabelClip] button.pu-plank.pu-letter.small[beltpick2d-market] "Pazara git" — label clipped by div.pu-sheet-body.more-below (text y=360..377 vs box y=56..365)
+  beltpick-844x390-tr: [buttonLabelClip] button.pu-plank.pu-letter.small[beltpick2d-done] "Kapat" — label clipped by div.pu-sheet-body.more-below (text y=360..377 vs box y=56..365)
+  brief-667x375-en: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Ironoak" — label spills out of button (12x15 vs 49x46)
+  brief-667x375-en: [buttonLabelClip] button.pu-mode[brief2d-ch-bowless] "BowlessArcher Towers cannot be built+1" — label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)
+  brief-667x375-en: [buttonLabelClip] button.pu-mode[brief2d-ch-glassSanctuary] "Glass SanctuaryOnly 8 lives (Workshop lives ignore" — label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)
+  brief-667x375-en: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Endless tideWaves keep coming past wave 10. No cha" — label outside viewport (104,407-185,424)
+  brief-667x375-tr: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Demirmeşe" — label spills out of button (12x15 vs 49x46)
+  brief-667x375-tr: [buttonLabelClip] button.pu-mode[brief2d-ch-bowless] "YaysızOkçu Kulesi kurulamaz+1" — label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)
+  brief-667x375-tr: [buttonLabelClip] button.pu-mode[brief2d-ch-glassSanctuary] "Cam SığınakYalnızca 8 can (Atölye canları sayılmaz" — label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)
+  brief-667x375-tr: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz" — label outside viewport (104,407-195,424)
+  brief-844x390-en: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Ironoak" — label spills out of button (12x15 vs 49x46)
+  brief-844x390-tr: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Demirmeşe" — label spills out of button (12x15 vs 49x46)
+  brief-932x430-en: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Ironoak" — label spills out of button (12x15 vs 49x46)
+  brief-932x430-tr: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Demirmeşe" — label spills out of button (12x15 vs 49x46)
+  brief-fresh-667x375-en: [buttonLabelClip] button.pu-mode[brief2d-ch-bowless] "BowlessArcher Towers cannot be builtEarned" — label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)
+  brief-fresh-667x375-en: [buttonLabelClip] button.pu-mode[brief2d-ch-glassSanctuary] "Glass SanctuaryOnly 8 lives (Workshop lives ignore" — label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)
+  brief-fresh-667x375-en: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Endless tideWaves keep coming past wave 10. No cha" — label outside viewport (104,407-185,424)
+  brief-fresh-667x375-tr: [buttonLabelClip] button.pu-mode[brief2d-ch-bowless] "YaysızOkçu Kulesi kurulamazKazanıldı" — label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)
+  brief-fresh-667x375-tr: [buttonLabelClip] button.pu-mode[brief2d-ch-glassSanctuary] "Cam SığınakYalnızca 8 can (Atölye canları sayılmaz" — label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)
+  brief-fresh-667x375-tr: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz" — label outside viewport (104,407-195,424)
+  brief-fresh-844x390-tr: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz" — label spills out of button (91x17 vs 341x46)
+  brief-locked-667x375-en: [lowFill] div.pu-sheet.pu-brief "" — fill 37.4% (< 60%, non-scrolling; sheet 655x367 in 667x375)
+  brief-locked-667x375-tr: [lowFill] div.pu-sheet.pu-brief "" — fill 40.7% (< 60%, non-scrolling; sheet 655x367 in 667x375)
+  brief-locked-844x390-en: [lowFill] div.pu-sheet.pu-brief "" — fill 32.3% (< 60%, non-scrolling; sheet 832x382 in 844x390)
+  brief-locked-844x390-tr: [lowFill] div.pu-sheet.pu-brief "" — fill 34.7% (< 60%, non-scrolling; sheet 832x382 in 844x390)
+  brief-locked-932x430-en: [lowFill] div.pu-sheet.pu-brief "" — fill 27.6% (< 60%, non-scrolling; sheet 920x422 in 932x430)
+  brief-locked-932x430-tr: [lowFill] div.pu-sheet.pu-brief "" — fill 29.5% (< 60%, non-scrolling; sheet 920x422 in 932x430)
+  brief-modes-667x375-en: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Ironoak" — label spills out of button (12x15 vs 49x46)
+  brief-modes-667x375-en: [buttonLabelClip] button.pu-mode[brief2d-ch-bowless] "BowlessArcher Towers cannot be builtEarned" — label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)
+  brief-modes-667x375-en: [buttonLabelClip] button.pu-mode[brief2d-ch-glassSanctuary] "Glass SanctuaryOnly 8 lives (Workshop lives ignore" — label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)
+  brief-modes-667x375-en: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Endless tideWaves keep coming past wave 10. No cha" — label outside viewport (104,407-185,424)
+  brief-modes-667x375-tr: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Demirmeşe" — label spills out of button (12x15 vs 49x46)
+  brief-modes-667x375-tr: [buttonLabelClip] button.pu-mode[brief2d-ch-bowless] "YaysızOkçu Kulesi kurulamazKazanıldı" — label clipped by div.pu-brief-body (text y=267..284 vs box y=66..199)
+  brief-modes-667x375-tr: [buttonLabelClip] button.pu-mode[brief2d-ch-glassSanctuary] "Cam SığınakYalnızca 8 can (Atölye canları sayılmaz" — label clipped by div.pu-brief-body (text y=324..341 vs box y=66..199)
+  brief-modes-667x375-tr: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz" — label outside viewport (104,407-195,424)
+  brief-modes-844x390-en: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Ironoak" — label spills out of button (12x15 vs 49x46)
+  brief-modes-844x390-tr: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Demirmeşe" — label spills out of button (12x15 vs 49x46)
+  brief-modes-844x390-tr: [buttonLabelClip] button.pu-mode.endless[brief2d-endless] "Bitmeyen akınDalgalar 10. dalgadan sonra da durmaz" — label spills out of button (91x17 vs 341x46)
+  brief-modes-932x430-en: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Ironoak" — label spills out of button (12x15 vs 49x46)
+  brief-modes-932x430-tr: [buttonLabelClip] button.pu-hero-chip-pick[brief2d-hero-change] "10Bran Demirmeşe" — label spills out of button (12x15 vs 49x46)
+  daily-844x390-en: [lowFill] div.pu-sheet.red.pu-meta "" — fill 46.5% (< 60%, non-scrolling; sheet 832x382 in 844x390)
+  daily-844x390-tr: [lowFill] div.pu-sheet.red.pu-meta "" — fill 47.2% (< 60%, non-scrolling; sheet 832x382 in 844x390)
+  daily-932x430-en: [lowFill] div.pu-sheet.red.pu-meta "" — fill 40.5% (< 60%, non-scrolling; sheet 920x422 in 932x430)
+  daily-932x430-tr: [lowFill] div.pu-sheet.red.pu-meta "" — fill 41.1% (< 60%, non-scrolling; sheet 920x422 in 932x430)
+  heroes-667x375-en: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-667x375-en: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-667x375-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_oak_2] "Bronze Rim" — label outside viewport (73,370-135,385)
+  heroes-667x375-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_iron_2] "Battering Ram" — label outside viewport (173,370-251,385)
+  heroes-667x375-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_2] "Tall Standard" — label outside viewport (283,370-359,385)
+  heroes-667x375-tr: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-667x375-tr: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-667x375-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_oak_2] "Tunç Kenar" — label outside viewport (73,370-135,385)
+  heroes-667x375-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_iron_2] "Koçbaşı" — label outside viewport (191,370-233,385)
+  heroes-667x375-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_2] "Yüce Sancak" — label outside viewport (286,370-355,385)
+  heroes-844x390-en: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-844x390-en: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-844x390-en: [buttonLabelClip] button.pu-hnode.available[tree2d-node-bran_van_1] "Sturdy Guard" — label outside viewport (158,398-196,427)
+  heroes-844x390-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_2] "Tall Standard" — label outside viewport (218,398-270,427)
+  heroes-844x390-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_3] "Oath of Steel" — label outside viewport (289,398-332,427)
+  heroes-844x390-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_4] "Evergreen Watch" — label outside viewport (350,398-405,427)
+  heroes-844x390-tr: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-844x390-tr: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-844x390-tr: [buttonLabelClip] button.pu-hnode.available[tree2d-node-bran_van_1] "Sağlam Nöbet" — label outside viewport (156,398-198,427)
+  heroes-844x390-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_2] "Yüce Sancak" — label outside viewport (222,398-262,427)
+  heroes-844x390-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_3] "Çelik Yemini" — label outside viewport (289,398-326,427)
+  heroes-844x390-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_4] "Solmayan Nöbet" — label outside viewport (345,398-401,427)
+  heroes-932x430-en: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-932x430-en: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-932x430-tr: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-932x430-tr: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-node-667x375-en: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-node-667x375-en: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-node-667x375-tr: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-node-667x375-tr: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-node-844x390-en: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-node-844x390-en: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-node-844x390-en: [buttonLabelClip] button.pu-hnode.available[tree2d-node-bran_van_1] "Sturdy Guard" — label outside viewport (158,398-196,427)
+  heroes-node-844x390-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_2] "Tall Standard" — label outside viewport (218,398-270,427)
+  heroes-node-844x390-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_3] "Oath of Steel" — label outside viewport (289,398-332,427)
+  heroes-node-844x390-en: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_4] "Evergreen Watch" — label outside viewport (350,398-405,427)
+  heroes-node-844x390-tr: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-node-844x390-tr: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-node-844x390-tr: [buttonLabelClip] button.pu-hnode.available[tree2d-node-bran_van_1] "Sağlam Nöbet" — label outside viewport (156,398-198,427)
+  heroes-node-844x390-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_2] "Yüce Sancak" — label outside viewport (222,398-262,427)
+  heroes-node-844x390-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_3] "Çelik Yemini" — label outside viewport (289,398-326,427)
+  heroes-node-844x390-tr: [buttonLabelClip] button.pu-hnode.locked[tree2d-node-bran_van_4] "Solmayan Nöbet" — label outside viewport (345,398-401,427)
+  heroes-node-932x430-en: [tightGap] button.pu-plank.pu-letter.small[tree2d-reset] <-> button.pu-round.pu-sheet-close[hero2d-tree-close] "Reset (free) /" — gap 6.0px (< 8px)
+  heroes-node-932x430-en: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-node-932x430-en: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  heroes-node-932x430-tr: [tightGap] button.pu-plank.pu-letter.small[tree2d-reset] <-> button.pu-round.pu-sheet-close[hero2d-tree-close] "Sıfırla (ücretsiz) /" — gap 6.0px (< 8px)
+  heroes-node-932x430-tr: [buttonLabelClip] button.pu-hero-tab.small.on[tree2d-tab-bran] "9" — label spills out of button (6x15 vs 50x50)
+  heroes-node-932x430-tr: [buttonLabelClip] button.pu-hero-tab.small[tree2d-tab-wren] "3" — label spills out of button (7x15 vs 50x50)
+  hud-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-coach-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-coach-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-coach-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-coach-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-coach-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-coach-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-coach-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-coach-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-coach-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-coach-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-coach-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-coach-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-codex-667x375-en: [buttonLabelClip] button.pu-cx-tile[codex-tile-healer] "Grove Mender" — label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)
+  hud-codex-667x375-en: [buttonLabelClip] button.pu-cx-tile[codex-tile-splitter] "Cinder Splitling" — label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)
+  hud-codex-667x375-tr: [buttonLabelClip] button.pu-cx-tile[codex-tile-healer] "Koru Şifacısı" — label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)
+  hud-codex-667x375-tr: [buttonLabelClip] button.pu-cx-tile[codex-tile-splitter] "Kor Bölünen" — label clipped by div.pu-sheet-body (text y=337..352 vs box y=56..350)
+  hud-codex-844x390-tr: [buttonLabelClip] button.pu-cx-tile[codex-tile-warden] "Kalkan Muhafızı" — label clipped by div.pu-sheet-body (text y=351..379 vs box y=56..365)
+  hud-foe-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-foe-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-foe-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-foe-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-foe-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-foe-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-foe-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-foe-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-foe-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-foe-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-foe-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-foe-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-newfoe-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-newfoe-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-newfoe-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-newfoe-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-newfoe-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-newfoe-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-newfoe-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-newfoe-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-newfoe-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-newfoe-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-newfoe-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-newfoe-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-pause-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-pause-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-pause-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-pause-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-pause-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-pause-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-pause-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-pause-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-pause-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-pause-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-pause-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-pause-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-ring-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-ring-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-ring-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-ring-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-ring-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-ring-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-ring-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-ring-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-ring-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-ring-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-ring-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-ring-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-spec-hint-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-spec-hint-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-spec-hint-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-spec-hint-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-spec-hint-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-spec-hint-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-spec-hint-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-spec-hint-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-spec-hint-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-spec-hint-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-spec-hint-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-spec-hint-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-tower-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-tower-667x375-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-tower-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-tower-667x375-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-tower-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-tower-844x390-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-tower-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-tower-844x390-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  hud-tower-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Codex" — label spills out of button (34x15 vs 44x44)
+  hud-tower-932x430-en: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Settings" — label spills out of button (44x15 vs 44x44)
+  hud-tower-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[codex2d-open] "Rehber" — label spills out of button (38x15 vs 44x44)
+  hud-tower-932x430-tr: [buttonLabelClip] button.pu-round.pu-codex-btn[settings2d-open] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  map-667x375-en: [buttonLabelClip] button.pu-round.pu-hero-mapbtn[map2d-heroes] "Heroes12" — label spills out of button (37x15 vs 44x44)
+  map-667x375-en: [buttonLabelClip] button.pu-round.pu-market-btn[map2d-market] "Market28New" — label spills out of button (39x15 vs 44x44)
+  map-667x375-en: [buttonLabelClip] button.pu-round[map2d-workshop] "Workshop7" — label spills out of button (53x15 vs 44x44)
+  map-667x375-en: [buttonLabelClip] button.pu-round[map2d-logbook] "Logbook" — label spills out of button (48x15 vs 44x44)
+  map-667x375-en: [buttonLabelClip] button.pu-round[map2d-daily] "Daily" — label spills out of button (28x15 vs 44x44)
+  map-667x375-en: [buttonLabelClip] button.pu-round[map2d-settings] "Settings" — label spills out of button (44x15 vs 44x44)
+  map-667x375-tr: [buttonLabelClip] button.pu-round.pu-hero-mapbtn[map2d-heroes] "Kahramanlar12" — label spills out of button (73x15 vs 44x44)
+  map-667x375-tr: [buttonLabelClip] button.pu-round.pu-market-btn[map2d-market] "Pazar28Yeni" — label spills out of button (33x15 vs 44x44)
+  map-667x375-tr: [buttonLabelClip] button.pu-round[map2d-workshop] "Atölye7" — label spills out of button (37x15 vs 44x44)
+  map-667x375-tr: [buttonLabelClip] button.pu-round[map2d-logbook] "Defter" — label spills out of button (34x15 vs 44x44)
+  map-667x375-tr: [buttonLabelClip] button.pu-round[map2d-daily] "Günlük" — label spills out of button (40x15 vs 44x44)
+  map-667x375-tr: [buttonLabelClip] button.pu-round[map2d-settings] "Ayarlar" — label spills out of button (44x15 vs 44x44)
+  map-844x390-en: [buttonLabelClip] button.pu-round.pu-hero-mapbtn[map2d-heroes] "Heroes12" — label spills out of button (37x15 vs 46x46)
+  map-844x390-en: [buttonLabelClip] button.pu-round.pu-market-btn[map2d-market] "Market28New" — label spills out of button (39x15 vs 46x46)
+  map-844x390-en: [buttonLabelClip] button.pu-round[map2d-workshop] "Workshop7" — label spills out of button (53x15 vs 46x46)
+  map-844x390-en: [buttonLabelClip] button.pu-round[map2d-logbook] "Logbook" — label spills out of button (48x15 vs 46x46)
+  map-844x390-en: [buttonLabelClip] button.pu-round[map2d-daily] "Daily" — label spills out of button (28x15 vs 46x46)
+  map-844x390-en: [buttonLabelClip] button.pu-round[map2d-settings] "Settings" — label spills out of button (44x15 vs 46x46)
+  map-844x390-tr: [buttonLabelClip] button.pu-round.pu-hero-mapbtn[map2d-heroes] "Kahramanlar12" — label spills out of button (73x15 vs 46x46)
+  map-844x390-tr: [buttonLabelClip] button.pu-round.pu-market-btn[map2d-market] "Pazar28Yeni" — label spills out of button (33x15 vs 46x46)
+  map-844x390-tr: [buttonLabelClip] button.pu-round[map2d-workshop] "Atölye7" — label spills out of button (37x15 vs 46x46)
+  map-844x390-tr: [buttonLabelClip] button.pu-round[map2d-logbook] "Defter" — label spills out of button (34x15 vs 46x46)
+  map-844x390-tr: [buttonLabelClip] button.pu-round[map2d-daily] "Günlük" — label spills out of button (40x15 vs 46x46)
+  map-844x390-tr: [buttonLabelClip] button.pu-round[map2d-settings] "Ayarlar" — label spills out of button (44x15 vs 46x46)
+  map-932x430-en: [buttonLabelClip] button.pu-round.pu-hero-mapbtn[map2d-heroes] "Heroes12" — label spills out of button (37x15 vs 46x46)
+  map-932x430-en: [buttonLabelClip] button.pu-round.pu-market-btn[map2d-market] "Market28New" — label spills out of button (39x15 vs 46x46)
+  map-932x430-en: [buttonLabelClip] button.pu-round[map2d-workshop] "Workshop7" — label spills out of button (53x15 vs 46x46)
+  map-932x430-en: [buttonLabelClip] button.pu-round[map2d-logbook] "Logbook" — label spills out of button (48x15 vs 46x46)
+  map-932x430-en: [buttonLabelClip] button.pu-round[map2d-daily] "Daily" — label spills out of button (28x15 vs 46x46)
+  map-932x430-en: [buttonLabelClip] button.pu-round[map2d-settings] "Settings" — label spills out of button (44x15 vs 46x46)
+  map-932x430-tr: [buttonLabelClip] button.pu-round.pu-hero-mapbtn[map2d-heroes] "Kahramanlar12" — label spills out of button (73x15 vs 46x46)
+  map-932x430-tr: [buttonLabelClip] button.pu-round.pu-market-btn[map2d-market] "Pazar28Yeni" — label spills out of button (33x15 vs 46x46)
+  map-932x430-tr: [buttonLabelClip] button.pu-round[map2d-workshop] "Atölye7" — label spills out of button (37x15 vs 46x46)
+  map-932x430-tr: [buttonLabelClip] button.pu-round[map2d-logbook] "Defter" — label spills out of button (34x15 vs 46x46)
+  map-932x430-tr: [buttonLabelClip] button.pu-round[map2d-daily] "Günlük" — label spills out of button (40x15 vs 46x46)
+  map-932x430-tr: [buttonLabelClip] button.pu-round[map2d-settings] "Ayarlar" — label spills out of button (44x15 vs 46x46)
+  store-667x375-en: [textUnder12] div.pu-store-empty.pu-ink-soft "The store did not answer. Check your connection an" — 11.5px (< 12px)
+  store-667x375-en: [lowFill] div.pu-sheet.pu-meta.pu-store "" — fill 31.8% (< 60%, non-scrolling; sheet 655x268 in 667x375)
+  store-667x375-tr: [textUnder12] div.pu-store-empty.pu-ink-soft "Mağaza yanıt vermedi. Bağlantını denetleyip yenide" — 11.5px (< 12px)
+  store-667x375-tr: [lowFill] div.pu-sheet.pu-meta.pu-store "" — fill 34.8% (< 60%, non-scrolling; sheet 655x268 in 667x375)
+  store-844x390-en: [textUnder12] div.pu-store-empty.pu-ink-soft "The store did not answer. Check your connection an" — 11.5px (< 12px)
+  store-844x390-en: [lowFill] div.pu-sheet.pu-meta.pu-store "" — fill 28.1% (< 60%, non-scrolling; sheet 832x268 in 844x390)
+  store-844x390-tr: [textUnder12] div.pu-store-empty.pu-ink-soft "Mağaza yanıt vermedi. Bağlantını denetleyip yenide" — 11.5px (< 12px)
+  store-844x390-tr: [lowFill] div.pu-sheet.pu-meta.pu-store "" — fill 30.3% (< 60%, non-scrolling; sheet 832x268 in 844x390)
+  store-932x430-en: [textUnder12] div.pu-store-empty.pu-ink-soft "The store did not answer. Check your connection an" — 11.5px (< 12px)
+  store-932x430-en: [lowFill] div.pu-sheet.pu-meta.pu-store "" — fill 26.8% (< 60%, non-scrolling; sheet 920x268 in 932x430)
+  store-932x430-tr: [textUnder12] div.pu-store-empty.pu-ink-soft "Mağaza yanıt vermedi. Bağlantını denetleyip yenide" — 11.5px (< 12px)
+  store-932x430-tr: [lowFill] div.pu-sheet.pu-meta.pu-store "" — fill 28.8% (< 60%, non-scrolling; sheet 920x268 in 932x430)
+  story-3beat-667x375-en: [buttonLabelClip] button.pu-plank.pu-letter.small[story2d-skip] "Skip" — label outside viewport (72,384-99,401)
+  story-3beat-667x375-en: [buttonLabelClip] button.pu-plank.pu-letter.primary[story2d-next] "Next" — label outside viewport (552,382-592,403)
+  story-3beat-667x375-en: [layout:cut] button.pu-plank.pu-letter.primary[story2d-next] "Next" — main action cut by div.pu-sheet-body.more-below
+  story-3beat-667x375-tr: [buttonLabelClip] button.pu-plank.pu-letter.small[story2d-skip] "Geç" — label outside viewport (72,403-96,420)
+  story-3beat-667x375-tr: [buttonLabelClip] button.pu-plank.pu-letter.primary[story2d-next] "İleri" — label outside viewport (555,401-588,422)
+  story-3beat-667x375-tr: [layout:cut] button.pu-plank.pu-letter.primary[story2d-next] "İleri" — main action cut by div.pu-sheet-body.more-below
+  story-3beat-844x390-en: [buttonLabelClip] button.pu-plank.pu-letter.small[story2d-skip] "Skip" — label clipped by div.pu-sheet-body.more-below (text y=361..378 vs box y=46..366)
+  story-3beat-844x390-en: [buttonLabelClip] button.pu-plank.pu-letter.primary[story2d-next] "Next" — label clipped by div.pu-sheet-body.more-below (text y=359..380 vs box y=46..366)
+  story-3beat-844x390-en: [layout:cut] button.pu-plank.pu-letter.primary[story2d-next] "Next" — main action cut by div.pu-sheet-body.more-below
+  story-3beat-844x390-tr: [buttonLabelClip] button.pu-plank.pu-letter.small[story2d-skip] "Geç" — label clipped by div.pu-sheet-body.more-below (text y=361..378 vs box y=46..366)
+  story-3beat-844x390-tr: [buttonLabelClip] button.pu-plank.pu-letter.primary[story2d-next] "İleri" — label clipped by div.pu-sheet-body.more-below (text y=359..380 vs box y=46..366)
+  story-3beat-844x390-tr: [layout:cut] button.pu-plank.pu-letter.primary[story2d-next] "İleri" — main action cut by div.pu-sheet-body.more-below
+  story-3beat-932x430-en: [layout:cut] button.pu-plank.pu-letter.primary[story2d-next] "Next" — main action cut by div.pu-sheet-body.more-below
+  story-3beat-932x430-tr: [layout:cut] button.pu-plank.pu-letter.primary[story2d-next] "İleri" — main action cut by div.pu-sheet-body.more-below
