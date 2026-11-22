@@ -1,0 +1,70 @@
+{
+  "island": "i20",
+  "elements": [
+    {
+      "element": "east-red-pennant",
+      "kind": "cloth",
+      "crop": { "x": 1492, "y": 134, "width": 208, "height": 117 },
+      "mask": [
+        [[1574, 168], [1638, 168], [1638, 224], [1574, 224]]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "Beside the eastern rock tunnel, a brisk sea breeze ripples steadily through the crimson-and-cream diagonally striped pennant flag from its fixed wooden staff to its outer fly edge. One smooth wave travels horizontally across the cloth and loops cleanly back while preserving the exact red and cream stripe. Keep the wooden flagpole, stone base, rock tunnel, and hillside grass completely still.",
+      "retryOf": null,
+      "why": "Animates one of the namesake pennants of Three Pennants Head right inside the safe area."
+    },
+    {
+      "element": "northwest-reef-surf",
+      "kind": "water",
+      "crop": { "x": 304, "y": 0, "width": 288, "height": 162 },
+      "mask": [
+        [[314, 6], [546, 6], [492, 30], [412, 54], [314, 86]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Along the dark jagged rocks of the northwest shore, the deep slate-teal ocean swells heave gently shoreward and withdraw, pulsing the existing painted white surf lace a few pixels around the rock feet and relaxing back. Preserve the painterly foam texture with no thin wire-like arcs or bright flashes. Hold the black basalt crags, coiled rope, and grassy slope perfectly still.",
+      "retryOf": null,
+      "why": "Completes the continuous northern coastal surf line between the existing reef and inlet animations."
+    },
+    {
+      "element": "west-headland-grass",
+      "kind": "grass",
+      "crop": { "x": 0, "y": 290, "width": 304, "height": 171 },
+      "mask": [
+        [[16, 304], [272, 304], [272, 448], [16, 448]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Across the windswept western headland slope, the olive-green coastal turf and tall golden grass tufts lean gently right by a few pixels in a steady sea squall and spring softly back in a rolling wave. Keep the brushwork natural and earthy with zero white wind streaks or colour shifts. Hold the grey slate rock outcrops, pink coastal flowers, and stone ground steady.",
+      "retryOf": null,
+      "why": "Adds visible coastal squall motion to the broad western hillside beside the goal."
+    },
+    {
+      "element": "southwest-dune-grass",
+      "kind": "grass",
+      "crop": { "x": 160, "y": 672, "width": 320, "height": 180 },
+      "mask": [
+        [[176, 706], [464, 718], [464, 838], [176, 838]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Along the rocky southwest cliff rim, the long wind-swept golden marram grass plumes bend further eastward by a few pixels as a coastal gust passes through and ease smoothly back into their opening curve. Preserve the warm ochre brushstrokes with no white streaks or floating blades. Keep the dark weathered boulders, coastal moss, and timber tunnel completely still.",
+      "retryOf": null,
+      "why": "Brings the iconic windswept golden dune grass along the southern cliff edge to life."
+    },
+    {
+      "element": "east-headland-grass",
+      "kind": "grass",
+      "crop": { "x": 1462, "y": 280, "width": 384, "height": 216 },
+      "mask": [
+        [[1512, 294], [1824, 294], [1824, 482], [1512, 482]]
+      ],
+      "featherPx": 10,
+      "depth": 0,
+      "motion": "Over the broad eastern headland pasture, a steady sea breeze ripples smoothly across the olive-green turf and patches of sunlit yellow-ochre coastal grass, bending the painted tufts a few pixels rightward and letting them settle back seamlessly. Keep the moody daylight palette unchanged with no pale wind ribbons. Hold the grey rock ledges, coiled rope, and dark stone outcrops perfectly still.",
+      "retryOf": null,
+      "why": "Animates the wide open eastern grassy bluff overlooking the stormy sea."
+    }
+  ]
+}

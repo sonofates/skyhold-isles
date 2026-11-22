@@ -1,0 +1,85 @@
+{
+  "island": "i19",
+  "elements": [
+    {
+      "element": "northwest-hanging-baskets",
+      "kind": "other",
+      "crop": { "x": 56, "y": 36, "width": 336, "height": 189 },
+      "mask": [
+        [[102, 46], [208, 46], [208, 218], [102, 218]],
+        [[214, 48], [268, 48], [268, 158], [214, 158]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "Suspended from the heavy upper-left fig bough, the two woven baskets heaped with golden figs swing very slowly and gently by a few pixels like heavy pendulums on their braided ropes, easing right and returning left in a soft alternating sway. Keep the figs settled inside each basket and preserve the woven brushwork. Hold the thick brown overhead limb, cliff foliage, and misty valley behind completely still.",
+      "retryOf": null,
+      "why": "Animates the iconic hanging woven fig-harvest baskets in the upper-left canopy."
+    },
+    {
+      "element": "hoist-seed-basket",
+      "kind": "other",
+      "crop": { "x": 272, "y": 324, "width": 208, "height": 117 },
+      "mask": [
+        [[388, 360], [450, 360], [450, 434], [388, 434]]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "Hanging from the curved branch of the wooden harvest hoist between the two caves, the woven basket filled with warm golden lantern-seeds rocks very gently left and right by a couple of pixels on its tied rope and settles smoothly back. Keep the warm ochre tones steady with no new glow or sparks. Hold the wooden platform, ladder, curved timber arm, and mossy grass completely still.",
+      "retryOf": null,
+      "why": "Adds charming physical motion to the central-west lantern-seed hoist inside the safe area."
+    },
+    {
+      "element": "northeast-hanging-baskets",
+      "kind": "other",
+      "crop": { "x": 1398, "y": 24, "width": 448, "height": 252 },
+      "mask": [
+        [[1548, 34], [1652, 34], [1652, 162], [1548, 162]],
+        [[1668, 118], [1774, 118], [1774, 268], [1668, 268]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "From the arching northeast canopy branch, the three hanging woven fig baskets sway slowly and gently side to side by a few pixels on their suspension ropes, each lagging slightly behind its neighbour before returning cleanly to its opening position. Keep every woven rim, fig cluster, and rope texture intact. Hold the gnarled overhead branch, green leaves, and distant misty jungle trees completely locked.",
+      "retryOf": null,
+      "why": "Brings the three prominent hanging harvest baskets on the northeast overhang to life."
+    },
+    {
+      "element": "north-glade-meadow",
+      "kind": "grass",
+      "crop": { "x": 640, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[654, 8], [1072, 8], [1072, 92], [654, 92]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Across the sunlit yellow-green glade along the northern plateau rim, a light warm breeze ripples gently from left to right through the painted grass tufts, tiny clover blossoms, and overhanging leafy canopy edge. The green brush clusters bend a few pixels and return smoothly with no white wind lines or colour shifts. Hold the spilled wicker basket, brown dirt road below, and open ground tones completely still.",
+      "retryOf": null,
+      "why": "Adds broad living meadow and canopy-edge breeze across the upper central battle field."
+    },
+    {
+      "element": "west-cliff-foliage",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 276, "width": 320, "height": 180 },
+      "mask": [
+        [[6, 286], [126, 286], [132, 446], [6, 446]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "Along the far-left jungle canopy edge, the broad sunlit lobed fig leaves and dangling green sprays sway gently inward by a few pixels in a passing warm breeze and ease back smoothly. Keep the painted leaf shapes intact without sprouting new branches or sharpening edges. Hold the misty blue-green forest canopy in the ravine and the rocky cliff face completely still.",
+      "retryOf": null,
+      "why": "Extends canopy life down the lush western cliff frame."
+    },
+    {
+      "element": "southeast-foreground-foliage",
+      "kind": "foliage",
+      "crop": { "x": 1430, "y": 618, "width": 416, "height": 234 },
+      "mask": [
+        [[1528, 698], [1698, 666], [1836, 650], [1836, 844], [1512, 844]]
+      ],
+      "featherPx": 8,
+      "depth": 2,
+      "motion": "In the lush southeast foreground, a soft jungle breeze ripples across the broad sunlit split fig leaves, dark green fern fronds, and tall coral-pink blossom spikes, tipping each leafy spray a few pixels right and easing back smoothly to rest. Keep the painted leaf lobes cohesive and soft with no detached leaves or new stems. Hold the cliff edge, brown dirt path, and open grass still.",
+      "retryOf": null,
+      "why": "Balances the southwest foreground leaves with lush animated foliage on the southeast corner."
+    }
+  ]
+}

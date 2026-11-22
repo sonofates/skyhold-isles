@@ -1,0 +1,96 @@
+{
+  "island": "i23",
+  "elements": [
+    {
+      "element": "northwest-apple-canopy",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 0, "width": 368, "height": 207 },
+      "mask": [
+        [[6, 6], [268, 6], [256, 146], [108, 158], [6, 154]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "In the upper-left autumn orchard bough, a soft breeze gently sways the painted ochre and olive-green leaf clusters together as one cohesive canopy mass by two or three pixels and settles them smoothly back. Keep all hanging golden apples firmly attached in their exact painted positions with no new fruit, no detached leaves, and no sharpened outlines. Hold the dark brown tree trunk, main boughs, and golden orchard grass behind completely still.",
+      "retryOf": "upper-orchard-bough",
+      "why": "Safely animates the lush northwest apple canopy as one unified leafy sway without detaching fruit."
+    },
+    {
+      "element": "west-berry-canopy",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 196, "width": 368, "height": 207 },
+      "mask": [
+        [[6, 206], [146, 206], [154, 386], [6, 386]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "Along the mid-left orchard border, a light autumn breeze ripples gently through the hanging russet, amber, and olive-green leaf sprays and small red berry clusters, tipping the outer foliage a few pixels inward and relaxing back smoothly. Keep all painted leaves and berries intact with no detached shapes or new stems. Hold the wooden trellis, harvest cart, and sunlit golden meadow completely still.",
+      "retryOf": null,
+      "why": "Connects the upper and lower western orchard boughs with continuous autumn foliage movement."
+    },
+    {
+      "element": "southwest-apple-bough",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 636, "width": 384, "height": 216 },
+      "mask": [
+        [[6, 648], [268, 738], [308, 844], [6, 844]]
+      ],
+      "featherPx": 8,
+      "depth": 2,
+      "motion": "In the lush southwest orchard corner, a gentle breeze sways the warm amber, rust, and golden-olive leaf sprays together by a few pixels before easing cleanly back into their opening pose. Keep the round golden apples and red berry clusters firmly fixed to their twigs with zero detached leaves, no extra fruit, and soft brushwork preserved. Hold the open yellow-green orchard meadow completely still.",
+      "retryOf": null,
+      "why": "Brings the untouched southwest autumn apple bough to life."
+    },
+    {
+      "element": "southeast-orchard-bough",
+      "kind": "foliage",
+      "crop": { "x": 1462, "y": 636, "width": 384, "height": 216 },
+      "mask": [
+        [[1574, 744], [1700, 658], [1838, 658], [1838, 844], [1554, 844]]
+      ],
+      "featherPx": 8,
+      "depth": 2,
+      "motion": "Across the lush southeast autumn bough, a soft orchard breeze moves the entire painted cluster of warm ochre, russet, and olive leaves together in a subtle three-pixel sway and settles them smoothly back. Preserve the soft storybook brush marks as one unified foliage mass with zero peeling leaves, zero new outlines, and all golden fruit and red berries held firmly attached. Keep the golden orchard grass outside the bough completely still.",
+      "retryOf": "southern-harvest-bough",
+      "why": "Re-designs the southeast orchard foliage as a single cohesive sway without peeling individual leaves."
+    },
+    {
+      "element": "northeast-berry-bough",
+      "kind": "foliage",
+      "crop": { "x": 1526, "y": 168, "width": 320, "height": 180 },
+      "mask": [
+        [[1648, 178], [1838, 178], [1838, 340], [1676, 340]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "Beneath the hollow bee tree on the eastern orchard rim, a gentle breeze stirs the painted autumn russet leaves and red berry twigs by a few pixels inward and eases them smoothly back to rest. Keep every berry cluster attached and maintain the exact warm autumn palette and brushwork. Hold the gnarled brown tree roots and sunlit golden meadow completely still.",
+      "retryOf": null,
+      "why": "Adds autumn foliage motion below the northeast bee tree above the existing eastern fruit spray."
+    },
+    {
+      "element": "north-orchard-grass",
+      "kind": "grass",
+      "crop": { "x": 512, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[528, 8], [944, 8], [944, 92], [528, 92]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Across the broad sunlit golden-green orchard meadow along the northern edge, a warm gentle breeze waves softly from left to right through the painted yellow grass tufts and small green bushes, bending the tufts a few pixels and letting them spring smoothly back. Keep the warm golden palette unchanged with no white wind streaks or flashes. Hold the wooden fence posts and brown dirt road below completely still.",
+      "retryOf": null,
+      "why": "Animates the wide golden orchard meadow visible across the top of the safe area."
+    },
+    {
+      "element": "south-orchard-grass",
+      "kind": "grass",
+      "crop": { "x": 800, "y": 672, "width": 320, "height": 180 },
+      "mask": [
+        [[828, 718], [1034, 718], [1034, 840], [828, 840]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "In the sunlit southern orchard clearing, a light afternoon breeze brushes gently through the warm golden-green grass blades and small yellow wildflowers, leaning the painted tufts a few pixels rightward before easing smoothly back. Keep the soft earthy brushstrokes unchanged with no white streaks or colour shifts. Hold the dark dirt road edge and small mossy stones completely still.",
+      "retryOf": null,
+      "why": "Brings warm swaying grass life into the lower-center orchard floor inside the safe area."
+    }
+  ]
+}
