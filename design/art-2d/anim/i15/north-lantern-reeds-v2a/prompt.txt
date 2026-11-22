@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Only the existing silver-blue reed blades and pale moonlit grass tuft sway gently by a few pixels in a calm night breeze and return smoothly to rest. Keep the orange mushrooms, pebbles and smooth indigo moonlit ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

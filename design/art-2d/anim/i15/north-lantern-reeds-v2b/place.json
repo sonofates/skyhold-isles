@@ -1,0 +1,36 @@
+{
+  "element": "north-lantern-reeds-v2b",
+  "id": "i15-north-lantern-reeds-v2b",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 960,
+    "y": 0,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2880,
+    0,
+    3504,
+    351
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.0512820512820515,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    346,
+    92,
+    1141,
+    471
+  ],
+  "featherInwardStartPx": 6
+}

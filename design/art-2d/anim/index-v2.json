@@ -1,0 +1,698 @@
+[
+  {
+    "id": "i10-northwest-willow-grove-v2a",
+    "island": "i10",
+    "element": "northwest-willow-grove-v2a",
+    "baseElement": "northwest-willow-grove",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i10/northwest-willow-grove-v2a",
+    "start": "design/art-2d/anim/i10/northwest-willow-grove-v2a/start.png",
+    "mask": "design/art-2d/anim/i10/northwest-willow-grove-v2a/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 102,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      190,
+      47,
+      582,
+      682
+    ],
+    "maskBBoxLayoutPx": [
+      42.75,
+      112.575,
+      88.2,
+      142.875
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing hanging yellow-green willow leaves on the two weeping willows sway gently by a few pixels in a soft valley daylight breeze and return smoothly to rest. Keep both knotted brown trunks, cast ground shadows, stone steps, mossy rocks and grass completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-northwest-willow-grove-v2b",
+    "island": "i10",
+    "element": "northwest-willow-grove-v2b",
+    "baseElement": "northwest-willow-grove",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i10/northwest-willow-grove-v2b",
+    "start": "design/art-2d/anim/i10/northwest-willow-grove-v2b/start.png",
+    "mask": "design/art-2d/anim/i10/northwest-willow-grove-v2b/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 102,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      192,
+      49,
+      580,
+      680
+    ],
+    "maskBBoxLayoutPx": [
+      43.2,
+      113.025,
+      87.3,
+      141.975
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the soft valley daylight palette: only the outer hanging leaf tips of the two existing weeping willows flutter subtly by one or two pixels and return to rest. Keep both brown trunks, ground shadows, mossy stones and meadow grass completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-north-terrace-willow-v2a",
+    "island": "i10",
+    "element": "north-terrace-willow-v2a",
+    "baseElement": "north-terrace-willow",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i10/north-terrace-willow-v2a",
+    "start": "design/art-2d/anim/i10/north-terrace-willow-v2a/start.png",
+    "mask": "design/art-2d/anim/i10/north-terrace-willow-v2a/mask.png",
+    "crop": {
+      "x": 1248,
+      "y": 0,
+      "width": 208,
+      "height": 117
+    },
+    "maskBBoxStartPxLTRB": [
+      372,
+      144,
+      868,
+      560
+    ],
+    "maskBBoxLayoutPx": [
+      1308.45,
+      23.4,
+      80.6,
+      67.6
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing drooping yellow-green willow leaves on the single weeping willow sway gently by a few pixels in a soft valley daylight breeze and return smoothly to rest. Keep the brown trunk, cast shadow, carved stone terrace wall and bare grass completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-north-terrace-willow-v2b",
+    "island": "i10",
+    "element": "north-terrace-willow-v2b",
+    "baseElement": "north-terrace-willow",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i10/north-terrace-willow-v2b",
+    "start": "design/art-2d/anim/i10/north-terrace-willow-v2b/start.png",
+    "mask": "design/art-2d/anim/i10/north-terrace-willow-v2b/mask.png",
+    "crop": {
+      "x": 1248,
+      "y": 0,
+      "width": 208,
+      "height": 117
+    },
+    "maskBBoxStartPxLTRB": [
+      374,
+      146,
+      866,
+      558
+    ],
+    "maskBBoxLayoutPx": [
+      1308.775,
+      23.725,
+      79.95,
+      66.95
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the soft valley daylight palette: only the drooping outer leaf tips of the existing weeping willow flutter subtly by one or two pixels and return to rest. Keep the brown trunk, stone terrace wall and open grass completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-southeast-willows-and-crystal-v2a",
+    "island": "i10",
+    "element": "southeast-willows-and-crystal-v2a",
+    "baseElement": "southeast-willows-and-crystal",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i10/southeast-willows-and-crystal-v2a",
+    "start": "design/art-2d/anim/i10/southeast-willows-and-crystal-v2a/start.png",
+    "mask": "design/art-2d/anim/i10/southeast-willows-and-crystal-v2a/mask.png",
+    "crop": {
+      "x": 1440,
+      "y": 602,
+      "width": 208,
+      "height": 117
+    },
+    "maskBBoxStartPxLTRB": [
+      410,
+      168,
+      975,
+      635
+    ],
+    "maskBBoxLayoutPx": [
+      1506.625,
+      629.3,
+      91.812,
+      75.888
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing hanging yellow-green leaves of the weeping willow sway gently by a few pixels in a soft valley daylight breeze and return smoothly to rest. Keep the brown trunk, ground shadow, mossy stone wall and meadow grass completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-southeast-willows-and-crystal-v2b",
+    "island": "i10",
+    "element": "southeast-willows-and-crystal-v2b",
+    "baseElement": "southeast-willows-and-crystal",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i10/southeast-willows-and-crystal-v2b",
+    "start": "design/art-2d/anim/i10/southeast-willows-and-crystal-v2b/start.png",
+    "mask": "design/art-2d/anim/i10/southeast-willows-and-crystal-v2b/mask.png",
+    "crop": {
+      "x": 1440,
+      "y": 602,
+      "width": 208,
+      "height": 117
+    },
+    "maskBBoxStartPxLTRB": [
+      412,
+      170,
+      973,
+      633
+    ],
+    "maskBBoxLayoutPx": [
+      1506.95,
+      629.625,
+      91.162,
+      75.237
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the soft valley daylight palette: only the drooping outer leaf tips of the existing weeping willow flutter subtly by one or two pixels and return to rest. Keep the brown trunk, stone wall and open meadow completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-southwest-meadow-ferns-v2a",
+    "island": "i10",
+    "element": "southwest-meadow-ferns-v2a",
+    "baseElement": "southwest-meadow-ferns",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i10/southwest-meadow-ferns-v2a",
+    "start": "design/art-2d/anim/i10/southwest-meadow-ferns-v2a/start.png",
+    "mask": "design/art-2d/anim/i10/southwest-meadow-ferns-v2a/mask.png",
+    "crop": {
+      "x": 76,
+      "y": 678,
+      "width": 256,
+      "height": 144
+    },
+    "maskBBoxStartPxLTRB": [
+      178,
+      76,
+      877,
+      670
+    ],
+    "maskBBoxLayoutPx": [
+      111.6,
+      693.2,
+      139.8,
+      118.8
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing painted green fern fronds and cattail blades sway gently by a few pixels in a soft valley daylight breeze and return smoothly to rest. Keep the weathered stone terrace ledges, boulders, pebbles and olive meadow ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i10-southwest-meadow-ferns-v2b",
+    "island": "i10",
+    "element": "southwest-meadow-ferns-v2b",
+    "baseElement": "southwest-meadow-ferns",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i10/southwest-meadow-ferns-v2b",
+    "start": "design/art-2d/anim/i10/southwest-meadow-ferns-v2b/start.png",
+    "mask": "design/art-2d/anim/i10/southwest-meadow-ferns-v2b/mask.png",
+    "crop": {
+      "x": 76,
+      "y": 678,
+      "width": 256,
+      "height": 144
+    },
+    "maskBBoxStartPxLTRB": [
+      180,
+      78,
+      875,
+      668
+    ],
+    "maskBBoxLayoutPx": [
+      112.0,
+      693.6,
+      139.0,
+      118.0
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the soft valley daylight palette: only the outer tips of the existing green fern fronds and cattail blades flutter subtly by one or two pixels and return to rest. Keep the stone terrace walls, boulders and bare meadow ground completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-west-oasis-scrub-v2a",
+    "island": "i14",
+    "element": "west-oasis-scrub-v2a",
+    "baseElement": "west-oasis-scrub",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i14/west-oasis-scrub-v2a",
+    "start": "design/art-2d/anim/i14/west-oasis-scrub-v2a/start.png",
+    "mask": "design/art-2d/anim/i14/west-oasis-scrub-v2a/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 6,
+      "width": 256,
+      "height": 144
+    },
+    "maskBBoxStartPxLTRB": [
+      54,
+      54,
+      1167,
+      717
+    ],
+    "maskBBoxLayoutPx": [
+      10.8,
+      16.8,
+      222.6,
+      132.6
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing olive desert shrubs, blue-green agave leaves and tiny dry grass tuft sway gently by a few pixels in a hot desert breeze and return smoothly to rest. Keep the red sandstone ledges, rocky outcrops and terracotta sand completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-west-oasis-scrub-v2b",
+    "island": "i14",
+    "element": "west-oasis-scrub-v2b",
+    "baseElement": "west-oasis-scrub",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i14/west-oasis-scrub-v2b",
+    "start": "design/art-2d/anim/i14/west-oasis-scrub-v2b/start.png",
+    "mask": "design/art-2d/anim/i14/west-oasis-scrub-v2b/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 6,
+      "width": 256,
+      "height": 144
+    },
+    "maskBBoxStartPxLTRB": [
+      56,
+      56,
+      1165,
+      715
+    ],
+    "maskBBoxLayoutPx": [
+      11.2,
+      17.2,
+      221.8,
+      131.8
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the hot desert palette: only the outer leaf tips of the existing olive shrubs, blue-green agave and dry grass tuft flutter subtly by one or two pixels and return to rest. Keep the red sandstone cliffs, rocks and bare sand completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-northeast-sandstone-scrub-v2a",
+    "island": "i14",
+    "element": "northeast-sandstone-scrub-v2a",
+    "baseElement": "northeast-sandstone-scrub",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i14/northeast-sandstone-scrub-v2a",
+    "start": "design/art-2d/anim/i14/northeast-sandstone-scrub-v2a/start.png",
+    "mask": "design/art-2d/anim/i14/northeast-sandstone-scrub-v2a/mask.png",
+    "crop": {
+      "x": 1332,
+      "y": 0,
+      "width": 320,
+      "height": 180
+    },
+    "maskBBoxStartPxLTRB": [
+      66,
+      34,
+      1207,
+      607
+    ],
+    "maskBBoxLayoutPx": [
+      1348.5,
+      8.5,
+      285.25,
+      143.25
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing blue-green agave, yellow-flowering desert bush and olive ridge shrub sway gently by a few pixels in a hot desert breeze and return smoothly to rest. Keep the red sandstone ridge, flat terracotta sand and wooden brazier rim completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-northeast-sandstone-scrub-v2b",
+    "island": "i14",
+    "element": "northeast-sandstone-scrub-v2b",
+    "baseElement": "northeast-sandstone-scrub",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i14/northeast-sandstone-scrub-v2b",
+    "start": "design/art-2d/anim/i14/northeast-sandstone-scrub-v2b/start.png",
+    "mask": "design/art-2d/anim/i14/northeast-sandstone-scrub-v2b/mask.png",
+    "crop": {
+      "x": 1332,
+      "y": 0,
+      "width": 320,
+      "height": 180
+    },
+    "maskBBoxStartPxLTRB": [
+      68,
+      36,
+      1205,
+      605
+    ],
+    "maskBBoxLayoutPx": [
+      1349.0,
+      9.0,
+      284.25,
+      142.25
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the hot desert palette: only the outer tips of the existing blue-green agave, yellow-flowering bush and olive ridge shrub flutter subtly by one or two pixels and return to rest. Keep the red sandstone cliffs, bare sand and brazier completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-southwest-canyon-agaves-v2a",
+    "island": "i14",
+    "element": "southwest-canyon-agaves-v2a",
+    "baseElement": "southwest-canyon-agaves",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i14/southwest-canyon-agaves-v2a",
+    "start": "design/art-2d/anim/i14/southwest-canyon-agaves-v2a/start.png",
+    "mask": "design/art-2d/anim/i14/southwest-canyon-agaves-v2a/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 638,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      56,
+      16,
+      960,
+      709
+    ],
+    "maskBBoxLayoutPx": [
+      12.6,
+      641.6,
+      203.4,
+      155.925
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing yellow-flowering bush, small blue-green agave, olive desert shrubs and pale dry grass tufts sway gently by a few pixels in a hot desert breeze and return smoothly to rest. Keep the red canyon sand, cliff ledges and scattered rocks completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-southwest-canyon-agaves-v2b",
+    "island": "i14",
+    "element": "southwest-canyon-agaves-v2b",
+    "baseElement": "southwest-canyon-agaves",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i14/southwest-canyon-agaves-v2b",
+    "start": "design/art-2d/anim/i14/southwest-canyon-agaves-v2b/start.png",
+    "mask": "design/art-2d/anim/i14/southwest-canyon-agaves-v2b/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 638,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      58,
+      18,
+      958,
+      707
+    ],
+    "maskBBoxLayoutPx": [
+      13.05,
+      642.05,
+      202.5,
+      155.025
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the hot desert palette: only the outer leaf and blade tips of the existing desert shrubs, small agave and dry grass tufts flutter subtly by one or two pixels and return to rest. Keep the bare terracotta sand and sandstone ledges completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-southeast-wash-scrub-v2a",
+    "island": "i14",
+    "element": "southeast-wash-scrub-v2a",
+    "baseElement": "southeast-wash-scrub",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i14/southeast-wash-scrub-v2a",
+    "start": "design/art-2d/anim/i14/southeast-wash-scrub-v2a/start.png",
+    "mask": "design/art-2d/anim/i14/southeast-wash-scrub-v2a/mask.png",
+    "crop": {
+      "x": 1514,
+      "y": 668,
+      "width": 240,
+      "height": 135
+    },
+    "maskBBoxStartPxLTRB": [
+      78,
+      104,
+      375,
+      661
+    ],
+    "maskBBoxLayoutPx": [
+      1528.625,
+      687.5,
+      55.688,
+      104.438
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing blue-green agave leaves and small dry grass tufts sway gently by a few pixels in a hot desert breeze and return smoothly to rest. Keep the upright sandstone pillar, flat boulder, cracked clay and bare wash sand completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i14-southeast-wash-scrub-v2b",
+    "island": "i14",
+    "element": "southeast-wash-scrub-v2b",
+    "baseElement": "southeast-wash-scrub",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i14/southeast-wash-scrub-v2b",
+    "start": "design/art-2d/anim/i14/southeast-wash-scrub-v2b/start.png",
+    "mask": "design/art-2d/anim/i14/southeast-wash-scrub-v2b/mask.png",
+    "crop": {
+      "x": 1514,
+      "y": 668,
+      "width": 240,
+      "height": 135
+    },
+    "maskBBoxStartPxLTRB": [
+      80,
+      106,
+      373,
+      659
+    ],
+    "maskBBoxLayoutPx": [
+      1529.0,
+      687.875,
+      54.938,
+      103.688
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and hot desert palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the hot desert palette: only the outer tips of the existing blue-green agave and dry grass tufts flutter subtly by one or two pixels and return to rest. Keep the sandstone rocks, cracked ground and open terracotta wash completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-north-lantern-reeds-v2a",
+    "island": "i15",
+    "element": "north-lantern-reeds-v2a",
+    "baseElement": "north-lantern-reeds",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i15/north-lantern-reeds-v2a",
+    "start": "design/art-2d/anim/i15/north-lantern-reeds-v2a/start.png",
+    "mask": "design/art-2d/anim/i15/north-lantern-reeds-v2a/mask.png",
+    "crop": {
+      "x": 960,
+      "y": 0,
+      "width": 208,
+      "height": 117
+    },
+    "maskBBoxStartPxLTRB": [
+      344,
+      90,
+      1143,
+      473
+    ],
+    "maskBBoxLayoutPx": [
+      1015.9,
+      14.625,
+      129.838,
+      62.237
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing silver-blue reed blades and pale moonlit grass tuft sway gently by a few pixels in a calm night breeze and return smoothly to rest. Keep the orange mushrooms, pebbles and smooth indigo moonlit ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-north-lantern-reeds-v2b",
+    "island": "i15",
+    "element": "north-lantern-reeds-v2b",
+    "baseElement": "north-lantern-reeds",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i15/north-lantern-reeds-v2b",
+    "start": "design/art-2d/anim/i15/north-lantern-reeds-v2b/start.png",
+    "mask": "design/art-2d/anim/i15/north-lantern-reeds-v2b/mask.png",
+    "crop": {
+      "x": 960,
+      "y": 0,
+      "width": 208,
+      "height": 117
+    },
+    "maskBBoxStartPxLTRB": [
+      346,
+      92,
+      1141,
+      471
+    ],
+    "maskBBoxLayoutPx": [
+      1016.225,
+      14.95,
+      129.188,
+      61.587
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the moonlit night palette: only the outer blade tips of the existing silver-blue reeds and pale grass tuft flutter subtly by one or two pixels and return to rest. Keep the mushrooms, pebbles and bare indigo ground completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-east-moonlit-reeds-v2a",
+    "island": "i15",
+    "element": "east-moonlit-reeds-v2a",
+    "baseElement": "east-moonlit-reeds",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i15/east-moonlit-reeds-v2a",
+    "start": "design/art-2d/anim/i15/east-moonlit-reeds-v2a/start.png",
+    "mask": "design/art-2d/anim/i15/east-moonlit-reeds-v2a/mask.png",
+    "crop": {
+      "x": 1558,
+      "y": 324,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      40,
+      0,
+      1242,
+      695
+    ],
+    "maskBBoxLayoutPx": [
+      1567.0,
+      324.0,
+      270.45,
+      156.375
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing painted silver-blue reed clumps and pale blue grass tufts sway gently by a few pixels in a calm night breeze and return smoothly to rest. Keep the carved standing rune stone, mushrooms, pebbles and smooth indigo moonlit ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-east-moonlit-reeds-v2b",
+    "island": "i15",
+    "element": "east-moonlit-reeds-v2b",
+    "baseElement": "east-moonlit-reeds",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i15/east-moonlit-reeds-v2b",
+    "start": "design/art-2d/anim/i15/east-moonlit-reeds-v2b/start.png",
+    "mask": "design/art-2d/anim/i15/east-moonlit-reeds-v2b/mask.png",
+    "crop": {
+      "x": 1558,
+      "y": 324,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      42,
+      0,
+      1240,
+      693
+    ],
+    "maskBBoxLayoutPx": [
+      1567.45,
+      324.0,
+      269.55,
+      155.925
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the moonlit night palette: only the outer blade tips of the existing moonlit reeds and pale blue grass tufts flutter subtly by one or two pixels and return to rest. Keep the carved rune stone, mushrooms and bare indigo ground completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-southeast-moonlit-foliage-v2a",
+    "island": "i15",
+    "element": "southeast-moonlit-foliage-v2a",
+    "baseElement": "southeast-moonlit-foliage",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i15/southeast-moonlit-foliage-v2a",
+    "start": "design/art-2d/anim/i15/southeast-moonlit-foliage-v2a/start.png",
+    "mask": "design/art-2d/anim/i15/southeast-moonlit-foliage-v2a/mask.png",
+    "crop": {
+      "x": 1558,
+      "y": 672,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      0,
+      0,
+      1225,
+      720
+    ],
+    "maskBBoxLayoutPx": [
+      1558.0,
+      672.0,
+      275.625,
+      162.0
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing painted silver-blue leaves, dark indigo foliage clusters and pale grass tufts sway gently by a few pixels in a calm night breeze and return smoothly to rest. Keep the carved standing stone, stone-rimmed lily pools, mushrooms and smooth indigo ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-southeast-moonlit-foliage-v2b",
+    "island": "i15",
+    "element": "southeast-moonlit-foliage-v2b",
+    "baseElement": "southeast-moonlit-foliage",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i15/southeast-moonlit-foliage-v2b",
+    "start": "design/art-2d/anim/i15/southeast-moonlit-foliage-v2b/start.png",
+    "mask": "design/art-2d/anim/i15/southeast-moonlit-foliage-v2b/mask.png",
+    "crop": {
+      "x": 1558,
+      "y": 672,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      0,
+      0,
+      1223,
+      720
+    ],
+    "maskBBoxLayoutPx": [
+      1558.0,
+      672.0,
+      275.175,
+      162.0
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the moonlit night palette: only the outer leaf edges and grass tips of the existing silver-blue foliage flutter subtly by one or two pixels and return to rest. Keep the carved rune stone, stone-rimmed lily pools, mushrooms and bare ground completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-southwest-lantern-ferns-v2a",
+    "island": "i15",
+    "element": "southwest-lantern-ferns-v2a",
+    "baseElement": "southwest-lantern-ferns",
+    "variant": "v2a",
+    "folder": "design/art-2d/anim/i15/southwest-lantern-ferns-v2a",
+    "start": "design/art-2d/anim/i15/southwest-lantern-ferns-v2a/start.png",
+    "mask": "design/art-2d/anim/i15/southwest-lantern-ferns-v2a/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 672,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      38,
+      40,
+      1269,
+      709
+    ],
+    "maskBBoxLayoutPx": [
+      8.55,
+      681.0,
+      276.975,
+      150.525
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nOnly the existing painted silver-blue foliage, indigo fern leaves and pale blue grass tufts sway gently by a few pixels in a calm night breeze and return smoothly to rest. Keep the golden lamppost and lantern, carved rune stone, stone-rimmed lily pools, tree stump, mushrooms and smooth indigo ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  },
+  {
+    "id": "i15-southwest-lantern-ferns-v2b",
+    "island": "i15",
+    "element": "southwest-lantern-ferns-v2b",
+    "baseElement": "southwest-lantern-ferns",
+    "variant": "v2b",
+    "folder": "design/art-2d/anim/i15/southwest-lantern-ferns-v2b",
+    "start": "design/art-2d/anim/i15/southwest-lantern-ferns-v2b/start.png",
+    "mask": "design/art-2d/anim/i15/southwest-lantern-ferns-v2b/mask.png",
+    "crop": {
+      "x": 0,
+      "y": 672,
+      "width": 288,
+      "height": 162
+    },
+    "maskBBoxStartPxLTRB": [
+      40,
+      42,
+      1267,
+      707
+    ],
+    "maskBBoxLayoutPx": [
+      9.0,
+      681.45,
+      276.075,
+      149.625
+    ],
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and moonlit night palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlmost still in the moonlit night palette: only the outer leaf edges and grass tips of the existing silver-blue ferns and foliage flutter subtly by one or two pixels and return to rest. Keep the golden lantern, carved rune stone, lily pools, tree stump and bare ground completely frozen. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join."
+  }
+]

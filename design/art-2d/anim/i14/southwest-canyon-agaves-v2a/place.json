@@ -1,0 +1,36 @@
+{
+  "element": "southwest-canyon-agaves-v2a",
+  "id": "i14-southwest-canyon-agaves-v2a",
+  "source": "public/art2d/map-i14-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 638,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1914,
+    864,
+    2400
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814816,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    56,
+    16,
+    960,
+    709
+  ],
+  "featherInwardStartPx": 8
+}
