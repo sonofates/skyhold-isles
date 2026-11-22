@@ -71,15 +71,17 @@ class AmbientPlayer {
   private readonly host: Container;
   private readonly data: AmbientMap;
   readonly track: AmbientTrack;
+  private readonly onUpload?: () => void;
   private requested = false;
   private blocked = false;
   private failed = false;
   private lastFrame = -1;
 
-  constructor(host: Container, data: AmbientMap, track: AmbientTrack, base: string) {
+  constructor(host: Container, data: AmbientMap, track: AmbientTrack, base: string, onUpload?: () => void) {
     this.host = host;
     this.data = data;
     this.track = track;
+    this.onUpload = onUpload;
     const video = this.video;
     video.muted = video.defaultMuted = video.loop = video.playsInline = true;
     video.preload = 'auto';
@@ -107,6 +109,7 @@ class AmbientPlayer {
     // Index 0 inside the dedicated ambient host: over the map sprite, under procedural FX & battle layers.
     this.host.addChildAt(this.mesh, 0);
     this.upload();
+    this.onUpload?.();
   };
 
   private upload = (): void => {
@@ -191,7 +194,7 @@ export interface MapAnimController {
   debug(): AmbientFxStats | null;
 }
 
-export function mapAnimLayer(world: Container, island: string, base: string): MapAnimController | undefined {
+export function mapAnimLayer(world: Container, island: string, base: string, onVideoUpload?: () => void): MapAnimController | undefined {
   const data = maps[`../data/mapAnim/${island}.json`];
   const fxConfig = getAmbientFxConfig(island);
   if (!data && !fxConfig) return;
@@ -253,7 +256,7 @@ export function mapAnimLayer(world: Container, island: string, base: string): Ma
         } else {
           const track = smallBake && data.compact ? data.compact : data;
           if (player && player.track !== track) releaseVideo();
-          if (!player && !paused && !hidden) player = new AmbientPlayer(host, data, track, base);
+          if (!player && !paused && !hidden) player = new AmbientPlayer(host, data, track, base, onVideoUpload);
           player?.update(paused);
         }
       }

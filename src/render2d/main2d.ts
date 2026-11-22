@@ -25,7 +25,15 @@ import type { HeroHud2D } from './ui/heroHud2d.ts';
 import type { HeroSkillSlot } from '../core/types.ts';
 import type { RunCommand } from './ui/replay2d.ts';
 import { HUD_FONT } from './hudText.ts';
-import { detectSoftwareWebGL, isDesktopClient, qualityOverride, renderResolution, setGraphicsPrefs, type QualityTier } from './renderResolution.ts';
+import {
+  detectSoftwareWebGL,
+  isDesktopClient,
+  MOBILE_SETTLE_GRACE_MS,
+  qualityOverride,
+  renderResolution,
+  setGraphicsPrefs,
+  type QualityTier,
+} from './renderResolution.ts';
 import { setFxPrefs } from './fxLayer.ts';
 import type { GameSettings } from '../core/types.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
@@ -414,7 +422,7 @@ async function main(): Promise<void> {
 
   // Subscribe after the master has painted. Serialize loads and recheck the fit before applying
   // them, since resizing / adaptive resolution can change the desired bake while it downloads.
-  function watchMap(map: MapView, gates?: GateLayer): void {
+  function watchMap(map: MapView, gates?: GateLayer, onSwap?: () => void): void {
     const desired = (): string | null => {
       const need = mapNeed(app.screen.width, app.screen.height);
       // Small bakes can stay resident when a phone calibrates down after boot.
@@ -430,6 +438,7 @@ async function main(): Promise<void> {
         while (key && key !== art.map.key) {
           const target = key;
           await changeMapVariant(art, target, fronts, mapMips, () => desired() === target, () => {
+            onSwap?.();
             map.setTexture(art.map.texture);
             gates?.setTextures(art.map.overlays);
           });
@@ -724,8 +733,9 @@ async function main(): Promise<void> {
   game.prewarm({ benchSteps: bench > 0 ? Math.ceil(bench / 10) + 2 : 0 });
   bootPhase('calibrate-resolution');
   setBootProgress(0.95);
-  watchMap(game.map, game.gates);
-  const ambient = mapAnimLayer(game.map.world, level.id, art.baseUrl);
+  const onUploadGrace = (): void => game.notifyQualityGrace(MOBILE_SETTLE_GRACE_MS);
+  watchMap(game.map, game.gates, onUploadGrace);
+  const ambient = mapAnimLayer(game.map.world, level.id, art.baseUrl, onUploadGrace);
   const life = mapLifeLayer(game.map.world, game.map, game.layers, level.id, art.baseUrl);
   draws?.take();
   // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
@@ -1090,6 +1100,7 @@ async function main(): Promise<void> {
     });
   }
   let fpsShownAt = 0;
+  let lifeSwayReady = false;
   app.ticker.add((t) => {
     if (draws) lastDraws = draws.take();
     const t0 = performance.now();
@@ -1099,6 +1110,14 @@ async function main(): Promise<void> {
     const lifeOn = game.qualityTier !== 'low' && !gfx.reducedMotion;
     ambient?.update(lifeOn, game.stepper.paused, smallBake, t.deltaMS / 1000, game.qualityTier);
     life?.update(lifeOn, game.stepper.paused, smallBake, t.deltaMS / 1000, game.qualityTier);
+    if (life) {
+      if (!lifeOn) {
+        lifeSwayReady = false;
+      } else if (!lifeSwayReady && life.debug().swayReady) {
+        lifeSwayReady = true;
+        onUploadGrace();
+      }
+    }
     abilities?.frame(t.deltaMS / 1000);
     itemBelt?.frame(t.deltaMS / 1000);
     heroHud?.frame(t.deltaMS / 1000);
@@ -1369,7 +1388,9 @@ async function main(): Promise<void> {
   window.__p0.textureWarmup = warmTextureSources(app, game.textureSources(), () => {
     bootPhase('all-textures-resident');
     reportBoot();
+    game.setQualityWarmupPending(false);
   });
+  if (window.__p0.textureWarmup().pending > 0) game.setQualityWarmupPending(true);
 }
 
 main().catch((err: unknown) => {

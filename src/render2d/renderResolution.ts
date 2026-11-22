@@ -125,11 +125,36 @@ const DESKTOP_TIER_UP_WINDOWS = 10;
 /** Desktop: at most this many emergency drops (and tier climbs) per visit, so it never oscillates. */
 const DESKTOP_MAX_CYCLES = 2;
 
+/** Mobile: reduced framebuffer scale when a sustained low-tier workload still misses 30 fps. */
+export const MOBILE_LOW_SCALE = 0.65 / 0.8;
+/** Mobile: initial warm-up grace after boot / level start so upload & shader-compile hitches don't drop the tier. */
+export const MOBILE_BOOT_GRACE_MS = 6000;
+/** Mobile: grace after resume / tab-visible / resize so wake & backing-store hitches don't drop the tier. */
+export const MOBILE_RESUME_GRACE_MS = 3000;
+/** Mobile: short settle grace after a tier/scale step-up or late texture/video upload. */
+export const MOBILE_SETTLE_GRACE_MS = 1500;
+/** Mobile: safety cap on holding grace while async texture warmup is pending. */
+export const MOBILE_MAX_WARMUP_MS = 12_000;
+/** Mobile: 1 s window average below this (~57 fps) counts toward tier recovery (hysteresis vs 19 ms down). */
+export const MOBILE_GOOD_MS = 17.5;
+/** Mobile: 1 s window average below this (~45 fps) counts toward resolutionScale recovery (hysteresis vs 33.3 ms down). */
+export const MOBILE_SCALE_GOOD_MS = 22;
+/** Mobile: consecutive smooth 1 s windows required to step tier up one level (low→med→high). */
+export const MOBILE_TIER_UP_WINDOWS = 8;
+/** Mobile: consecutive good 1 s windows required to restore resolutionScale from reduced back to 1. */
+export const MOBILE_SCALE_UP_WINDOWS = 5;
+/** Mobile: maximum upward recovery steps (scale restore + tier climbs) per level, preventing oscillation. */
+export const MOBILE_MAX_UP_STEPS = 3;
+
 const TIER_ORDER: readonly QualityTier[] = ['low', 'med', 'high'];
 
 /**
- * Phones / tablets: step down after two consecutive slow windows, and stay at the selected tier
- * for this visit so quiet build phases don't repeatedly raise resolution just before the next wave.
+ * Phones / tablets (hardware GPU): ignore one-off hitches during boot/level-start/resume/tab-visible/resize
+ * warm-up grace (and while async texture warmup is pending, up to MOBILE_MAX_WARMUP_MS). After grace, step
+ * down on genuine sustained slowness (2 slow 1 s windows > 19 ms, or 2 back-to-back > 85 ms stalls) and
+ * recover step-by-step (resolutionScale → low → med → high) with hysteresis after sustained smooth windows,
+ * capped at MOBILE_MAX_UP_STEPS per level so marginal devices never oscillate. Software WebGL (headless CI)
+ * keeps the original immediate step-down policy without grace or recovery.
  *
  * Desktops (owner feedback 2026-11-18: a 1920x1080 PC was drawn at a 667x375 framebuffer): the
  * tier only trims effects (particles), the canvas stays at full resolution (`resolutionTier` is
@@ -138,10 +163,11 @@ const TIER_ORDER: readonly QualityTier[] = ['low', 'med', 'high'];
  */
 export class AdaptiveQuality {
   tier: QualityTier;
-  // Phones: one final framebuffer reduction if a sustained low-tier workload still misses 30 fps.
+  // Phones: one final framebuffer reduction if a sustained low-tier workload still misses 30 fps (recoverable on hardware).
   // Desktops: the emergency scale (recoverable).
   resolutionScale = 1;
   readonly isDesktop: boolean;
+  private software: boolean;
   private readonly locked: boolean;
   private elapsed = 0;
   private frames = 0;
@@ -152,15 +178,36 @@ export class AdaptiveQuality {
   private smoothWindows = 0;
   private emergencyDrops = 0;
   private tierClimbs = 0;
+  private graceMs = 0;
+  private warmupPending = false;
+  private warmupElapsedMs = 0;
+  private mobileUpSteps = 0;
   /** Settings → Graphics: the prefs revision this governor last applied, and its Auto start tier. */
   private seenPrefs = prefsRev;
   private readonly autoTier: QualityTier;
 
-  constructor(override: QualityTier | null, initialUnlockedTier: QualityTier = 'high', desktop = false) {
+  constructor(override: QualityTier | null, initialUnlockedTier: QualityTier = 'high', desktop = false, software = false) {
     this.tier = override ?? prefs.lock ?? initialUnlockedTier;
     this.autoTier = initialUnlockedTier;
     this.locked = override !== null;
     this.isDesktop = desktop;
+    this.software = software;
+    if (!desktop && !software) this.graceMs = MOBILE_BOOT_GRACE_MS;
+  }
+
+  /** Whether this governor runs under software WebGL (headless CI / SwiftShader). */
+  get isSoftware(): boolean {
+    return this.software;
+  }
+
+  /** Whether the mobile warm-up / resume grace period is currently active. */
+  get inGrace(): boolean {
+    return !this.isLocked && !this.isDesktop && !this.software && (this.graceMs > 0 || this.warmupPending);
+  }
+
+  /** Number of mobile upward recovery steps taken in the current level. */
+  get upSteps(): number {
+    return this.mobileUpSteps;
   }
 
   /** Tier that sets the canvas resolution: desktops stay at full resolution unless `?quality=` locks it. */
@@ -173,10 +220,42 @@ export class AdaptiveQuality {
     return this.locked || prefs.lock !== null;
   }
 
+  /** Extends (never shortens) the mobile grace window and clears in-flight frame pressure. */
+  beginGrace(ms: number = MOBILE_RESUME_GRACE_MS): void {
+    if (this.isDesktop || this.software || !Number.isFinite(ms) || ms <= 0) return;
+    if (ms > this.graceMs) this.graceMs = ms;
+    this.resetWindows();
+  }
+
+  /** Signals whether async boot texture warmup is still uploading to the GPU (mobile hardware only). */
+  setWarmupPending(pending: boolean): void {
+    if (this.isDesktop || this.software) return;
+    if (pending) {
+      this.warmupPending = true;
+      this.warmupElapsedMs = 0;
+      this.resetWindows();
+    } else if (this.warmupPending) {
+      this.warmupPending = false;
+      this.beginGrace(MOBILE_SETTLE_GRACE_MS);
+    }
+  }
+
+  /** Resets per-level oscillation budget and arms boot/level-start grace (mobile hardware only). */
+  resetForLevel(): void {
+    if (this.isDesktop || this.software) return;
+    this.mobileUpSteps = 0;
+    this.graceMs = Math.max(this.graceMs, MOBILE_BOOT_GRACE_MS);
+    this.resetWindows();
+  }
+
   /** New graphics prefs: take the player's tier (or go back to Auto) and restart the windows. */
   private applyPrefs(): void {
     this.seenPrefs = prefsRev;
-    if (!this.locked) this.tier = prefs.lock ?? this.autoTier;
+    if (!this.locked) {
+      this.tier = prefs.lock ?? this.autoTier;
+      this.resolutionScale = 1;
+      this.mobileUpSteps = 0;
+    }
     this.resetWindows();
   }
 
@@ -198,6 +277,11 @@ export class AdaptiveQuality {
    * swapchain resizes mid-wave.
    */
   calibrateBoot(renderMs: number, software: boolean, activeWorkload = true): boolean {
+    if (software) {
+      this.software = true;
+      this.graceMs = 0;
+      this.warmupPending = false;
+    }
     this.resetWindows();
     if (this.isLocked || this.resolutionScale < 1) return false;
     if (!Number.isFinite(renderMs) || renderMs <= 0) return false;
@@ -214,14 +298,14 @@ export class AdaptiveQuality {
     }
     if (software && renderMs > 65) {
       this.tier = 'low';
-      this.resolutionScale = 0.65 / 0.8;
+      this.resolutionScale = MOBILE_LOW_SCALE;
       return true;
     }
     if (software && renderMs > 36 && this.tier === 'high') {
       this.tier = 'low';
       return true;
     }
-    if (this.tier === 'low') this.resolutionScale = 0.65 / 0.8;
+    if (this.tier === 'low') this.resolutionScale = MOBILE_LOW_SCALE;
     else this.tier = this.tier === 'high' ? 'med' : 'low';
     return true;
   }
@@ -234,12 +318,22 @@ export class AdaptiveQuality {
     }
     if (this.isLocked) return false;
     if (!visible || !Number.isFinite(ms) || ms <= 0) {
+      if (!visible && !this.isDesktop && !this.software) {
+        this.graceMs = Math.max(this.graceMs, MOBILE_RESUME_GRACE_MS);
+      }
       this.resetWindows();
       return false;
     }
+    const rawMs = ms;
     // A 30 fps cap makes every frame ~33 ms on purpose: judge frames against the cap instead.
     if (prefs.fpsCap > 0 && prefs.fpsCap < 60) ms *= prefs.fpsCap / 60;
     if (this.isDesktop) return this.observeDesktop(ms);
+    if (this.software) return this.observeMobileSoftware(ms);
+    return this.observeMobile(ms, rawMs);
+  }
+
+  /** Headless / software WebGL mobile path: immediate step-down without grace or recovery. */
+  private observeMobileSoftware(ms: number): boolean {
     if (this.resolutionScale < 1) return false;
     // Two back-to-back severe stalls (> 85 ms, < 12 fps) drop straight to a playable tier
     // instead of waiting through several seconds of multi-step swapchain reallocations.
@@ -247,7 +341,7 @@ export class AdaptiveQuality {
       this.severeFrames++;
       if (this.severeFrames >= 2) {
         this.elapsed = this.frames = this.slowWindows = this.severeFrames = 0;
-        if (this.tier === 'low') this.resolutionScale = 0.65 / 0.8;
+        if (this.tier === 'low') this.resolutionScale = MOBILE_LOW_SCALE;
         else this.tier = 'low';
         return true;
       }
@@ -262,10 +356,97 @@ export class AdaptiveQuality {
     this.slowWindows = this.elapsed / this.frames > budget ? this.slowWindows + 1 : 0;
     this.frames = this.elapsed = 0;
     if (this.slowWindows < 2) return false;
-    if (this.tier === 'low') this.resolutionScale = 0.65 / 0.8;
+    if (this.tier === 'low') this.resolutionScale = MOBILE_LOW_SCALE;
     else this.tier = this.tier === 'high' ? 'med' : 'low';
     this.slowWindows = 0;
     return true;
+  }
+
+  /** Hardware phone / tablet path: warm-up grace, genuine step-down protection, and bounded recovery. */
+  private observeMobile(ms: number, rawMs: number): boolean {
+    const stepMs = Math.min(rawMs, 250);
+    if (this.warmupPending) {
+      this.warmupElapsedMs += stepMs;
+      if (this.warmupElapsedMs >= MOBILE_MAX_WARMUP_MS) this.warmupPending = false;
+    }
+    if (this.graceMs > 0 || this.warmupPending) {
+      if (this.graceMs > 0) this.graceMs = Math.max(0, this.graceMs - stepMs);
+      this.resetWindows();
+      return false;
+    }
+
+    // Two back-to-back severe stalls (> 85 ms, < 12 fps) drop straight to a playable tier
+    // instead of waiting through several seconds of multi-step swapchain reallocations.
+    if (ms > 85) {
+      this.severeFrames++;
+      this.goodWindows = this.smoothWindows = 0;
+      if (this.severeFrames >= 2) {
+        this.resetWindows();
+        if (this.tier !== 'low') {
+          this.tier = 'low';
+          return true;
+        }
+        if (this.resolutionScale >= 1) {
+          this.resolutionScale = MOBILE_LOW_SCALE;
+          return true;
+        }
+        return false;
+      }
+    } else {
+      this.severeFrames = 0;
+    }
+
+    // A single resume/GC stall cannot fill a whole observation window.
+    this.elapsed += Math.min(ms, 250);
+    this.frames++;
+    if (this.elapsed < 1000) return false;
+    const avg = this.elapsed / this.frames;
+    this.frames = this.elapsed = 0;
+
+    // Reduced resolutionScale (at low tier): recover back to 1 after sustained good windows
+    // with hysteresis, subject to the per-level oscillation cap.
+    if (this.resolutionScale < 1) {
+      this.goodWindows = avg < MOBILE_SCALE_GOOD_MS ? this.goodWindows + 1 : 0;
+      if (this.goodWindows >= MOBILE_SCALE_UP_WINDOWS && this.mobileUpSteps < MOBILE_MAX_UP_STEPS) {
+        this.resolutionScale = 1;
+        this.mobileUpSteps++;
+        this.graceMs = Math.max(this.graceMs, MOBILE_SETTLE_GRACE_MS);
+        this.resetWindows();
+        return true;
+      }
+      return false;
+    }
+
+    // Genuine slowness protection: two consecutive slow 1 s windows step down.
+    const budget = this.tier === 'low' ? 1000 / 30 : 19;
+    if (avg > budget) {
+      this.slowWindows++;
+      this.smoothWindows = 0;
+      if (this.slowWindows >= 2) {
+        this.resetWindows();
+        if (this.tier === 'low') this.resolutionScale = MOBILE_LOW_SCALE;
+        else this.tier = this.tier === 'high' ? 'med' : 'low';
+        return true;
+      }
+      return false;
+    }
+    this.slowWindows = 0;
+
+    // Recovery: step back up one tier after sustained smooth windows (hysteresis: < 17.5 ms vs > 19 ms down),
+    // capped at MOBILE_MAX_UP_STEPS per level so marginal devices never oscillate.
+    if (this.tier !== 'high' && this.mobileUpSteps < MOBILE_MAX_UP_STEPS) {
+      this.smoothWindows = avg < MOBILE_GOOD_MS ? this.smoothWindows + 1 : 0;
+      if (this.smoothWindows >= MOBILE_TIER_UP_WINDOWS) {
+        this.tier = TIER_ORDER[TIER_ORDER.indexOf(this.tier) + 1];
+        this.mobileUpSteps++;
+        this.graceMs = Math.max(this.graceMs, MOBILE_SETTLE_GRACE_MS);
+        this.resetWindows();
+        return true;
+      }
+    } else {
+      this.smoothWindows = 0;
+    }
+    return false;
   }
 
   /** Desktop: effects tier follows the frame rate both ways; the framebuffer only in emergencies. */
