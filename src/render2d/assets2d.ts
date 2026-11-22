@@ -1,5 +1,6 @@
 import { bootPhase } from './bootTrace.ts';
-import { Assets, Rectangle, Texture, type TextureSource } from 'pixi.js';
+import { Capacitor } from '@capacitor/core';
+import { Assets, loadTextures, Rectangle, Texture, type TextureSource } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
@@ -189,6 +190,14 @@ const textureCache = new Map<string, Promise<Texture | null>>();
  * mip chain (sprites drawn much smaller than their file — map, plots, towers — stay crisp instead
  * of shimmering).
  */
+/**
+ * Inside the native iOS / Android shell the art is served from the app bundle through a custom
+ * scheme (`capacitor://localhost`) that only the page's own requests can reach: Pixi's default
+ * worker-side fetch + decode fails there, so every texture (the map first) would fail to load.
+ * Decode on the main thread in the native shell; the web keeps the faster worker path.
+ */
+if (Capacitor.isNativePlatform()) loadTextures.config.preferWorkers = false;
+
 function tryTexture(url: string, mips = false): Promise<Texture | null> {
   const cacheKey = mips ? `${url}#mips` : url;
   let p = textureCache.get(cacheKey);
