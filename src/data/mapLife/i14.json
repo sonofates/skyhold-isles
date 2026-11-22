@@ -1,5 +1,26 @@
 {
   "island": "i14",
+  "heatHaze": {
+    "mask": "life/i14-haze.webp",
+    "strength": 0.62,
+    "dir": [0.84, -0.54],
+    "speed": 1.35,
+    "warmth": 0.011
+  },
+  "dust": {
+    "count": 10,
+    "dir": [0.94, 0.34],
+    "speed": 46,
+    "alpha": 0.145,
+    "tint": "#f0d3a6",
+    "tint2": "#f7e3c4",
+    "sizeRange": [220, 420],
+    "bands": [
+      [130, 210, 480, 340],
+      [560, 60, 960, 400],
+      [520, 460, 1180, 330]
+    ]
+  },
   "clouds": {
     "count": 2,
     "alpha": 0.095,

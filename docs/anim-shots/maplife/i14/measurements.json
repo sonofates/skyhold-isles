@@ -1,6 +1,11 @@
 {
   "island": "i14",
-  "hasWind": false,
+  "perf": {
+    "frames": 30,
+    "meanMs": 67.22,
+    "p50Ms": 66.7,
+    "p95Ms": 83.3
+  },
   "liveLife": {
     "island": "i14",
     "built": true,
@@ -8,11 +13,14 @@
     "paused": false,
     "smallBake": false,
     "tier": "high",
-    "time": 5.415,
+    "time": 7.424,
     "swayReady": false,
+    "waterReady": false,
+    "hazeReady": true,
     "activeClouds": 2,
     "activeBirds": 4,
     "activeButterflies": 0,
+    "activeDust": 10,
     "flocksSpawned": 1
   },
   "shotLife": {
@@ -22,12 +30,32 @@
     "paused": false,
     "smallBake": false,
     "tier": "high",
-    "time": 5.715,
+    "time": 10.558,
     "swayReady": false,
+    "waterReady": false,
+    "hazeReady": true,
     "activeClouds": 2,
     "activeBirds": 4,
     "activeButterflies": 0,
+    "activeDust": 10,
     "flocksSpawned": 1
+  },
+  "medLife": {
+    "island": "i14",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": true,
+    "tier": "med",
+    "time": 0.75,
+    "swayReady": false,
+    "waterReady": false,
+    "hazeReady": true,
+    "activeClouds": 1,
+    "activeBirds": 0,
+    "activeButterflies": 0,
+    "activeDust": 6,
+    "flocksSpawned": 0
   },
   "liveAmbient": null,
   "pixelDiff": {
@@ -36,18 +64,29 @@
         991,
         2000
       ],
-      "pct_gt30": 0.222,
-      "pct_gt15": 0.255,
-      "mean_drgb": 0.42
+      "pct_gt30": 0.114,
+      "pct_gt15": 0.14,
+      "mean_drgb": 0.14
     },
     "after": {
       "shape": [
         991,
         2000
       ],
-      "pct_gt30": 0.949,
-      "pct_gt15": 2.045,
-      "mean_drgb": 2.32
+      "pct_gt30": 1.086,
+      "pct_gt15": 2.478,
+      "mean_drgb": 2.9
+    },
+    "crop_after": {
+      "box": [
+        220,
+        180,
+        1180,
+        800
+      ],
+      "pct_gt30": 2.093,
+      "pct_gt15": 4.553,
+      "mean_drgb": 4.31
     }
   },
   "reducedDisabled": true,

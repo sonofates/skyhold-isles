@@ -1,6 +1,11 @@
 {
   "island": "i15",
-  "hasWind": true,
+  "perf": {
+    "frames": 22,
+    "meanMs": 91.66,
+    "p50Ms": 83.4,
+    "p95Ms": 100.1
+  },
   "liveLife": {
     "island": "i15",
     "built": true,
@@ -8,11 +13,14 @@
     "paused": false,
     "smallBake": false,
     "tier": "high",
-    "time": 3.905,
+    "time": 7.213,
     "swayReady": true,
+    "waterReady": true,
+    "hazeReady": false,
     "activeClouds": 2,
     "activeBirds": 0,
     "activeButterflies": 0,
+    "activeDust": 0,
     "flocksSpawned": 0
   },
   "shotLife": {
@@ -22,11 +30,31 @@
     "paused": false,
     "smallBake": false,
     "tier": "high",
-    "time": 10.104,
+    "time": 10.413,
     "swayReady": true,
+    "waterReady": true,
+    "hazeReady": false,
     "activeClouds": 2,
     "activeBirds": 0,
     "activeButterflies": 0,
+    "activeDust": 0,
+    "flocksSpawned": 0
+  },
+  "medLife": {
+    "island": "i15",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": true,
+    "tier": "med",
+    "time": 0.817,
+    "swayReady": true,
+    "waterReady": true,
+    "hazeReady": false,
+    "activeClouds": 1,
+    "activeBirds": 0,
+    "activeButterflies": 0,
+    "activeDust": 0,
     "flocksSpawned": 0
   },
   "liveAmbient": {
@@ -34,8 +62,8 @@
     "built": true,
     "enabled": true,
     "paused": false,
-    "time": 7.554,
-    "activeParticles": 22,
+    "time": 10.863,
+    "activeParticles": 26,
     "particleCap": 58,
     "crackSegments": 0,
     "flames": 3,
@@ -48,18 +76,29 @@
         991,
         2000
       ],
-      "pct_gt30": 0.238,
-      "pct_gt15": 0.306,
-      "mean_drgb": 0.39
+      "pct_gt30": 0.198,
+      "pct_gt15": 0.323,
+      "mean_drgb": 0.31
     },
     "after": {
       "shape": [
         991,
         2000
       ],
-      "pct_gt30": 0.859,
-      "pct_gt15": 1.43,
-      "mean_drgb": 2.16
+      "pct_gt30": 1.437,
+      "pct_gt15": 3.3,
+      "mean_drgb": 2.73
+    },
+    "crop_after": {
+      "box": [
+        0,
+        130,
+        1450,
+        820
+      ],
+      "pct_gt30": 2.266,
+      "pct_gt15": 5.34,
+      "mean_drgb": 3.83
     }
   },
   "reducedDisabled": true,
