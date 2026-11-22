@@ -1,5 +1,5 @@
 {
-  "method": "All previously shipped chapter 1, chapter 2 and i02 pilot loops plus the chapter 3 review. See match-ch1.json, match-ch2.json and match-ch3.json for source evidence.",
+  "method": "All previously shipped chapter 1, chapter 2 and i02 pilot loops plus the chapter 3 review. See match-ch1.json, match-ch2.json and match-ch3.json for source evidence. The integrated v2 plant rows use the masks selected in match-v2.json.",
   "crfByIsland": {
     "l1c": 16,
     "i01": 18,
@@ -6412,6 +6412,270 @@
         "rawWrapMae": 1.94,
         "adjacentP95Mae": 6.67,
         "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i10-northwest-willow-grove-v2a",
+      "island": "i10",
+      "element": "northwest-willow-grove-v2a",
+      "baseElement": "northwest-willow-grove",
+      "file": "Weeping_willow_leaves_flutter_af2cf611.mp4",
+      "ssim": 0.989459,
+      "runnerUpSsim": 0.439047,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.989357,
+      "status": "integrated",
+      "finding": "A small sway runs through the hanging clusters of both willows. The wider mask follows the yellow-green tips through the turn at 2 s. The trunks, shadows and grass between the trees hold.",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "feather": 2
+      },
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.23,
+          0.11
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.72,
+        "adjacentP95Mae": 1.21,
+        "extraEndBlend": false
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.23,
+            0.11
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.72,
+          "adjacentP95Mae": 1.21,
+          "extraEndBlend": false,
+          "maxStepMae": 1.46,
+          "maxStepFrame": 64,
+          "lastThreeStepMae": [
+            0.07,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 54,
+          "localPeakXY": [
+            22,
+            110
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.26,
+            0.11
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.72,
+          "adjacentP95Mae": 1.21,
+          "extraEndBlend": false,
+          "maxStepMae": 1.44,
+          "maxStepFrame": 64,
+          "lastThreeStepMae": [
+            0.07,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 45,
+          "localPeakXY": [
+            100,
+            39
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-southwest-canyon-agaves-v2b",
+      "island": "i14",
+      "element": "southwest-canyon-agaves-v2b",
+      "baseElement": "southwest-canyon-agaves",
+      "file": "Desert_plants_fluttering_slightly_49904133.mp4",
+      "ssim": 0.981814,
+      "runnerUpSsim": 0.475736,
+      "runnerUpElement": "i14-southeast-wash-scrub",
+      "nextTakeSsim": 0.988909,
+      "status": "integrated",
+      "finding": "The tan grass bends slightly and the yellow sprigs stir on their stems. The tighter mask keeps the rock ledge and the red sand quiet through the return.",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "feather": 2
+      },
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          5
+        ],
+        "rawWrapMae": 1.6,
+        "adjacentP95Mae": 1.1,
+        "extraEndBlend": false
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.29,
+            0.17
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            5
+          ],
+          "rawWrapMae": 1.64,
+          "adjacentP95Mae": 1.25,
+          "extraEndBlend": false,
+          "maxStepMae": 1.36,
+          "maxStepFrame": 76,
+          "lastThreeStepMae": [
+            0.05,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 39,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            243,
+            96
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.28,
+            0.14
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            5
+          ],
+          "rawWrapMae": 1.6,
+          "adjacentP95Mae": 1.1,
+          "extraEndBlend": false,
+          "maxStepMae": 1.24,
+          "maxStepFrame": 32,
+          "lastThreeStepMae": [
+            0.06,
+            0.03,
+            0.06
+          ],
+          "peakFrame": 39,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            245,
+            95
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-north-lantern-reeds-v2a",
+      "island": "i15",
+      "element": "north-lantern-reeds-v2a",
+      "baseElement": "north-lantern-reeds",
+      "file": "Creating_seamless_video_loop_ani…_b048b1fe.mp4",
+      "ssim": 0.988123,
+      "runnerUpSsim": 0.626769,
+      "runnerUpElement": "i15-east-moonlit-reeds",
+      "nextTakeSsim": 0.988122,
+      "status": "integrated",
+      "finding": "The tallest blue-green blades flex slightly near 1.7 s. The wider mask follows their pale tips, with the mushrooms, pebbles and moonlight steady.",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "feather": 2
+      },
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.9,
+        "adjacentP95Mae": 1.57,
+        "extraEndBlend": false
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.18,
+            0.15
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            2
+          ],
+          "rawWrapMae": 1.9,
+          "adjacentP95Mae": 1.57,
+          "extraEndBlend": false,
+          "maxStepMae": 1.77,
+          "maxStepFrame": 56,
+          "lastThreeStepMae": [
+            0.26,
+            0.28,
+            0.38
+          ],
+          "peakFrame": 41,
+          "localPeakFrame": 41,
+          "localPeakXY": [
+            220,
+            93
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.18,
+            0.15
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            2
+          ],
+          "rawWrapMae": 1.94,
+          "adjacentP95Mae": 1.55,
+          "extraEndBlend": false,
+          "maxStepMae": 1.74,
+          "maxStepFrame": 85,
+          "lastThreeStepMae": [
+            0.25,
+            0.29,
+            0.39
+          ],
+          "peakFrame": 40,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            220,
+            92
+          ]
+        }
       }
     }
   ]

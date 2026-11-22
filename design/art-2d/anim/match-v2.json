@@ -1,0 +1,2053 @@
+{
+  "method": "Opening-frame RGB area resampling to 96x54 and mean per-channel local SSIM (Gaussian 7x7, sigma 1.5, range 255) against the 12 distinct starts. runnerUpSsim is the next distinct plant. nextTakeSsim is the best other take for the same start. Each pair shares its start. The element suffix identifies the chosen runtime mask or a trial folder for a static row. Prompt provenance is unknown for all takes.",
+  "crfByIsland": {
+    "i10": 16,
+    "i14": 16,
+    "i15": 16
+  },
+  "elements": [
+    {
+      "id": "i10-northwest-willow-grove-v2a",
+      "island": "i10",
+      "element": "northwest-willow-grove-v2a",
+      "baseElement": "northwest-willow-grove",
+      "file": "Weeping_willow_leaves_flutter_af2cf611.mp4",
+      "ssim": 0.989459,
+      "runnerUpSsim": 0.439047,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.989357,
+      "status": "integrated",
+      "finding": "A small sway runs through the hanging clusters of both willows. The wider mask follows the yellow-green tips through the turn at 2 s. The trunks, shadows and grass between the trees hold.",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "feather": 2
+      },
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.23,
+          0.11
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.72,
+        "adjacentP95Mae": 1.21,
+        "extraEndBlend": false
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.23,
+            0.11
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.72,
+          "adjacentP95Mae": 1.21,
+          "extraEndBlend": false,
+          "maxStepMae": 1.46,
+          "maxStepFrame": 64,
+          "lastThreeStepMae": [
+            0.07,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 54,
+          "localPeakXY": [
+            22,
+            110
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.26,
+            0.11
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.72,
+          "adjacentP95Mae": 1.21,
+          "extraEndBlend": false,
+          "maxStepMae": 1.44,
+          "maxStepFrame": 64,
+          "lastThreeStepMae": [
+            0.07,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 45,
+          "localPeakXY": [
+            100,
+            39
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-northwest-willow-grove-v2b",
+      "island": "i10",
+      "element": "northwest-willow-grove-v2b",
+      "baseElement": "northwest-willow-grove",
+      "file": "Willow_leaves_swaying_in_breeze_6ddc9898.mp4",
+      "ssim": 0.989357,
+      "runnerUpSsim": 0.437679,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.989459,
+      "status": "static",
+      "finding": "At 2 s the right tassels lift away from their painted dark contours on both crowns.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.32,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.86,
+        "adjacentP95Mae": 2.44,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.32,
+            0.08
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.87,
+          "adjacentP95Mae": 2.47,
+          "extraEndBlend": false,
+          "maxStepMae": 2.96,
+          "maxStepFrame": 80,
+          "lastThreeStepMae": [
+            0.09,
+            0.07,
+            0.09
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 46,
+          "localPeakXY": [
+            98,
+            63
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.32,
+            0.08
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.86,
+          "adjacentP95Mae": 2.44,
+          "extraEndBlend": false,
+          "maxStepMae": 3.01,
+          "maxStepFrame": 60,
+          "lastThreeStepMae": [
+            0.07,
+            0.05,
+            0.07
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 46,
+          "localPeakXY": [
+            98,
+            62
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-north-terrace-willow-v2a",
+      "island": "i10",
+      "element": "north-terrace-willow-v2a",
+      "baseElement": "north-terrace-willow",
+      "file": "Weeping_willow_leaves_fluttering_04517759.mp4",
+      "ssim": 0.987889,
+      "runnerUpSsim": 0.557105,
+      "runnerUpElement": "i10-southeast-willows-and-crystal",
+      "nextTakeSsim": 0.988083,
+      "status": "static",
+      "finding": "Near 3 s the lowest left leaves smear into the grass while thin, empty contours remain under the right tassel.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.51,
+          0.31
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          0
+        ],
+        "rawWrapMae": 1.46,
+        "adjacentP95Mae": 2.4,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.51,
+            0.31
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            2,
+            0
+          ],
+          "rawWrapMae": 1.46,
+          "adjacentP95Mae": 2.4,
+          "extraEndBlend": false,
+          "maxStepMae": 3.19,
+          "maxStepFrame": 61,
+          "lastThreeStepMae": [
+            0.06,
+            0.04,
+            0.05
+          ],
+          "peakFrame": 72,
+          "localPeakFrame": 71,
+          "localPeakXY": [
+            26,
+            104
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            1.34,
+            0.53
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            2,
+            0
+          ],
+          "rawWrapMae": 1.46,
+          "adjacentP95Mae": 2.34,
+          "extraEndBlend": false,
+          "maxStepMae": 3.08,
+          "maxStepFrame": 88,
+          "lastThreeStepMae": [
+            0.06,
+            0.04,
+            0.05
+          ],
+          "peakFrame": 73,
+          "localPeakFrame": 72,
+          "localPeakXY": [
+            26,
+            102
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-north-terrace-willow-v2b",
+      "island": "i10",
+      "element": "north-terrace-willow-v2b",
+      "baseElement": "north-terrace-willow",
+      "file": "Willow_leaves_swaying_in_breeze_7c4048ba.mp4",
+      "ssim": 0.988083,
+      "runnerUpSsim": 0.557996,
+      "runnerUpElement": "i10-southeast-willows-and-crystal",
+      "nextTakeSsim": 0.987889,
+      "status": "static",
+      "finding": "The right tassel lifts near 3 s and leaves its lower outline hanging below the moving leaves.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.0,
+          0.37
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          0
+        ],
+        "rawWrapMae": 1.61,
+        "adjacentP95Mae": 3.01,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.37,
+            0.11
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            0
+          ],
+          "rawWrapMae": 1.62,
+          "adjacentP95Mae": 2.77,
+          "extraEndBlend": false,
+          "maxStepMae": 4.84,
+          "maxStepFrame": 82,
+          "lastThreeStepMae": [
+            0.2,
+            0.22,
+            0.16
+          ],
+          "peakFrame": 70,
+          "localPeakFrame": 70,
+          "localPeakXY": [
+            111,
+            73
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            1.0,
+            0.37
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            0
+          ],
+          "rawWrapMae": 1.61,
+          "adjacentP95Mae": 3.01,
+          "extraEndBlend": false,
+          "maxStepMae": 4.62,
+          "maxStepFrame": 82,
+          "lastThreeStepMae": [
+            0.19,
+            0.21,
+            0.15
+          ],
+          "peakFrame": 70,
+          "localPeakFrame": 70,
+          "localPeakXY": [
+            109,
+            71
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-southeast-willows-and-crystal-v2a",
+      "island": "i10",
+      "element": "southeast-willows-and-crystal-v2a",
+      "baseElement": "southeast-willows-and-crystal",
+      "file": "Leaves_swaying_on_weeping_willow_adc82c74.mp4",
+      "ssim": 0.987203,
+      "runnerUpSsim": 0.56044,
+      "runnerUpElement": "i10-north-terrace-willow",
+      "nextTakeSsim": 0.98791,
+      "status": "static",
+      "finding": "At 2 s a second outline follows the outside of the left crown, with hollow tips under the right crown.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          5.11,
+          2.94
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          0
+        ],
+        "rawWrapMae": 1.55,
+        "adjacentP95Mae": 4.27,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            5.11,
+            2.94
+          ],
+          "maxAbsColorShiftBGR": [
+            5,
+            2,
+            0
+          ],
+          "rawWrapMae": 1.55,
+          "adjacentP95Mae": 4.27,
+          "extraEndBlend": false,
+          "maxStepMae": 9.22,
+          "maxStepFrame": 49,
+          "lastThreeStepMae": [
+            0.08,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 46,
+          "localPeakFrame": 39,
+          "localPeakXY": [
+            129,
+            76
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            5.44,
+            3.66
+          ],
+          "maxAbsColorShiftBGR": [
+            5,
+            2,
+            0
+          ],
+          "rawWrapMae": 1.54,
+          "adjacentP95Mae": 3.98,
+          "extraEndBlend": false,
+          "maxStepMae": 9.37,
+          "maxStepFrame": 72,
+          "lastThreeStepMae": [
+            0.08,
+            0.06,
+            0.05
+          ],
+          "peakFrame": 44,
+          "localPeakFrame": 39,
+          "localPeakXY": [
+            129,
+            75
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-southeast-willows-and-crystal-v2b",
+      "island": "i10",
+      "element": "southeast-willows-and-crystal-v2b",
+      "baseElement": "southeast-willows-and-crystal",
+      "file": "Weeping_willow_leaf_fluttering_loop_072848bb.mp4",
+      "ssim": 0.98791,
+      "runnerUpSsim": 0.560944,
+      "runnerUpElement": "i10-north-terrace-willow",
+      "nextTakeSsim": 0.987203,
+      "status": "static",
+      "finding": "At 2.17 s the leaves have moved up, exposing scalloped rest-pose outlines below both boughs.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          7.73,
+          3.84
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          0
+        ],
+        "rawWrapMae": 1.62,
+        "adjacentP95Mae": 1.25,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            9.04,
+            4.57
+          ],
+          "maxAbsColorShiftBGR": [
+            4,
+            1,
+            0
+          ],
+          "rawWrapMae": 1.63,
+          "adjacentP95Mae": 1.32,
+          "extraEndBlend": false,
+          "maxStepMae": 10.55,
+          "maxStepFrame": 55,
+          "lastThreeStepMae": [
+            0.38,
+            0.55,
+            0.45
+          ],
+          "peakFrame": 52,
+          "localPeakFrame": 53,
+          "localPeakXY": [
+            128,
+            76
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            7.73,
+            3.84
+          ],
+          "maxAbsColorShiftBGR": [
+            4,
+            1,
+            0
+          ],
+          "rawWrapMae": 1.62,
+          "adjacentP95Mae": 1.25,
+          "extraEndBlend": false,
+          "maxStepMae": 9.07,
+          "maxStepFrame": 54,
+          "lastThreeStepMae": [
+            0.37,
+            0.53,
+            0.44
+          ],
+          "peakFrame": 52,
+          "localPeakFrame": 53,
+          "localPeakXY": [
+            136,
+            59
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-southwest-meadow-ferns-v2a",
+      "island": "i10",
+      "element": "southwest-meadow-ferns-v2a",
+      "baseElement": "southwest-meadow-ferns",
+      "file": "Create_seamless_loop_animation_3d926924.mp4",
+      "ssim": 0.988877,
+      "runnerUpSsim": 0.463875,
+      "runnerUpElement": "i10-southeast-willows-and-crystal",
+      "nextTakeSsim": 0.988874,
+      "status": "static",
+      "finding": "At 3 s the fern next to the terrace recedes inside its painted outline. An empty hook remains where its rightmost leaflet was.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.17,
+          0.3
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 2.45,
+        "adjacentP95Mae": 2.67,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.17,
+            0.3
+          ],
+          "maxAbsColorShiftBGR": [
+            4,
+            2,
+            1
+          ],
+          "rawWrapMae": 2.45,
+          "adjacentP95Mae": 2.67,
+          "extraEndBlend": false,
+          "maxStepMae": 3.75,
+          "maxStepFrame": 62,
+          "lastThreeStepMae": [
+            0.29,
+            0.34,
+            0.34
+          ],
+          "peakFrame": 72,
+          "localPeakFrame": 72,
+          "localPeakXY": [
+            251,
+            130
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.17,
+            0.16
+          ],
+          "maxAbsColorShiftBGR": [
+            4,
+            2,
+            1
+          ],
+          "rawWrapMae": 2.53,
+          "adjacentP95Mae": 2.74,
+          "extraEndBlend": false,
+          "maxStepMae": 3.92,
+          "maxStepFrame": 62,
+          "lastThreeStepMae": [
+            0.3,
+            0.35,
+            0.35
+          ],
+          "peakFrame": 72,
+          "localPeakFrame": 72,
+          "localPeakXY": [
+            250,
+            129
+          ]
+        }
+      }
+    },
+    {
+      "id": "i10-southwest-meadow-ferns-v2b",
+      "island": "i10",
+      "element": "southwest-meadow-ferns-v2b",
+      "baseElement": "southwest-meadow-ferns",
+      "file": "Ferns_and_cattails_sway_3014a79f.mp4",
+      "ssim": 0.988874,
+      "runnerUpSsim": 0.463831,
+      "runnerUpElement": "i10-southeast-willows-and-crystal",
+      "nextTakeSsim": 0.988877,
+      "status": "static",
+      "finding": "At 1.42 s the rightmost yellow leaflet loses its fill and leaves a dark arc. This also appears in the narrower mask.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.24,
+          0.21
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          0
+        ],
+        "rawWrapMae": 2.06,
+        "adjacentP95Mae": 2.69,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.22,
+            0.24
+          ],
+          "maxAbsColorShiftBGR": [
+            4,
+            2,
+            0
+          ],
+          "rawWrapMae": 2.0,
+          "adjacentP95Mae": 2.63,
+          "extraEndBlend": false,
+          "maxStepMae": 3.76,
+          "maxStepFrame": 43,
+          "lastThreeStepMae": [
+            0.1,
+            0.03,
+            0.09
+          ],
+          "peakFrame": 55,
+          "localPeakFrame": 34,
+          "localPeakXY": [
+            179,
+            174
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.24,
+            0.21
+          ],
+          "maxAbsColorShiftBGR": [
+            4,
+            2,
+            0
+          ],
+          "rawWrapMae": 2.06,
+          "adjacentP95Mae": 2.69,
+          "extraEndBlend": false,
+          "maxStepMae": 3.89,
+          "maxStepFrame": 43,
+          "lastThreeStepMae": [
+            0.11,
+            0.03,
+            0.06
+          ],
+          "peakFrame": 55,
+          "localPeakFrame": 34,
+          "localPeakXY": [
+            178,
+            172
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-west-oasis-scrub-v2a",
+      "island": "i14",
+      "element": "west-oasis-scrub-v2a",
+      "baseElement": "west-oasis-scrub",
+      "file": "Create_seamless_desert_loop_31e63952.mp4",
+      "ssim": 0.992461,
+      "runnerUpSsim": 0.282668,
+      "runnerUpElement": "i14-southwest-canyon-agaves",
+      "nextTakeSsim": 0.99007,
+      "status": "static",
+      "finding": "Detached pale leaves appear in front of the west scrub from 2 to 3 s and survive both masks.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.13,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          4
+        ],
+        "rawWrapMae": 1.38,
+        "adjacentP95Mae": 1.42,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.13,
+            0.07
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            2,
+            4
+          ],
+          "rawWrapMae": 1.38,
+          "adjacentP95Mae": 1.42,
+          "extraEndBlend": false,
+          "maxStepMae": 1.78,
+          "maxStepFrame": 51,
+          "lastThreeStepMae": [
+            0.1,
+            0.05,
+            0.09
+          ],
+          "peakFrame": 62,
+          "localPeakFrame": 74,
+          "localPeakXY": [
+            101,
+            76
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.16,
+            0.08
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            2,
+            4
+          ],
+          "rawWrapMae": 1.36,
+          "adjacentP95Mae": 1.41,
+          "extraEndBlend": false,
+          "maxStepMae": 1.89,
+          "maxStepFrame": 51,
+          "lastThreeStepMae": [
+            0.11,
+            0.05,
+            0.09
+          ],
+          "peakFrame": 62,
+          "localPeakFrame": 74,
+          "localPeakXY": [
+            99,
+            75
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-west-oasis-scrub-v2b",
+      "island": "i14",
+      "element": "west-oasis-scrub-v2b",
+      "baseElement": "west-oasis-scrub",
+      "file": "Create_seamless_desert_loop_anim…_4da3ed03.mp4",
+      "ssim": 0.99007,
+      "runnerUpSsim": 0.274567,
+      "runnerUpElement": "i14-southwest-canyon-agaves",
+      "nextTakeSsim": 0.992461,
+      "status": "static",
+      "finding": "The soft brown shrubs resolve into sharp, pale-tipped leaves near 1.8 s. The blue agave also retains outlines above its moving tips.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.31,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          3
+        ],
+        "rawWrapMae": 1.71,
+        "adjacentP95Mae": 4.82,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.24,
+            0.09
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            3
+          ],
+          "rawWrapMae": 1.72,
+          "adjacentP95Mae": 4.76,
+          "extraEndBlend": false,
+          "maxStepMae": 6.83,
+          "maxStepFrame": 54,
+          "lastThreeStepMae": [
+            0.19,
+            0.2,
+            0.2
+          ],
+          "peakFrame": 44,
+          "localPeakFrame": 41,
+          "localPeakXY": [
+            82,
+            140
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.31,
+            0.14
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            3
+          ],
+          "rawWrapMae": 1.71,
+          "adjacentP95Mae": 4.82,
+          "extraEndBlend": false,
+          "maxStepMae": 6.88,
+          "maxStepFrame": 50,
+          "lastThreeStepMae": [
+            0.2,
+            0.2,
+            0.21
+          ],
+          "peakFrame": 44,
+          "localPeakFrame": 39,
+          "localPeakXY": [
+            81,
+            140
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-northeast-sandstone-scrub-v2a",
+      "island": "i14",
+      "element": "northeast-sandstone-scrub-v2a",
+      "baseElement": "northeast-sandstone-scrub",
+      "file": "Animate_seamless_desert_plant_loop_bf7aeeae.mp4",
+      "ssim": 0.988925,
+      "runnerUpSsim": 0.429538,
+      "runnerUpElement": "i14-southeast-wash-scrub",
+      "nextTakeSsim": 0.981496,
+      "status": "static",
+      "finding": "At 1.83 s red sand shows through the upper agave tips inside their original triangular outlines.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          3
+        ],
+        "rawWrapMae": 1.83,
+        "adjacentP95Mae": 3.97,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.18,
+            0.08
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            3
+          ],
+          "rawWrapMae": 1.83,
+          "adjacentP95Mae": 3.97,
+          "extraEndBlend": false,
+          "maxStepMae": 4.33,
+          "maxStepFrame": 60,
+          "lastThreeStepMae": [
+            0.11,
+            0.04,
+            0.07
+          ],
+          "peakFrame": 43,
+          "localPeakFrame": 44,
+          "localPeakXY": [
+            27,
+            136
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.21,
+            0.12
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            3
+          ],
+          "rawWrapMae": 1.81,
+          "adjacentP95Mae": 3.8,
+          "extraEndBlend": false,
+          "maxStepMae": 4.18,
+          "maxStepFrame": 60,
+          "lastThreeStepMae": [
+            0.1,
+            0.03,
+            0.07
+          ],
+          "peakFrame": 43,
+          "localPeakFrame": 44,
+          "localPeakXY": [
+            26,
+            136
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-northeast-sandstone-scrub-v2b",
+      "island": "i14",
+      "element": "northeast-sandstone-scrub-v2b",
+      "baseElement": "northeast-sandstone-scrub",
+      "file": "Create_desert_seamless_loop_4711f697.mp4",
+      "ssim": 0.981496,
+      "runnerUpSsim": 0.428031,
+      "runnerUpElement": "i14-southeast-wash-scrub",
+      "nextTakeSsim": 0.988925,
+      "status": "static",
+      "finding": "The yellow flower heads acquire dark doubled petal edges near 6 s, and outlines persist beside the agave tips.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.2,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          4
+        ],
+        "rawWrapMae": 3.73,
+        "adjacentP95Mae": 1.95,
+        "extraEndBlend": true,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.15,
+            0.12
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            2,
+            4
+          ],
+          "rawWrapMae": 3.81,
+          "adjacentP95Mae": 2.08,
+          "extraEndBlend": true,
+          "maxStepMae": 2.73,
+          "maxStepFrame": 73,
+          "lastThreeStepMae": [
+            0.31,
+            0.39,
+            0.33
+          ],
+          "peakFrame": 28,
+          "localPeakFrame": 140,
+          "localPeakXY": [
+            24,
+            136
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.2,
+            0.15
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            2,
+            4
+          ],
+          "rawWrapMae": 3.73,
+          "adjacentP95Mae": 1.95,
+          "extraEndBlend": true,
+          "maxStepMae": 2.62,
+          "maxStepFrame": 73,
+          "lastThreeStepMae": [
+            0.3,
+            0.36,
+            0.31
+          ],
+          "peakFrame": 84,
+          "localPeakFrame": 66,
+          "localPeakXY": [
+            25,
+            135
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-southwest-canyon-agaves-v2b",
+      "island": "i14",
+      "element": "southwest-canyon-agaves-v2b",
+      "baseElement": "southwest-canyon-agaves",
+      "file": "Desert_plants_fluttering_slightly_49904133.mp4",
+      "ssim": 0.981814,
+      "runnerUpSsim": 0.475736,
+      "runnerUpElement": "i14-southeast-wash-scrub",
+      "nextTakeSsim": 0.988909,
+      "status": "integrated",
+      "finding": "The tan grass bends slightly and the yellow sprigs stir on their stems. The tighter mask keeps the rock ledge and the red sand quiet through the return.",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "feather": 2
+      },
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          5
+        ],
+        "rawWrapMae": 1.6,
+        "adjacentP95Mae": 1.1,
+        "extraEndBlend": false
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.29,
+            0.17
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            5
+          ],
+          "rawWrapMae": 1.64,
+          "adjacentP95Mae": 1.25,
+          "extraEndBlend": false,
+          "maxStepMae": 1.36,
+          "maxStepFrame": 76,
+          "lastThreeStepMae": [
+            0.05,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 39,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            243,
+            96
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.28,
+            0.14
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            5
+          ],
+          "rawWrapMae": 1.6,
+          "adjacentP95Mae": 1.1,
+          "extraEndBlend": false,
+          "maxStepMae": 1.24,
+          "maxStepFrame": 32,
+          "lastThreeStepMae": [
+            0.06,
+            0.03,
+            0.06
+          ],
+          "peakFrame": 39,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            245,
+            95
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-southwest-canyon-agaves-v2a",
+      "island": "i14",
+      "element": "southwest-canyon-agaves-v2a",
+      "baseElement": "southwest-canyon-agaves",
+      "file": "Desert_plants_swaying_in_breeze_32b8b98c.mp4",
+      "ssim": 0.988909,
+      "runnerUpSsim": 0.478498,
+      "runnerUpElement": "i14-southeast-wash-scrub",
+      "nextTakeSsim": 0.981814,
+      "status": "static",
+      "finding": "At 1.92 s the yellow foliage moves across the red ground and leaves a second set of petal outlines beside its stems.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.35,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          3
+        ],
+        "rawWrapMae": 1.61,
+        "adjacentP95Mae": 1.57,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.35,
+            0.16
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            3
+          ],
+          "rawWrapMae": 1.61,
+          "adjacentP95Mae": 1.57,
+          "extraEndBlend": false,
+          "maxStepMae": 1.9,
+          "maxStepFrame": 60,
+          "lastThreeStepMae": [
+            0.18,
+            0.2,
+            0.18
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 46,
+          "localPeakXY": [
+            219,
+            13
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.34,
+            0.14
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            3,
+            3
+          ],
+          "rawWrapMae": 1.58,
+          "adjacentP95Mae": 1.51,
+          "extraEndBlend": false,
+          "maxStepMae": 1.8,
+          "maxStepFrame": 60,
+          "lastThreeStepMae": [
+            0.15,
+            0.18,
+            0.17
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 46,
+          "localPeakXY": [
+            220,
+            12
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-southeast-wash-scrub-v2a",
+      "island": "i14",
+      "element": "southeast-wash-scrub-v2a",
+      "baseElement": "southeast-wash-scrub",
+      "file": "Agave_and_grass_flutter_in_68256c40.mp4",
+      "ssim": 0.988832,
+      "runnerUpSsim": 0.484445,
+      "runnerUpElement": "i14-southwest-canyon-agaves",
+      "nextTakeSsim": 0.988677,
+      "status": "static",
+      "finding": "At 1.79 s the agave blades pull inwards and their pointed contours remain visible against the sand.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.08,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          0,
+          2,
+          4
+        ],
+        "rawWrapMae": 2.03,
+        "adjacentP95Mae": 3.94,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.08,
+            0.03
+          ],
+          "maxAbsColorShiftBGR": [
+            0,
+            2,
+            4
+          ],
+          "rawWrapMae": 2.03,
+          "adjacentP95Mae": 3.94,
+          "extraEndBlend": false,
+          "maxStepMae": 4.32,
+          "maxStepFrame": 51,
+          "lastThreeStepMae": [
+            0.04,
+            0.05,
+            0.04
+          ],
+          "peakFrame": 43,
+          "localPeakFrame": 43,
+          "localPeakXY": [
+            79,
+            15
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.08,
+            0.04
+          ],
+          "maxAbsColorShiftBGR": [
+            0,
+            2,
+            4
+          ],
+          "rawWrapMae": 2.01,
+          "adjacentP95Mae": 3.89,
+          "extraEndBlend": false,
+          "maxStepMae": 4.33,
+          "maxStepFrame": 51,
+          "lastThreeStepMae": [
+            0.03,
+            0.05,
+            0.04
+          ],
+          "peakFrame": 43,
+          "localPeakFrame": 43,
+          "localPeakXY": [
+            78,
+            15
+          ]
+        }
+      }
+    },
+    {
+      "id": "i14-southeast-wash-scrub-v2b",
+      "island": "i14",
+      "element": "southeast-wash-scrub-v2b",
+      "baseElement": "southeast-wash-scrub",
+      "file": "Agave_leaves_swaying_in_desert_6cd89bea.mp4",
+      "ssim": 0.988677,
+      "runnerUpSsim": 0.482244,
+      "runnerUpElement": "i14-southwest-canyon-agaves",
+      "nextTakeSsim": 0.988832,
+      "status": "static",
+      "finding": "At 1.25 s the fan contracts and exposes several hollow triangular tips around its centre.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.07,
+          0.06
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          3
+        ],
+        "rawWrapMae": 2.19,
+        "adjacentP95Mae": 5.29,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.07,
+            0.06
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            2,
+            3
+          ],
+          "rawWrapMae": 2.18,
+          "adjacentP95Mae": 5.33,
+          "extraEndBlend": false,
+          "maxStepMae": 7.46,
+          "maxStepFrame": 43,
+          "lastThreeStepMae": [
+            0.1,
+            0.08,
+            0.14
+          ],
+          "peakFrame": 31,
+          "localPeakFrame": 30,
+          "localPeakXY": [
+            80,
+            16
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.07,
+            0.06
+          ],
+          "maxAbsColorShiftBGR": [
+            1,
+            2,
+            3
+          ],
+          "rawWrapMae": 2.19,
+          "adjacentP95Mae": 5.29,
+          "extraEndBlend": false,
+          "maxStepMae": 7.42,
+          "maxStepFrame": 43,
+          "lastThreeStepMae": [
+            0.09,
+            0.08,
+            0.14
+          ],
+          "peakFrame": 31,
+          "localPeakFrame": 30,
+          "localPeakXY": [
+            79,
+            16
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-north-lantern-reeds-v2a",
+      "island": "i15",
+      "element": "north-lantern-reeds-v2a",
+      "baseElement": "north-lantern-reeds",
+      "file": "Creating_seamless_video_loop_ani…_b048b1fe.mp4",
+      "ssim": 0.988123,
+      "runnerUpSsim": 0.626769,
+      "runnerUpElement": "i15-east-moonlit-reeds",
+      "nextTakeSsim": 0.988122,
+      "status": "integrated",
+      "finding": "The tallest blue-green blades flex slightly near 1.7 s. The wider mask follows their pale tips, with the mushrooms, pebbles and moonlight steady.",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "feather": 2
+      },
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.9,
+        "adjacentP95Mae": 1.57,
+        "extraEndBlend": false
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.18,
+            0.15
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            2
+          ],
+          "rawWrapMae": 1.9,
+          "adjacentP95Mae": 1.57,
+          "extraEndBlend": false,
+          "maxStepMae": 1.77,
+          "maxStepFrame": 56,
+          "lastThreeStepMae": [
+            0.26,
+            0.28,
+            0.38
+          ],
+          "peakFrame": 41,
+          "localPeakFrame": 41,
+          "localPeakXY": [
+            220,
+            93
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.18,
+            0.15
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            2
+          ],
+          "rawWrapMae": 1.94,
+          "adjacentP95Mae": 1.55,
+          "extraEndBlend": false,
+          "maxStepMae": 1.74,
+          "maxStepFrame": 85,
+          "lastThreeStepMae": [
+            0.25,
+            0.29,
+            0.39
+          ],
+          "peakFrame": 40,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            220,
+            92
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-north-lantern-reeds-v2b",
+      "island": "i15",
+      "element": "north-lantern-reeds-v2b",
+      "baseElement": "north-lantern-reeds",
+      "file": "Reeds_sway_in_night_breeze_784c3e3d.mp4",
+      "ssim": 0.988122,
+      "runnerUpSsim": 0.627213,
+      "runnerUpElement": "i15-east-moonlit-reeds",
+      "nextTakeSsim": 0.988123,
+      "status": "static",
+      "finding": "Near 2.1 s the upper half of the reed fan loses its pale paint and collapses into thin outlines.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.27,
+          0.21
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.96,
+        "adjacentP95Mae": 3.26,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.28,
+            0.17
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            1
+          ],
+          "rawWrapMae": 1.88,
+          "adjacentP95Mae": 3.36,
+          "extraEndBlend": false,
+          "maxStepMae": 4.94,
+          "maxStepFrame": 67,
+          "lastThreeStepMae": [
+            0.22,
+            0.71,
+            0.46
+          ],
+          "peakFrame": 51,
+          "localPeakFrame": 50,
+          "localPeakXY": [
+            220,
+            94
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.27,
+            0.21
+          ],
+          "maxAbsColorShiftBGR": [
+            2,
+            2,
+            1
+          ],
+          "rawWrapMae": 1.96,
+          "adjacentP95Mae": 3.26,
+          "extraEndBlend": false,
+          "maxStepMae": 4.94,
+          "maxStepFrame": 66,
+          "lastThreeStepMae": [
+            0.21,
+            0.71,
+            0.73
+          ],
+          "peakFrame": 51,
+          "localPeakFrame": 50,
+          "localPeakXY": [
+            220,
+            93
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-east-moonlit-reeds-v2a",
+      "island": "i15",
+      "element": "east-moonlit-reeds-v2a",
+      "baseElement": "east-moonlit-reeds",
+      "file": "Create_seamless_loop_animation_d179b7b6.mp4",
+      "ssim": 0.988088,
+      "runnerUpSsim": 0.626651,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.985363,
+      "status": "static",
+      "finding": "Near 3 s the back blades of the lower reeds fade into the ground, leaving faint strokes above the fans.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.37,
+          1.09
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.87,
+        "adjacentP95Mae": 2.0,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.37,
+            1.09
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            2,
+            1
+          ],
+          "rawWrapMae": 1.87,
+          "adjacentP95Mae": 2.0,
+          "extraEndBlend": false,
+          "maxStepMae": 3.14,
+          "maxStepFrame": 84,
+          "lastThreeStepMae": [
+            0.09,
+            0.39,
+            0.39
+          ],
+          "peakFrame": 72,
+          "localPeakFrame": 72,
+          "localPeakXY": [
+            112,
+            218
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.33,
+            0.46
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            2,
+            1
+          ],
+          "rawWrapMae": 1.94,
+          "adjacentP95Mae": 2.0,
+          "extraEndBlend": false,
+          "maxStepMae": 2.64,
+          "maxStepFrame": 90,
+          "lastThreeStepMae": [
+            0.09,
+            0.4,
+            0.39
+          ],
+          "peakFrame": 72,
+          "localPeakFrame": 72,
+          "localPeakXY": [
+            111,
+            218
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-east-moonlit-reeds-v2b",
+      "island": "i15",
+      "element": "east-moonlit-reeds-v2b",
+      "baseElement": "east-moonlit-reeds",
+      "file": "Reeds_swaying_in_night_breeze_a1e43258.mp4",
+      "ssim": 0.985363,
+      "runnerUpSsim": 0.626737,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.988088,
+      "status": "static",
+      "finding": "Near 1.67 s several blades split into a moving blue streak and a stationary pale tip.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.25,
+          0.38
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.94,
+        "adjacentP95Mae": 2.09,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.26,
+            0.56
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.86,
+          "adjacentP95Mae": 1.91,
+          "extraEndBlend": false,
+          "maxStepMae": 2.65,
+          "maxStepFrame": 55,
+          "lastThreeStepMae": [
+            0.19,
+            0.05,
+            0.06
+          ],
+          "peakFrame": 40,
+          "localPeakFrame": 40,
+          "localPeakXY": [
+            337,
+            279
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.25,
+            0.38
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.94,
+          "adjacentP95Mae": 2.09,
+          "extraEndBlend": false,
+          "maxStepMae": 2.67,
+          "maxStepFrame": 44,
+          "lastThreeStepMae": [
+            0.19,
+            0.04,
+            0.06
+          ],
+          "peakFrame": 40,
+          "localPeakFrame": 38,
+          "localPeakXY": [
+            113,
+            219
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-southeast-moonlit-foliage-v2a",
+      "island": "i15",
+      "element": "southeast-moonlit-foliage-v2a",
+      "baseElement": "southeast-moonlit-foliage",
+      "file": "Create_seamless_loop_from_frame_854211c2.mp4",
+      "ssim": 0.991911,
+      "runnerUpSsim": 0.409274,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.991906,
+      "status": "static",
+      "finding": "New silver leaf shapes flash across the dark foreground below the pools, especially near 3.1 s.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.24,
+          0.35
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.23,
+        "adjacentP95Mae": 1.14,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.24,
+            0.35
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            2,
+            1
+          ],
+          "rawWrapMae": 1.23,
+          "adjacentP95Mae": 1.14,
+          "extraEndBlend": false,
+          "maxStepMae": 1.47,
+          "maxStepFrame": 49,
+          "lastThreeStepMae": [
+            0.18,
+            0.44,
+            0.21
+          ],
+          "peakFrame": 80,
+          "localPeakFrame": 75,
+          "localPeakXY": [
+            494,
+            304
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.24,
+            0.35
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            2,
+            1
+          ],
+          "rawWrapMae": 1.24,
+          "adjacentP95Mae": 1.11,
+          "extraEndBlend": false,
+          "maxStepMae": 1.32,
+          "maxStepFrame": 51,
+          "lastThreeStepMae": [
+            0.18,
+            0.44,
+            0.47
+          ],
+          "peakFrame": 80,
+          "localPeakFrame": 75,
+          "localPeakXY": [
+            494,
+            304
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-southeast-moonlit-foliage-v2b",
+      "island": "i15",
+      "element": "southeast-moonlit-foliage-v2b",
+      "baseElement": "southeast-moonlit-foliage",
+      "file": "Leaves_swaying_in_night_breeze_f7c4a0a1.mp4",
+      "ssim": 0.991906,
+      "runnerUpSsim": 0.40649,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.991911,
+      "status": "static",
+      "finding": "Two pale seed-head shapes sweep across the open blue foliage between the pools from 2 to 4 s.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.26,
+          0.23
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.09,
+        "adjacentP95Mae": 1.09,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.26,
+            0.23
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.09,
+          "adjacentP95Mae": 1.1,
+          "extraEndBlend": false,
+          "maxStepMae": 1.32,
+          "maxStepFrame": 72,
+          "lastThreeStepMae": [
+            0.1,
+            0.38,
+            0.09
+          ],
+          "peakFrame": 53,
+          "localPeakFrame": 71,
+          "localPeakXY": [
+            350,
+            190
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.26,
+            0.23
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            1
+          ],
+          "rawWrapMae": 1.09,
+          "adjacentP95Mae": 1.09,
+          "extraEndBlend": false,
+          "maxStepMae": 1.32,
+          "maxStepFrame": 72,
+          "lastThreeStepMae": [
+            0.1,
+            0.08,
+            0.09
+          ],
+          "peakFrame": 54,
+          "localPeakFrame": 62,
+          "localPeakXY": [
+            351,
+            191
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-southwest-lantern-ferns-v2a",
+      "island": "i15",
+      "element": "southwest-lantern-ferns-v2a",
+      "baseElement": "southwest-lantern-ferns",
+      "file": "Create_seamless_loop_animation_b31a9891.mp4",
+      "ssim": 0.991204,
+      "runnerUpSsim": 0.362172,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.99161,
+      "status": "static",
+      "finding": "A dark fern appears on the empty ground to the right of the upper pool near 2 s.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.66,
+          0.29
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.32,
+        "adjacentP95Mae": 0.74,
+        "extraEndBlend": true,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.66,
+            0.29
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            2
+          ],
+          "rawWrapMae": 1.32,
+          "adjacentP95Mae": 0.74,
+          "extraEndBlend": true,
+          "maxStepMae": 0.94,
+          "maxStepFrame": 70,
+          "lastThreeStepMae": [
+            0.25,
+            0.3,
+            0.36
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 58,
+          "localPeakXY": [
+            241,
+            62
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.66,
+            0.29
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            2
+          ],
+          "rawWrapMae": 1.34,
+          "adjacentP95Mae": 0.76,
+          "extraEndBlend": true,
+          "maxStepMae": 0.99,
+          "maxStepFrame": 64,
+          "lastThreeStepMae": [
+            0.26,
+            0.3,
+            0.37
+          ],
+          "peakFrame": 48,
+          "localPeakFrame": 59,
+          "localPeakXY": [
+            240,
+            60
+          ]
+        }
+      }
+    },
+    {
+      "id": "i15-southwest-lantern-ferns-v2b",
+      "island": "i15",
+      "element": "southwest-lantern-ferns-v2b",
+      "baseElement": "southwest-lantern-ferns",
+      "file": "Foliage_fluttering_in_moonlit_night_81eeb367.mp4",
+      "ssim": 0.99161,
+      "runnerUpSsim": 0.364589,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.991204,
+      "status": "static",
+      "finding": "Large silver fern fronds spread across the dark foreground below the lamp and beside the stump.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.36,
+          0.17
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.02,
+        "adjacentP95Mae": 0.89,
+        "extraEndBlend": false,
+        "trialOnly": true
+      },
+      "maskTrials": {
+        "v2a": {
+          "maxAbsOffsetStartPxXY": [
+            0.36,
+            0.17
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            2
+          ],
+          "rawWrapMae": 1.01,
+          "adjacentP95Mae": 0.89,
+          "extraEndBlend": false,
+          "maxStepMae": 1.26,
+          "maxStepFrame": 149,
+          "lastThreeStepMae": [
+            0.07,
+            0.38,
+            0.09
+          ],
+          "peakFrame": 45,
+          "localPeakFrame": 31,
+          "localPeakXY": [
+            349,
+            236
+          ]
+        },
+        "v2b": {
+          "maxAbsOffsetStartPxXY": [
+            0.36,
+            0.17
+          ],
+          "maxAbsColorShiftBGR": [
+            3,
+            1,
+            2
+          ],
+          "rawWrapMae": 1.02,
+          "adjacentP95Mae": 0.89,
+          "extraEndBlend": false,
+          "maxStepMae": 1.25,
+          "maxStepFrame": 149,
+          "lastThreeStepMae": [
+            0.07,
+            0.38,
+            0.38
+          ],
+          "peakFrame": 45,
+          "localPeakFrame": 31,
+          "localPeakXY": [
+            349,
+            235
+          ]
+        }
+      }
+    }
+  ],
+  "protectClearanceAndPlots": true,
+  "matchAudit": {
+    "preparedElements": 24,
+    "distinctPlants": 12,
+    "inboxTakes": 24,
+    "comparisons": 288,
+    "matchedTakes": 24,
+    "integrated": 3,
+    "static": 21,
+    "plantsLeftStatic": 9,
+    "missingElements": [],
+    "unmatchedFiles": [],
+    "ambiguousMatches": []
+  },
+  "registrationMethod": "Both masks tested over all 192 frames at scale 2 with an inward feather of two layout pixels. The raw wrap and adjacent-step measurements precede the optional packer end blend. Peak and step indices are zero-based at 24 fps."
+}
