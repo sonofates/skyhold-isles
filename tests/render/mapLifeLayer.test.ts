@@ -164,14 +164,13 @@ describe('mapLife pure helpers & config loading', () => {
     expect(cfg?.butterflies?.zones.length).toBeGreaterThan(0);
 
     expect(listMapLifeConfigs().some((c) => c.island === 'i17')).toBe(true);
-    expect(getMapLifeConfig('i01')).toBeUndefined();
     expect(getMapLifeConfig('nonexistent')).toBeUndefined();
 
     // Islands without a config file get nothing (no behaviour change).
     const world = new Container();
     world.addChild(new Sprite(Texture.EMPTY));
     const layers = new WorldLayers(world);
-    expect(mapLifeLayer(world, null, layers, 'i01', '/art2d/')).toBeUndefined();
+    expect(mapLifeLayer(world, null, layers, 'nonexistent', '/art2d/')).toBeUndefined();
     world.destroy({ children: true });
   });
 });
