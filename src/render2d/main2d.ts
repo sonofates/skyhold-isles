@@ -37,7 +37,7 @@ import type { MapView } from './mapView.ts';
 import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
-import { hudKeepOuts, readSafeInsets } from './uiKit.ts';
+import { hudKeepOuts, hudKeepOutsVersion, invalidateSafeInsets, readSafeInsets } from './uiKit.ts';
 import { gateKeepOutsPx, hudButtonsKeepOut, setUserUiScale, userUiScale } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
@@ -521,6 +521,9 @@ async function main(): Promise<void> {
   let laneMod: typeof import('./ui/laneMarks2d.ts') | null = null;
   /** Foes per entrance of the next wave, cached per level / endless / wave index (Endless builds its waves). */
   let laneCache: { key: string; entries: readonly import('./lanePath.ts').EntranceCount[] } | null = null;
+  /** Cached marker screen placements (skipping DOM measuring & path search until wave, camera, viewport or HUD geometry changes). */
+  let lanePlaceCache: { key: string; marks: import('./ui/laneMarks2d.ts').LaneMark[] } | null = null;
+  let hudLayoutGen = 0;
   let calloutFor: ((waveIndex: number) => import('./ui/waveBanner2d.ts').WaveCallout) | null = null;
   let coachPlot = -1;
   let settingsRef: Settings2D | null = null;
@@ -544,6 +547,7 @@ async function main(): Promise<void> {
   let liveSettings = readSettings();
   const refreshLiveSettings = (): void => {
     liveSettings = readSettings();
+    hudLayoutGen++;
   };
   window.addEventListener('storage', refreshLiveSettings, { capture: true });
   window.addEventListener('focus', refreshLiveSettings, { capture: true });
@@ -702,8 +706,13 @@ async function main(): Promise<void> {
   if (startSpeed === 2 || startSpeed === 3 || startSpeed === 4) game.stepper.speed = startSpeed;
   let syncHudDom: (() => void) | null = null;
   const onResize = (): void => {
+    invalidateSafeInsets();
+    hudLayoutGen++;
     game.resize(app.screen.width, app.screen.height);
     syncHudDom?.();
+    requestAnimationFrame(() => {
+      hudLayoutGen++;
+    });
   };
   app.renderer.on('resize', onResize);
   game.resize(app.screen.width, app.screen.height);
@@ -968,7 +977,7 @@ async function main(): Promise<void> {
           overlayOpen: overlay,
         });
         const nextPv = showMarks ? ws.getNextWavePreview() : null;
-        if (nextPv && lay && lay.paths.length > 0) {
+        if (nextPv && lay && (lay.paths.length > 0 || lay.flightPath.length > 0)) {
           const idx = nextPv.waveOneBased - 1;
           const cacheKey = `${w.level.id}|${ws.isEndless ? 1 : 0}|${idx}`;
           if (laneCache?.key !== cacheKey) {
@@ -978,32 +987,58 @@ async function main(): Promise<void> {
               entries: def ? laneMod.waveEntranceCounts(def.groups, lay.paths, lay.flightPath, (ty) => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying)) : [],
             };
           }
-          marks = [];
-          // Keep off the top-left card/foe/toast, the horn, the HUD pieces and the viewport edge.
           const card = waveCard.box();
           const foe = foeCard?.debug().rect ?? null;
           const toast = newFoeToast?.debug().rect ?? null;
-          const diff = diffBadge?.debug();
-          const hr = game.hud.rects();
-          const avoid = [
-            ...(card ? [card] : []),
-            ...(foe ? [foe] : []),
-            ...(toast ? [toast] : []),
-            ...(diff && diff.shown && diff.w > 0 ? [{ x: diff.x, y: diff.y, w: diff.w, h: diff.h }] : []),
-            hr.hornBox,
-            hr.plaque,
-            game.dock.banner,
-            game.dock.tray,
-            hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()),
-            ...hudKeepOuts(),
-          ];
-          const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
+          const f = game.map.fit;
+          const dk = game.dock;
           const unit = laneMod.kitUnit(app.screen.width, app.screen.height);
-          const vp = { w: app.screen.width, h: app.screen.height };
-          for (const entry of laneCache.entries) {
-            const at = laneMod.laneMarkSpot(entry.path, toScreen, avoid, unit, vp);
-            if (at) marks.push({ lane: entry.lane, count: entry.count, flying: entry.flying, ...at });
+          const placeKey = laneMod.laneMarkPlaceKey({
+            waveKey: cacheKey,
+            viewW: app.screen.width,
+            viewH: app.screen.height,
+            unit,
+            fitScale: f.scale,
+            fitOffsetX: f.offsetX,
+            fitOffsetY: f.offsetY,
+            card,
+            foe,
+            toast,
+            hornBox: dk.hornBox,
+            plaque: dk.plaque,
+            banner: dk.banner,
+            tray: dk.tray,
+            hasDiffBadge: !!diffBadge,
+            coachKey: coach?.debug().shown ? coach.step : '',
+            specHintShown: !!specHint?.debug().shown,
+            keepOutsVersion: hudKeepOutsVersion(),
+            layoutGen: hudLayoutGen,
+          });
+          if (lanePlaceCache?.key !== placeKey) {
+            // Keep off the top-left card/foe/toast, the horn, the HUD pieces and the viewport edge.
+            const diff = diffBadge?.debug();
+            const avoid = [
+              ...(card ? [card] : []),
+              ...(foe ? [foe] : []),
+              ...(toast ? [toast] : []),
+              ...(diff && diff.shown && diff.w > 0 ? [{ x: diff.x, y: diff.y, w: diff.w, h: diff.h }] : []),
+              dk.hornBox,
+              dk.plaque,
+              dk.banner,
+              dk.tray,
+              hudButtonsKeepOut(app.screen.width, app.screen.height, readSafeInsets()),
+              ...hudKeepOuts(),
+            ];
+            const toScreen = (p: { x: number; z: number }): { x: number; y: number } => ({ x: game.map.screenX(game.map.pxX(p.x)), y: game.map.screenY(game.map.pxY(p.z)) });
+            const vp = { w: app.screen.width, h: app.screen.height };
+            const placed: import('./ui/laneMarks2d.ts').LaneMark[] = [];
+            for (const entry of laneCache.entries) {
+              const at = laneMod.laneMarkSpot(entry.path, toScreen, avoid, unit, vp);
+              if (at) placed.push({ lane: entry.lane, count: entry.count, flying: entry.flying, ...at });
+            }
+            lanePlaceCache = { key: placeKey, marks: placed };
           }
+          marks = lanePlaceCache.marks;
         }
         laneMarks.update(marks);
       }
