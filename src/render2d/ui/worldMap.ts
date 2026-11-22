@@ -114,12 +114,18 @@ export function titleBannerWidth(textW: number, fontPx: number, screenW: number)
   return want <= max ? { width: Math.ceil(want), scale: 1 } : { width: Math.floor(max), scale: Math.max(0.72, max / want) };
 }
 
-function fitTitleBanner(banner: HTMLElement, text: HTMLElement, screenW: number): void {
+function fitTitleBanner(banner: HTMLElement, text: HTMLElement, screenW: number, right?: HTMLElement): void {
   text.style.fontSize = '';
   const fs = parseFloat(getComputedStyle(banner).fontSize) || 16;
-  const fit = titleBannerWidth(text.getBoundingClientRect().width, fs, screenW);
+  let maxW = screenW;
+  if (document.documentElement.classList.contains('pu-phone') && right) {
+    const rw = right.getBoundingClientRect().width;
+    const avail = Math.max(130, screenW - rw - 32);
+    maxW = Math.min(screenW, avail / 0.34);
+  }
+  const fit = titleBannerWidth(text.getBoundingClientRect().width, fs, maxW);
   banner.style.setProperty('--bw', `${fit.width}px`);
-  if (fit.scale < 1) text.style.fontSize = `${(fs * fit.scale).toFixed(1)}px`;
+  if (fit.scale < 1) text.style.fontSize = `${Math.max(14, fs * fit.scale).toFixed(1)}px`;
 }
 
 /**
@@ -460,8 +466,8 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     lastW = w;
     lastH = h;
     lastK = k;
-    fitTitleBanner(banner, bannerText, w);
     spaceCaptions(right);
+    fitTitleBanner(banner, bannerText, w, right);
     const insets = readSafeInsets();
     const bar = topbar.getBoundingClientRect();
     // The free band starts under the title banner (the round buttons' captions may overhang a bit).

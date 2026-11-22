@@ -474,3 +474,52 @@
   transition: none;
   transform: none;
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-title-front {
+  padding: max(var(--safe-t), 2vh) max(var(--safe-r), 12px) max(var(--safe-b), 2.5vh) max(var(--safe-l), 12px);
+}
+
+html.pu-phone .pu-title-logo-art {
+  max-height: 25vh;
+}
+
+html.pu-phone .pu-title-tagline {
+  font-size: max(14px, var(--ui-font-body));
+  padding: calc(0.8em + 4px) 2.6em;
+}
+
+html.pu-phone .pu-title-bar-text {
+  font-size: var(--ui-font-btn);
+}
+
+html.pu-phone .pu-title-menu {
+  gap: max(10px, var(--ui-gap));
+}
+
+html.pu-phone .pu-title-menu .pu-plank.primary {
+  --ph: max(50px, calc(var(--ui-tap) * 1.1));
+  min-width: 220px;
+  font-size: max(19px, var(--ui-font-title));
+}
+
+html.pu-phone .pu-title-menu .pu-plank:not(.primary):not(.small) {
+  --ph: var(--ui-tap);
+  min-width: 184px;
+  font-size: var(--ui-font-btn);
+}
+
+html.pu-phone .pu-title-note {
+  margin-top: 0;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-title-row {
+  gap: var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-title-row .pu-plank {
+  --ph: var(--ui-tap);
+  min-width: 132px;
+  font-size: var(--ui-font-btn-sm);
+}

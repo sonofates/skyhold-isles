@@ -29,16 +29,16 @@ export function heroGroupLong(d: number, gap: number): number {
   return Math.round(d * TRAY_PORTRAIT + d * 2 + d * TRAY_DIVIDER + gap * 3);
 }
 
-/** Belt item buttons: a little smaller than the abilities (never under 40 px), closer together. */
+/** Belt item buttons: a little smaller than the abilities (never under 40 px, 44 px on compact/phone docks), comfortably spaced. */
 export const ITEM_SCALE = 0.9;
 export const ITEM_GAP = 0.55;
 
-export function itemButtonD(d: number): number {
-  return Math.round(Math.max(40, d * ITEM_SCALE));
+export function itemButtonD(d: number, minD = 40): number {
+  return Math.round(Math.max(minD, d * ITEM_SCALE));
 }
 
-export function itemGap(gap: number): number {
-  return Math.max(4, Math.round(gap * ITEM_GAP));
+export function itemGap(gap: number, minGap = 4): number {
+  return Math.max(minGap, Math.round(gap * ITEM_GAP));
 }
 
 /**
@@ -47,9 +47,10 @@ export function itemGap(gap: number): number {
  */
 export function itemGroupLong(d: number, gap: number, n: number, mode: 'row' | 'pouch'): number {
   if (n <= 0) return 0;
-  const di = itemButtonD(d);
+  const compact = gap <= 10;
+  const di = itemButtonD(d, compact ? 44 : 40);
   const k = mode === 'pouch' ? 1 : n;
-  return Math.round(d * TRAY_DIVIDER + gap * 2 + k * di + (k - 1) * itemGap(gap));
+  return Math.round(d * TRAY_DIVIDER + gap * 2 + k * di + (k - 1) * itemGap(gap, compact ? 8 : 4));
 }
 
 /** Length of the tray in a row: hero group (if any), a gap, the two abilities, the item group, the backing's padding. */
@@ -149,14 +150,18 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   const ay = bottom - r * 1.2;
   const hornAlt: HornSpot = { horn: { x: ax, y: ay, r }, hornBox: box(ax, ay) };
   // Tray: one row between the plaque and the banner, centred on the screen when it can be.
-  // Buttons about as weighty as the portrait (owner feedback 2026-11-19: the skills read small),
-  // compacted to the 40 px floor on short landscape phones so more of the island stays uncovered.
-  const want = Math.round(Math.max(h <= 460 ? 40 : 44, 50 * cu));
+  // Phone viewports enforce >= 44 px touch targets and >= 8 px item gaps (Apple HIG) while desktop keeps its exact sizing.
+  const phoneDock = h <= 560 || w < 640;
+  const compactItems = gap <= 10;
+  const minD = phoneDock ? 44 : 40;
+  const minItemD = compactItems ? 44 : 40;
+  const minItemGap = compactItems ? 8 : 4;
+  const want = Math.round(Math.max(minD, 50 * cu));
   const left = plaque.x + plaque.w + gap;
   const right = banner.x - gap;
   const coef = (o.hero ? TRAY_PORTRAIT + 2 + TRAY_DIVIDER + 2 : 2) + TRAY_PAD * 2;
   const fitD = Math.floor((right - left - (o.hero ? 5 : 1) * gap - 2) / coef);
-  const d = Math.max(40, Math.min(want, fitD));
+  const d = Math.max(minD, Math.min(want, fitD));
   // Items in a row when the bottom line has room for them, else one pouch button.
   const n = Math.max(0, Math.min(3, Math.floor(o.items ?? 0)));
   const itemMode: 'row' | 'pouch' = n > 0 && (o.itemMode === 'pouch' || trayLong(d, gap, o.hero, n, 'row') > right - left) ? 'pouch' : 'row';
@@ -190,7 +195,7 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   return {
     form: 'corners', pad, gap, buttons, info, infoRange, plaque, banner, horn: { x: hx, y: hy, r }, hornBox: box(hx, hy), hornTextW, hornAlt,
     tray, trayRange, trayLayout: 'row', d,
-    items: { n, mode: itemMode, d: itemButtonD(d), gap: itemGap(gap) },
+    items: { n, mode: itemMode, d: itemButtonD(d, minItemD), gap: itemGap(gap, minItemGap) },
   };
 }
 

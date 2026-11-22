@@ -245,3 +245,25 @@
     display: none;
   }
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-foe-card {
+  width: min(310px, 46vw);
+  font-size: var(--ui-font-body);
+  padding: 8px 12px;
+}
+
+html.pu-phone .pu-foe-name {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-foe-tag {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-foe-hp-text,
+html.pu-phone .pu-foe-stats,
+html.pu-phone .pu-foe-desc,
+html.pu-phone .pu-foe-counter {
+  font-size: var(--ui-font-body);
+}

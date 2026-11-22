@@ -140,3 +140,23 @@
   flex: 1 0 100%;
   margin-top: 0;
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-newfoe {
+  --tip-corner: 12px;
+  width: min(320px, 48vw);
+  padding: 7px 12px;
+}
+
+html.pu-phone .pu-newfoe-head,
+html.pu-phone .pu-newfoe.narrow .pu-newfoe-head {
+  font-size: var(--ui-font-label);
+}
+
+html.pu-phone .pu-newfoe-tag {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-newfoe-tip {
+  font-size: var(--ui-font-body);
+}

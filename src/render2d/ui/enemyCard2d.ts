@@ -157,13 +157,18 @@ export function mountEnemyCard(portrait: (type: string) => string | null): Enemy
       }
       // Docked in the info slot; measured again only when the foe or the slot changes (the HP bar
       // and its numbers keep their size).
-      const pk = `${uid}|${Math.round(slot.x)},${Math.round(slot.y)},${Math.round(slot.w)},${Math.round(slot.h)}|${Math.round(maxW)}|${wide ? 1 : 0}`;
+      const phone = document.documentElement.classList.contains('pu-phone');
+      const useSlot = phone
+        ? { ...slot, w: Math.max(slot.w, Math.min(310, Math.round(window.innerWidth * 0.46))), h: Math.max(slot.h, 190) }
+        : slot;
+      const useMaxW = phone ? Math.max(maxW, useSlot.w) : maxW;
+      const pk = `${uid}|${Math.round(useSlot.x)},${Math.round(useSlot.y)},${Math.round(useSlot.w)},${Math.round(useSlot.h)}|${Math.round(useMaxW)}|${wide ? 1 : 0}`;
       if (pk !== placeKey) {
         placeKey = pk;
         card.classList.toggle('wide', wide);
         // Small slots: the description, then the stat line go before the card would shrink below a
         // readable size (the Codex has both).
-        const docked = dockCard(card, slot, maxW, [desc, stats], 0.88);
+        const docked = dockCard(card, useSlot, useMaxW, [desc, stats], phone ? 0.99 : 0.88);
         scale = docked.scale;
         box = docked.box;
       }

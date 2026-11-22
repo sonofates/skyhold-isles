@@ -285,7 +285,12 @@ function fitTree({ body, main, grid, ends: endMedals, capRow, capMedal }: TreePa
   };
   const top = body.scrollTop;
   body.scrollTop = 0;
-  const [layout, zoom] = pickTreeFit(fits);
+  // On phone policy (`html.pu-phone`), never shrink skill nodes below comfortable touch size:
+  // lock zoom to 1 and let the sheet body scroll instead of cramming unreadable nodes.
+  const phone = document.documentElement.classList.contains('pu-phone');
+  const [layout, zoom]: readonly [TreeLayout, number] = phone
+    ? [window.innerWidth >= 780 ? 'across' : 'down', 1]
+    : pickTreeFit(fits);
   apply(layout, zoom);
   body.scrollTop = top;
   if (!capRow) return;

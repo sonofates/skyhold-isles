@@ -2611,3 +2611,786 @@
 .pu-reduce-motion .pu-plank.primary {
   animation: none;
 }
+
+/* =============================================================================================
+ * Phone UI Token System (`html.pu-phone`, toggled by `main2d.ts` from `!isDesktopClient(q)`).
+ * Desktop / MacBook layouts stay 100% untouched. On phone policy:
+ *  - Touch targets >= 44x44 CSS px (`--ui-tap`) with >= 8 px spacing (`--ui-gap`)
+ *  - Body/info/button text >= 14 px (`--ui-font-body` / `--ui-font-btn-sm`), captions >= 12 px
+ *  - Primary icons inside buttons >= 24 px (`--ui-icon`)
+ *  - Sheets use the full safe-area screen with scrollable bodies instead of shrinking content
+ * ============================================================================================= */
+
+html.pu-phone .pu {
+  --ui-font-caption: max(12px, calc(12px * var(--ui-scale, 1)));
+  --ui-font-body: max(14px, calc(14.5px * var(--ui-scale, 1)));
+  --ui-font-label: max(14px, calc(15px * var(--ui-scale, 1)));
+  --ui-font-btn: max(15px, calc(16px * var(--ui-scale, 1)));
+  --ui-font-btn-sm: max(14px, calc(14px * var(--ui-scale, 1)));
+  --ui-font-heading: max(16px, calc(17px * var(--ui-scale, 1)));
+  --ui-font-title: max(19px, calc(20px * var(--ui-scale, 1)));
+  --ui-tap: max(44px, calc(46px * var(--ui-scale, 1)));
+  --ui-gap: max(8px, calc(9px * var(--ui-scale, 1)));
+  --ui-gap-lg: max(12px, calc(12px * var(--ui-scale, 1)));
+  --ui-icon: max(24px, calc(24px * var(--ui-scale, 1)));
+  --ui-pad: max(8px, calc(10px * var(--ui-scale, 1)));
+}
+
+/* ---- overlays & sheets ---- */
+html.pu-phone .pu-overlay {
+  padding: max(4px, var(--safe-t)) max(6px, var(--safe-r)) max(4px, var(--safe-b)) max(6px, var(--safe-l));
+}
+
+html.pu-phone .pu-sheet {
+  --k: 0.255px;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+html.pu-phone .pu-sheet-title {
+  font-size: var(--ui-font-title);
+}
+
+html.pu-phone .pu-sheet-body {
+  padding: var(--ui-pad) calc(var(--ui-pad) * 1.1);
+}
+
+html.pu-phone .pu-round.pu-sheet-close {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+  right: calc(var(--k) * -108);
+  top: calc(var(--k) * -196);
+}
+
+/* ---- round buttons, planks, tags, bars ---- */
+html.pu-phone .pu-round {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.pu-phone .pu-round > .pu-glyph {
+  width: max(var(--ui-icon), 58%);
+  height: max(var(--ui-icon), 58%);
+}
+
+html.pu-phone .pu-round .pu-badge {
+  font-size: var(--ui-font-caption);
+  min-width: 20px;
+  height: 20px;
+  right: -4px;
+  top: -4px;
+}
+
+html.pu-phone .pu-round-label {
+  font-size: var(--ui-font-caption);
+  transform: translate(-50%, 0);
+}
+
+html.pu-phone .pu-plank {
+  --ph: var(--ui-tap);
+  min-height: var(--ui-tap);
+  min-width: 88px;
+  font-size: var(--ui-font-btn);
+  padding: 0 max(0.55em, 10px);
+  gap: 0.45em;
+}
+
+html.pu-phone .pu-plank > .pu-glyph {
+  width: var(--ui-icon);
+  height: var(--ui-icon);
+}
+
+html.pu-phone .pu-plank.small {
+  --ph: var(--ui-tap);
+  min-height: var(--ui-tap);
+  min-width: 64px;
+  font-size: var(--ui-font-btn-sm);
+}
+
+html.pu-phone .pu-plank.primary {
+  --ph: max(48px, calc(var(--ui-tap) * 1.08));
+  min-height: var(--ph);
+  min-width: 140px;
+  font-size: max(17px, calc(var(--ui-font-btn) * 1.12));
+}
+
+html.pu-phone .pu-plank.primary > .pu-glyph {
+  width: max(25px, var(--ui-icon));
+  height: max(25px, var(--ui-icon));
+}
+
+html.pu-phone .pu-plank-sub {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-tally {
+  --ph: var(--ui-tap);
+  min-height: var(--ui-tap);
+  font-size: var(--ui-font-btn);
+}
+
+html.pu-phone .pu-tally small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-tabs {
+  gap: var(--ui-gap);
+  margin-bottom: var(--ui-gap);
+}
+
+html.pu-phone .pu-tabs .pu-plank {
+  min-width: 84px;
+}
+
+html.pu-phone .pu-bar {
+  height: 24px;
+}
+
+html.pu-phone .pu-bar span {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-toggle {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.pu-phone .pu-slider {
+  height: var(--ui-tap);
+  min-height: 44px;
+}
+
+html.pu-phone .pu-slider-val {
+  font-size: var(--ui-font-body);
+}
+
+/* ---- world map ---- */
+html.pu-phone .pu-topbar {
+  gap: var(--ui-gap);
+  padding: max(12px, var(--safe-t)) max(10px, var(--safe-r)) 0 max(10px, var(--safe-l));
+}
+
+html.pu-phone .pu-title-banner {
+  --bh: 48px;
+  font-size: max(16px, var(--ui-font-heading));
+}
+
+html.pu-phone .pu-topbar-right {
+  gap: max(10px, var(--ui-gap));
+}
+
+html.pu-phone .pu-round.pu-map-pan {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+}
+
+html.pu-phone .pu-node-name {
+  --th: max(39px, calc(var(--d) * 0.35));
+}
+
+html.pu-phone .pu-node-ribbon {
+  font-size: var(--ui-font-caption);
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-topbar {
+    gap: 6px;
+    padding: max(10px, var(--safe-t)) max(6px, var(--safe-r)) 0 max(6px, var(--safe-l));
+  }
+
+  html.pu-phone .pu-topbar-right {
+    gap: 8px;
+  }
+
+  html.pu-phone .pu-topbar-right .pu-round {
+    width: 44px;
+    height: 44px;
+  }
+
+  html.pu-phone .pu-title-banner {
+    --bh: 44px;
+    font-size: 15px;
+  }
+
+  html.pu-phone .pu-topbar-right .pu-tally {
+    --ph: 44px;
+    min-height: 44px;
+    font-size: 14px;
+    padding: 0 0.2em;
+  }
+}
+
+/* ---- meta sheets shared ---- */
+html.pu-phone .pu-meta {
+  width: 100%;
+  max-height: 100%;
+}
+
+html.pu-phone .pu-meta-head {
+  gap: var(--ui-gap);
+  margin-bottom: var(--ui-gap);
+}
+
+html.pu-phone .pu-meta-note {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-meta-foot {
+  font-size: var(--ui-font-caption);
+  padding-top: var(--ui-pad);
+}
+
+/* ---- island briefing ---- */
+html.pu-phone .pu-brief {
+  width: 100%;
+  height: 100%;
+}
+
+html.pu-phone .pu-brief .pu-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--ui-pad);
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-brief-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  align-items: flex-start;
+  gap: var(--ui-gap-lg);
+  padding: 2px 4px;
+}
+
+html.pu-phone .pu-brief-main {
+  gap: var(--ui-gap-lg);
+  align-items: flex-start;
+}
+
+html.pu-phone .pu-brief-info {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-brief-row {
+  gap: var(--ui-gap);
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-brief-goal,
+html.pu-phone .pu-brief-hint {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-gem {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-loadout {
+  gap: var(--ui-gap) var(--ui-gap-lg);
+  flex-wrap: wrap;
+  padding: 6px 10px;
+}
+
+html.pu-phone .pu-loadout > .pu-beltchip {
+  padding-left: var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-modes {
+  gap: var(--ui-gap);
+  padding-left: var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-modes-head {
+  font-size: var(--ui-font-label);
+  margin: 0;
+}
+
+html.pu-phone .pu-modes-head small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-mode {
+  gap: var(--ui-gap);
+  min-height: var(--ui-tap);
+  padding: 4px 0;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-mode-text small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-mode-state {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-mode-state small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-brief-actions {
+  flex: none;
+  gap: var(--ui-gap) var(--ui-gap-lg);
+  padding-top: var(--ui-gap);
+  margin-top: 0;
+}
+
+html.pu-phone .pu-plank.primary.pu-brief-play {
+  --ph: max(48px, calc(var(--ui-tap) * 1.08));
+  min-width: 160px;
+  font-size: max(17px, calc(var(--ui-font-btn) * 1.1));
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-brief.has-modes .pu-brief-body {
+    flex-direction: column;
+  }
+
+  html.pu-phone .pu-brief.has-modes .pu-modes {
+    width: 100%;
+    padding-left: 0;
+    padding-top: var(--ui-gap);
+    border-left: 0;
+    border-top: 2px dashed rgba(122, 85, 50, 0.35);
+  }
+}
+
+/* ---- storybook panels ---- */
+html.pu-phone .pu-story {
+  width: 100%;
+  max-height: 100%;
+}
+
+html.pu-phone .pu-story-kicker {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-vignette-num {
+  width: 30px;
+  height: 30px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-panel-text,
+html.pu-phone .pu-panel:only-child .pu-panel-text {
+  font-size: var(--ui-font-body);
+  line-height: 1.3;
+}
+
+html.pu-phone .pu-panel-text b {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-story-actions {
+  gap: var(--ui-gap-lg);
+  padding-top: var(--ui-gap);
+}
+
+/* ---- workshop ---- */
+html.pu-phone .pu-ws-cols {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-ws-col h3 {
+  font-size: var(--ui-font-heading);
+  margin-bottom: var(--ui-gap);
+}
+
+html.pu-phone .pu-ws-node {
+  gap: 6px;
+  margin-bottom: var(--ui-gap);
+  padding: 8px 10px;
+}
+
+html.pu-phone .pu-ws-name {
+  font-size: var(--ui-font-label);
+}
+
+html.pu-phone .pu-ws-effect {
+  font-size: var(--ui-font-body);
+  line-height: 1.25;
+  min-height: 2.5em;
+}
+
+html.pu-phone .pu-ws-row {
+  gap: var(--ui-gap);
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-ws-cols {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* ---- logbook ---- */
+html.pu-phone .pu-lb-totals {
+  gap: var(--ui-gap) var(--ui-gap-lg);
+  margin-bottom: var(--ui-gap);
+}
+
+html.pu-phone .pu-lb-total {
+  font-size: var(--ui-font-body);
+  gap: 6px;
+}
+
+html.pu-phone .pu-lb-total .pu-round {
+  width: 34px;
+  height: 34px;
+  min-width: 0;
+  min-height: 0;
+}
+
+html.pu-phone .pu-lb-total strong {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-ledger-row {
+  gap: var(--ui-gap);
+  padding: 8px 4px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-ledger-num {
+  width: 30px;
+  height: 30px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-ledger-name small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-ledger-row .pu-stars {
+  font-size: 18px;
+}
+
+html.pu-phone .pu-ledger-badges .pu-round {
+  width: 26px;
+  height: 26px;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-ledger-row:not(.locked) {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px 10px;
+  }
+
+  html.pu-phone .pu-ledger-row:not(.locked) > .pu-ledger-name {
+    flex: 1 1 150px;
+  }
+}
+
+html.pu-phone .pu-feat {
+  grid-template-columns: 36px minmax(0, 1fr) minmax(100px, 130px);
+  gap: var(--ui-gap);
+  padding: 8px 4px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-feat .pu-round {
+  width: 36px;
+  height: 36px;
+  min-width: 0;
+  min-height: 0;
+}
+
+html.pu-phone .pu-feat-desc {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-feat-new {
+  font-size: var(--ui-font-caption);
+}
+
+/* ---- daily ---- */
+html.pu-phone [data-testid='daily2d'] .pu-sheet {
+  height: 100%;
+}
+
+html.pu-phone [data-testid='daily2d'] .pu-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--ui-pad);
+  gap: var(--ui-gap);
+}
+
+html.pu-phone [data-testid='daily2d'] .pu-daily-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+html.pu-phone .pu-daily-island {
+  gap: var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-daily-island .pu-ink {
+  font-size: var(--ui-font-title);
+}
+
+html.pu-phone .pu-daily-island .pu-ink-soft {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-daily-grid {
+  gap: var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-chips,
+html.pu-phone .pu-daily-grid .pu-chips {
+  gap: var(--ui-gap);
+  font-size: var(--ui-font-body);
+  margin: var(--ui-gap) 0;
+}
+
+html.pu-phone .pu-daily-grid .pu-chip {
+  min-width: 68px;
+  padding: 6px 10px;
+}
+
+html.pu-phone .pu-chip strong {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-rule {
+  gap: var(--ui-gap);
+  padding: 6px 0;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-rule small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-rule .pu-round {
+  width: 34px;
+  height: 34px;
+  min-width: 0;
+  min-height: 0;
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-daily-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ---- settings ---- */
+html.pu-phone .pu-settings.tabbed {
+  height: 100%;
+}
+
+html.pu-phone .pu-set-tabs {
+  gap: var(--ui-gap);
+  margin: 4px 0 6px;
+}
+
+html.pu-phone .pu-set-tabs .pu-plank {
+  min-width: 82px;
+}
+
+html.pu-phone .pu-set-row {
+  gap: var(--ui-gap-lg);
+  padding: 8px 4px;
+  font-size: var(--ui-font-label);
+}
+
+html.pu-phone .pu-set-row small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-tabs.pu-lang,
+html.pu-phone .pu-tabs.pu-choice {
+  gap: var(--ui-gap);
+  flex-wrap: wrap;
+}
+
+html.pu-phone .pu-tabs.pu-lang .pu-plank,
+html.pu-phone .pu-tabs.pu-choice .pu-plank {
+  min-width: 68px;
+  font-size: var(--ui-font-btn-sm);
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-set-row {
+    flex-wrap: wrap;
+    row-gap: var(--ui-gap);
+  }
+}
+
+html.pu-phone .pu-key-grid {
+  column-width: 280px;
+  column-gap: 20px;
+}
+
+html.pu-phone .pu-key-section h3 {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-key-row {
+  font-size: var(--ui-font-body);
+  gap: var(--ui-gap);
+  padding: 6px 0;
+}
+
+html.pu-phone .pu-key {
+  font-size: var(--ui-font-body);
+}
+
+/* ---- codex button + codex sheet ---- */
+html.pu-phone .pu-codex-btn .pu-round-label {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-codex {
+  width: 100%;
+  height: 100%;
+}
+
+html.pu-phone .pu-cx-tabs {
+  gap: var(--ui-gap);
+  margin-bottom: max(10px, var(--ui-gap));
+}
+
+html.pu-phone .pu-cx {
+  gap: var(--ui-gap);
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
+}
+
+html.pu-phone .pu-cx-grid {
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  grid-auto-rows: max-content;
+  gap: 10px 8px;
+  padding: 4px;
+}
+
+html.pu-phone .pu-cx-tile {
+  min-width: 44px;
+  gap: 4px;
+  padding: 2px;
+}
+
+html.pu-phone .pu-cx-medal {
+  width: 48px;
+  height: 48px;
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.pu-phone .pu-cx-medal.big {
+  width: 60px;
+  height: 60px;
+}
+
+html.pu-phone .pu-cx-name {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-cx-count {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-cx-detail {
+  padding: 10px 12px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-cx-kicker {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-cx-title {
+  font-size: var(--ui-font-title);
+}
+
+html.pu-phone .pu-cx-tags {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-cx-desc {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-cx-stat strong {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-cx-stat span {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-cx-note {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-cx-note small {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-cx-sub {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-cx-tier {
+  font-size: var(--ui-font-body);
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-cx-cost {
+  font-size: var(--ui-font-body);
+}
+
+/* ---- store ---- */
+html.pu-phone .pu-store {
+  width: 100%;
+}
+
+html.pu-phone .pu-store-intro {
+  font-size: var(--ui-font-body);
+  margin-bottom: var(--ui-gap);
+}
+
+html.pu-phone .pu-store-list {
+  gap: var(--ui-gap);
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
+
+html.pu-phone .pu-store-name {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-store-blurb {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-store-price {
+  --tag-h: 38px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-store-owned {
+  font-size: var(--ui-font-label);
+}
+
+html.pu-phone .pu-store-foot {
+  gap: var(--ui-gap);
+  padding-top: var(--ui-gap);
+}
+
+html.pu-phone .pu-store-status {
+  font-size: var(--ui-font-body);
+}

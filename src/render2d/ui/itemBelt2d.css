@@ -216,3 +216,9 @@
   width: 76%;
   height: 76%;
 }
+
+html.pu-phone .pu-item-stock {
+  font-size: var(--ui-font-caption);
+  min-width: 20px;
+  height: 20px;
+}

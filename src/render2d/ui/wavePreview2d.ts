@@ -173,8 +173,11 @@ export function mountWaveCard(
         if (s.earlyBonus > 0) foot.append(el('span', 'pu-wave-bonus', {}, img(KIT.gold), t('wave.earlyBonus', { n: s.earlyBonus })));
       }
       // Measure (a forced layout) only when the text or the slot changed, not every frame.
-      const q = waveCardSlot(s.slot);
-      const pk = `${key}|${footKey}|${Math.round(q.x)},${Math.round(q.y)},${Math.round(q.w)},${Math.round(q.h)}|${Math.round(s.maxW)}`;
+      const phone = document.documentElement.classList.contains('pu-phone');
+      const q0 = waveCardSlot(s.slot);
+      const q = phone ? { ...q0, w: Math.max(q0.w, Math.min(240, Math.round(window.innerWidth * 0.36))), h: Math.max(q0.h, 88) } : q0;
+      const useMaxW = phone ? Math.max(s.maxW, q.w) : s.maxW;
+      const pk = `${key}|${footKey}|${Math.round(q.x)},${Math.round(q.y)},${Math.round(q.w)},${Math.round(q.h)}|${Math.round(useMaxW)}`;
       if (pk !== placeKey) {
         placeKey = pk;
         const tier = waveCardTier(chipCount, q.w);
@@ -182,7 +185,7 @@ export function mountWaveCard(
         card.classList.toggle('snug', tier.snug);
         card.classList.toggle('compact', tier.compact);
         card.classList.toggle('tiny', tier.tiny);
-        const docked = dockCard(card, q, s.maxW, [foot, head]);
+        const docked = dockCard(card, q, useMaxW, [foot, head], phone ? 0.99 : 0.8);
         placed = docked.box;
         scale = docked.scale;
       }

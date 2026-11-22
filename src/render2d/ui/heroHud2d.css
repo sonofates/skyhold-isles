@@ -175,3 +175,9 @@
 .pu-hero-tip .pu-ab-tip-foot > :first-child {
   white-space: nowrap;
 }
+
+html.pu-phone .pu-hero-port .pu-hero-port-lvl {
+  font-size: var(--ui-font-caption);
+  min-width: 22px;
+  height: 22px;
+}

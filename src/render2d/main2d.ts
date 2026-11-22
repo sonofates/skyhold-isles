@@ -305,6 +305,7 @@ async function main(): Promise<void> {
   // Interface size changes on the map too (the run's own listener re-applies the rest).
   window.addEventListener(GRAPHICS_EVENT, () => applyUiScale(loadGraphics().uiScale));
   const desktop = isDesktopClient(q);
+  document.documentElement.classList.toggle('pu-phone', !desktop);
   let gfx = loadGraphics();
   let engine = applyGraphics(gfx, loadSettings().quality, desktop);
   if (!GAME_PARAMS.some((k) => q.has(k))) {

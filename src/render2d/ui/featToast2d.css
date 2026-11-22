@@ -109,3 +109,21 @@
 .pu-reduce-motion .pu-feat-toast.leaving {
   animation: none;
 }
+
+html.pu-phone .pu-feat-toast {
+  width: min(320px, 46vw);
+  padding: 8px 12px;
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-feat-toast-kicker {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-feat-toast-name {
+  font-size: var(--ui-font-label);
+}
+
+html.pu-phone .pu-feat-toast-desc {
+  font-size: var(--ui-font-body);
+}

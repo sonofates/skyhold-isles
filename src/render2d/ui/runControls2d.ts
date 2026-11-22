@@ -74,7 +74,18 @@ export function mountPauseMenu(h: PauseMenuHandlers): PauseMenu2D {
     wrap.style.display = show ? '' : 'none';
     if (show && plate) {
       wrap.style.left = `${plate.x + plate.w / 2}px`;
-      wrap.style.top = `${plate.y + plate.h + 10}px`;
+      let top = plate.y + plate.h + 10;
+      if (document.documentElement.classList.contains('pu-phone')) {
+        let trayTop = window.innerHeight - 84;
+        document.querySelectorAll<HTMLElement>('.pu-hero-port, .pu-ab').forEach((el) => { // i18n-ignore (CSS selector)
+          const r = el.getBoundingClientRect();
+          if (r.width > 0 && r.height > 0 && r.top < trayTop) trayTop = r.top;
+        });
+        const menuH = wrap.getBoundingClientRect().height || wrap.offsetHeight || 52;
+        const maxTop = Math.max(8, trayTop - menuH - 12);
+        if (top > maxTop) top = maxTop;
+      }
+      wrap.style.top = `${top}px`;
     }
   };
   return {

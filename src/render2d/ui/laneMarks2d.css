@@ -50,3 +50,7 @@
 .pu-reduce-motion .pu-lane-n {
   animation: none;
 }
+
+html.pu-phone .pu-lane-n {
+  font-size: var(--ui-font-body);
+}

@@ -363,3 +363,29 @@
     gap: 4px;
   }
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-wave-card {
+  padding: 5px 10px;
+}
+
+html.pu-phone .pu-wave-face {
+  width: 28px;
+  height: 28px;
+}
+
+html.pu-phone .pu-wave-count,
+html.pu-phone .pu-wave-card.compact .pu-wave-count,
+html.pu-phone .pu-wave-card.snug .pu-wave-count,
+html.pu-phone .pu-wave-card.many .pu-wave-count {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-wave-chip .pu-wave-new {
+  font-size: var(--ui-font-caption);
+  padding: 2px 6px;
+}
+
+html.pu-phone .pu-wave-chips {
+  gap: 6px;
+}
