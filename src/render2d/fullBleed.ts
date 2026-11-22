@@ -278,10 +278,10 @@ export function coverageOf(screenW: number, screenH: number, f: MapFit): number 
  * of the capsule in the piece's row, inside the safe area — a slight over-estimate at the capsule
  * ends); the free intervals are what is left.
  */
-export function slideX(s: HardShapes, fit: FitLike, r: Rect, lo: number, hi: number): number | null {
+export function slideX(s: HardShapes, fit: FitLike, r: Rect, lo: number, hi: number, margin = HARD_MARGIN): number | null {
   if (hi < lo) return null;
   const k = fit.scale;
-  const m = HARD_MARGIN;
+  const m = margin;
   // The piece's row in image px, and its width.
   const y0 = (r.y - m - fit.offsetY) / k;
   const y1 = (r.y + r.h + m - fit.offsetY) / k;
@@ -357,21 +357,198 @@ export function slideX(s: HardShapes, fit: FitLike, r: Rect, lo: number, hi: num
   return best;
 }
 
+/** Safety margin (css px) kept between a plot's tap circle and any HUD rect at the default view. */
+export const PLOT_HUD_MARGIN = HARD_MARGIN;
+
+/**
+ * Pure geometry check: indices of plots whose tap circle (radius `p.r * fit.scale + margin`,
+ * matching the plot layer's radius) intersects any screen rect in `rects`.
+ */
+export function coveredPlotIndices(plots: readonly Circle[], fit: FitLike, rects: readonly Rect[], margin = 0): number[] {
+  const out: number[] = [];
+  const k = fit.scale;
+  for (let i = 0; i < plots.length; i++) {
+    const p = plots[i];
+    const sx = fit.offsetX + p.x * k;
+    const sy = fit.offsetY + p.y * k;
+    const sr = p.r * k + margin;
+    const sr2 = sr * sr;
+    for (let j = 0; j < rects.length; j++) {
+      const r = rects[j];
+      const nx = Math.max(r.x, Math.min(sx, r.x + r.w));
+      const ny = Math.max(r.y, Math.min(sy, r.y + r.h));
+      const dx = sx - nx;
+      const dy = sy - ny;
+      if (dx * dx + dy * dy < sr2) {
+        out.push(i);
+        break;
+      }
+    }
+  }
+  return out;
+}
+
 /** Hard shapes every dock piece covers at a fit's default view (+½ when the island can't clear). */
 export function dockCost(shapes: HardShapes, r: FullBleedResult): number {
-  return Object.values(dockPieces(r.dock)).reduce((n, rect) => n + hardOverlaps(shapes, r.fit, rect).length, 0) + (r.fit.clear ? 0 : 0.5);
+  let n = r.fit.clear ? 0 : 0.5;
+  for (const rect of Object.values(dockPieces(r.dock))) {
+    for (const o of hardOverlaps(shapes, r.fit, rect)) n += o.kind === 'plot' ? 10 : 1;
+  }
+  return n;
+}
+
+/** Scale factors tried in descending order when the default cover-fit cannot clear every plot. */
+const PLOT_CLEAR_SCALES = [1, 0.98, 0.96, 0.94, 0.92, 0.9, 0.88, 0.86, 0.84, 0.82, 0.8, 0.78, 0.76, 0.74, 0.72] as const;
+
+/**
+ * Finds a default camera placement (and tray/horn/item-mode choice) where NO tower plot is covered
+ * by any HUD piece (within `margin` px). Returns `base` untouched when it already clears every plot.
+ * Otherwise tries auto-nudging the camera into mirrored-edge reach at full scale first, then steps
+ * the scale down gently only as far as needed to leave every plot tappable without panning.
+ */
+export function fitClearOfPlots(
+  screenW: number,
+  screenH: number,
+  layout: Level2DLayout,
+  dockFor: (mode: 'row' | 'pouch') => HudDock,
+  shapes: HardShapes,
+  base: FullBleedResult,
+  margin = PLOT_HUD_MARGIN,
+): FullBleedResult {
+  const baseHits0 = coveredPlotIndices(shapes.plots, base.fit, Object.values(dockPieces(base.dock)), 0).length;
+  const baseHitsM = baseHits0 > 0 ? baseHits0 : coveredPlotIndices(shapes.plots, base.fit, Object.values(dockPieces(base.dock)), margin).length;
+  if (baseHitsM === 0) return base;
+  const [iw, ih] = layout.imageSize;
+  const [sx, sy, sw, sh] = layout.safeArea;
+  const cover = Math.max(screenW / iw, screenH / ih);
+  const baseScale = viewScale(screenW, screenH, iw, ih);
+  const plotsOnly: HardShapes = { ...shapes, roads: [], gates: [] };
+  const rowDock = dockFor('row');
+  const docks: HudDock[] = rowDock.items.n > 0 && rowDock.items.mode !== 'pouch' ? [rowDock, dockFor('pouch')] : [rowDock];
+
+  const nonPlotCost = (fit: FitLike, rects: readonly Rect[]): number => {
+    let n = 0;
+    for (const r of rects) {
+      for (const o of hardOverlaps(shapes, fit, r)) {
+        if (o.kind !== 'plot') n += o.kind === 'road' ? 0.5 : 1;
+      }
+    }
+    return n;
+  };
+
+  for (const sm of PLOT_CLEAR_SCALES) {
+    const sc = baseScale * sm;
+    const pr = panRange(screenW, screenH, iw, ih, sc);
+    // Keep horizontal reach tight when the painting already covers screenW (avoids wide side mirror seams on desktop).
+    const capX = iw * sc >= screenW - 0.5 ? Math.min(screenW * 0.05, 64) : screenW * 0.14;
+    const capY = screenH * 0.24;
+    const minX = Math.min(pr.minX, pr.maxX) - capX;
+    const maxX = Math.max(pr.minX, pr.maxX) + capX;
+    const minY = Math.min(pr.minY, pr.maxY) - capY;
+    const maxY = Math.max(pr.minY, pr.maxY) + capY;
+    const prefX = screenW / 2 - (sx + sw / 2) * sc;
+    const prefY = screenH / 2 - (sy + sh / 2) * sc;
+    const steps = 18;
+    const xs: number[] = [];
+    const ys: number[] = [];
+    for (let i = 0; i <= steps; i++) {
+      xs.push(minX + ((maxX - minX) * i) / steps);
+      ys.push(minY + ((maxY - minY) * i) / steps);
+    }
+    xs.push(Math.min(maxX, Math.max(minX, pr.minX)), Math.min(maxX, Math.max(minX, pr.maxX)), Math.min(maxX, Math.max(minX, prefX)));
+    ys.push(Math.min(maxY, Math.max(minY, pr.minY)), Math.min(maxY, Math.max(minY, pr.maxY)), Math.min(maxY, Math.max(minY, prefY)));
+
+    let best: { score: number; ox: number; oy: number; dock: HudDock; nonPlot: number } | null = null;
+    for (const dock of docks) {
+      const horns: HornSpot[] = [{ horn: dock.horn, hornBox: dock.hornBox }, ...(dock.hornAlt ? [dock.hornAlt] : [])];
+      const fixed: Rect[] = [dock.buttons, dock.info, { x: dock.plaque.x, y: dock.plaque.y, w: dock.plaque.w, h: dock.plaque.h }, dock.banner];
+      for (const ox of xs) {
+        for (const oy of ys) {
+          let offY = false;
+          let offX = 0;
+          for (let i = 0; i < shapes.plots.length; i++) {
+            const p = shapes.plots[i];
+            const px = ox + p.x * sc;
+            const py = oy + p.y * sc;
+            const prs = p.r * sc;
+            if (py - prs < -1 || py + prs > screenH + 1) {
+              offY = true;
+              break;
+            }
+            if (px - prs < -1 || px + prs > screenW + 1) offX++;
+          }
+          if (offY) continue;
+          const fit: FitLike = { scale: sc, offsetX: ox, offsetY: oy };
+          // Quick reject: if any fixed piece covers a plot, neither horn nor tray can save this offset.
+          if (coveredPlotIndices(shapes.plots, fit, fixed, margin).length > 0) continue;
+          for (const horn of horns) {
+            if (coveredPlotIndices(shapes.plots, fit, [horn.hornBox], margin).length > 0) continue;
+            const hb = horn.hornBox;
+            const sameRow = hb.y < dock.tray.y + dock.tray.h && hb.y + hb.h > dock.tray.y && hb.x > dock.tray.x;
+            const trayHi = sameRow ? Math.min(dock.trayRange[1], hb.x - dock.gap - dock.tray.w) : dock.trayRange[1];
+            if (trayHi < dock.trayRange[0]) continue;
+            const tx = slideX(plotsOnly, fit, dock.tray, dock.trayRange[0], trayHi, margin);
+            if (tx === null) continue;
+            const trayRect: Rect = { ...dock.tray, x: tx };
+            const allPieces: Rect[] = [...fixed, horn.hornBox, trayRect];
+            if (coveredPlotIndices(shapes.plots, fit, [trayRect], margin).length > 0) continue;
+            const np = nonPlotCost(fit, allPieces);
+            let offGates = 0;
+            for (let g = 0; g < shapes.gates.length; g++) {
+              const gt = shapes.gates[g];
+              const gx = ox + (gt.x + gt.w / 2) * sc;
+              const gy = oy + (gt.y + gt.h / 2) * sc;
+              if (gx < 0 || gy < 0 || gx > screenW || gy > screenH) offGates++;
+            }
+            const reachX = Math.max(0, pr.minX - ox, ox - pr.maxX);
+            const reachY = Math.max(0, pr.minY - oy, oy - pr.maxY);
+            const score = (offX + offGates * 2) * 10_000 + np * 100 + (reachX * 2 + reachY) * 10 + Math.hypot(ox - prefX, oy - prefY) * 0.1 + (dock.items.mode === 'pouch' ? 0.05 : 0);
+            if (!best || score < best.score) {
+              best = { score, ox, oy, dock: { ...dock, horn: horn.horn, hornBox: horn.hornBox, tray: trayRect }, nonPlot: np };
+            }
+          }
+        }
+      }
+    }
+    if (best) {
+      const f = fitAt(screenW, screenH, iw, ih, sc, best.ox, best.oy);
+      const basePan = reachRange(pr, best.dock, shapes, sc, screenW, screenH, iw, ih);
+      const pan: PanRange = {
+        minX: Math.min(basePan.minX, best.ox),
+        maxX: Math.max(basePan.maxX, best.ox),
+        minY: Math.min(basePan.minY, best.oy),
+        maxY: Math.max(basePan.maxY, best.oy),
+      };
+      const allPieces = Object.values(dockPieces(best.dock));
+      const anyHard = allPieces.some((r) => hardOverlaps(shapes, f, r, true).length > 0);
+      const anyNonInfo = Object.entries(dockPieces(best.dock)).some(([k, r]) => k !== 'info' && hardOverlaps(shapes, f, r, true).length > 0);
+      const out: FullBleedResult = {
+        fit: { ...f, shrink: sc / cover, coverage: coverageOf(screenW, screenH, f), clear: !anyHard, clearButInfo: !anyNonInfo },
+        dock: best.dock,
+        pan,
+      };
+      // If base already had 0 strict plot overlaps, only replace it when the extra margin doesn't worsen dockCost.
+      if (baseHits0 === 0 && dockCost(shapes, out) > dockCost(shapes, base)) return base;
+      return out;
+    }
+  }
+  return base;
 }
 
 /**
  * The fit with the item belt in the tray: its row form where the bottom line has room and it covers
  * no more of the island than the one-button pouch would; else the pouch (the slots open above the
- * tray on a tap, Z / X / C still cast straight away).
+ * tray on a tap, Z / X / C still cast straight away). Guarantees no tower plot sits under any HUD
+ * piece at the default view (auto-nudging the camera / scaling gently when needed).
  */
 export function fullBleedFitItems(screenW: number, screenH: number, layout: Level2DLayout, dockFor: (mode: 'row' | 'pouch') => HudDock, shapes: HardShapes = hardShapes(layout)): FullBleedResult {
   const row = fullBleedFit(screenW, screenH, layout, dockFor('row'), shapes);
-  if (row.dock.items.n === 0 || row.dock.items.mode === 'pouch') return row;
-  const pouch = fullBleedFit(screenW, screenH, layout, dockFor('pouch'), shapes);
-  return dockCost(shapes, row) > dockCost(shapes, pouch) ? pouch : row;
+  let base = row;
+  if (row.dock.items.n > 0 && row.dock.items.mode !== 'pouch') {
+    const pouch = fullBleedFit(screenW, screenH, layout, dockFor('pouch'), shapes);
+    if (dockCost(shapes, row) > dockCost(shapes, pouch)) base = pouch;
+  }
+  return fitClearOfPlots(screenW, screenH, layout, dockFor, shapes, base);
 }
 
 export function fullBleedFit(screenW: number, screenH: number, layout: Level2DLayout, dock: HudDock, shapes: HardShapes = hardShapes(layout)): FullBleedResult {
@@ -493,8 +670,8 @@ export function reachPieces(dock: HudDock): Rect[] {
  */
 export function reachRange(pan: PanRange, dock: HudDock, shapes: HardShapes, scale: number, screenW: number, screenH: number, imageW: number, imageH: number): PanRange {
   const pieces = reachPieces(dock);
-  const coverX = imageW * scale >= screenW - 0.5;
-  const coverY = imageH * scale >= screenH - 0.5;
+  const coverX = imageW * scale >= screenW * 0.68;
+  const coverY = imageH * scale >= screenH * 0.68;
   const capX = coverX ? screenW * REACH_MAX : 0;
   const capY = coverY ? screenH * REACH_MAX : 0;
   let extL = 0;

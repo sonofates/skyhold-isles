@@ -149,8 +149,9 @@ export function hudDock(w: number, h: number, insets: Insets, o: HudDockOptions)
   const ay = bottom - r * 1.2;
   const hornAlt: HornSpot = { horn: { x: ax, y: ay, r }, hornBox: box(ax, ay) };
   // Tray: one row between the plaque and the banner, centred on the screen when it can be.
-  // Buttons about as weighty as the portrait (owner feedback 2026-11-19: the skills read small).
-  const want = Math.round(Math.max(44, 50 * cu));
+  // Buttons about as weighty as the portrait (owner feedback 2026-11-19: the skills read small),
+  // compacted to the 40 px floor on short landscape phones so more of the island stays uncovered.
+  const want = Math.round(Math.max(h <= 460 ? 40 : 44, 50 * cu));
   const left = plaque.x + plaque.w + gap;
   const right = banner.x - gap;
   const coef = (o.hero ? TRAY_PORTRAIT + 2 + TRAY_DIVIDER + 2 : 2) + TRAY_PAD * 2;
