@@ -9,6 +9,19 @@
     "breezeFreq": 0.95,
     "sheen": 0.0
   },
+  "water": {
+    "mask": "life/i15-water.webp",
+    "strength": 1.05,
+    "dir": [0, 0],
+    "flowSpeed": 0,
+    "rippleScale": 0.95,
+    "glintColor": "#b8d4f8",
+    "glintStrength": 0.13,
+    "glintSpeed": 0.82,
+    "regions": [
+      { "rect": [676, 468, 54, 36], "dir": [0, 0], "speedMul": 0, "glintMul": 1.25 }
+    ]
+  },
   "clouds": {
     "count": 2,
     "alpha": 0.085,
