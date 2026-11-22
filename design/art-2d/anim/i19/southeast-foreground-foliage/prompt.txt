@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+In the lush southeast foreground, a soft jungle breeze ripples across the broad sunlit split fig leaves, dark green fern fronds, and tall coral-pink blossom spikes, tipping each leafy spray a few pixels right and easing back smoothly to rest. Keep the painted leaf lobes cohesive and soft with no detached leaves or new stems. Hold the cliff edge, brown dirt path, and open grass still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

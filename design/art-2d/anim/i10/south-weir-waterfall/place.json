@@ -1,0 +1,36 @@
+{
+  "element": "south-weir-waterfall",
+  "id": "i10-south-weir-waterfall",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 850,
+    "y": 654,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2550,
+    1962,
+    3606,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    254,
+    443,
+    524,
+    699
+  ],
+  "featherInwardStartPx": 15
+}

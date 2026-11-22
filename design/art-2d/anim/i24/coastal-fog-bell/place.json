@@ -1,0 +1,36 @@
+{
+  "id": "i24-coastal-fog-bell",
+  "element": "coastal-fog-bell",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1360,
+    "y": 468,
+    "width": 176,
+    "height": 99
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4080,
+    1404,
+    4608,
+    1701
+  ],
+  "startPxPerLayoutPx": 7.2727272727272725,
+  "startPxPerSourcePx": 2.4242424242424243,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    523,
+    203,
+    757,
+    553
+  ],
+  "featherInwardStartPx": 29
+}

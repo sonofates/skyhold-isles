@@ -1,0 +1,36 @@
+{
+  "element": "southeast-moonlit-foliage",
+  "id": "i15-southeast-moonlit-foliage",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1414,
+    "y": 609,
+    "width": 432,
+    "height": 243
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4242,
+    1827,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.962962962962963,
+  "startPxPerSourcePx": 0.9876543209876543,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    207,
+    80,
+    1227,
+    667
+  ],
+  "featherInwardStartPx": 21
+}

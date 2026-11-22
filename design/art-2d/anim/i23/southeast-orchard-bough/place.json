@@ -1,0 +1,36 @@
+{
+  "id": "i23-southeast-orchard-bough",
+  "element": "southeast-orchard-bough",
+  "source": "public/art2d/map-i23-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1462,
+    "y": 636,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4386,
+    1908,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    306,
+    73,
+    1254,
+    694
+  ],
+  "featherInwardStartPx": 27
+}

@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Inside the three glass alchemy flasks suspended above the wooden workbench, the existing warm amber, emerald-green, and cobalt-blue liquids softly shimmer with a faint internal light that gently brightens a fraction and eases back to its opening tone. Keep all glow strictly inside the three glass bulbs with no sparks or aura spilling outward. Hold the brass stand, wooden table, glassblowing pipe, and cavern floor perfectly still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

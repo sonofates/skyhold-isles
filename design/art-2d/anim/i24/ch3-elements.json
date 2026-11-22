@@ -1,0 +1,96 @@
+{
+  "island": "i24",
+  "elements": [
+    {
+      "element": "lighthouse-beacon-glow",
+      "kind": "other",
+      "crop": { "x": 1064, "y": 462, "width": 176, "height": 99 },
+      "mask": [
+        [[1124, 518], [1180, 518], [1180, 540], [1124, 540]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "Strictly inside the glass lantern room at the top of the stone coastal lighthouse, a soft warm pale-amber lamp glow slowly brightens a gentle shade behind the vertical mullions and dims smoothly back as the beacon turns. Keep all light strictly confined inside the painted glass panes with no outward rays, beams, or lens flares. Hold the verdigris copper dome, fish weathervane, red-and-stone masonry tower, and dark green turf completely rigid.",
+      "retryOf": null,
+      "why": "Illuminates the namesake Lastlight Head lighthouse lantern right in the heart of the island."
+    },
+    {
+      "element": "coastal-fog-bell",
+      "kind": "other",
+      "crop": { "x": 1360, "y": 468, "width": 176, "height": 99 },
+      "mask": [
+        [[1432, 496], [1464, 496], [1464, 544], [1432, 544]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "Beneath the timber A-frame beside the eastern approach, the hanging bronze coastal fog bell rocks gently left and right by two or three pixels in the sea wind, its small clapper swaying subtly with the bell before settling cleanly back to rest. Preserve the warm bronze paint with no flashes or shine changes. Hold the weathered timber frame, dark green turf, and nearby stone castle completely stationary.",
+      "retryOf": null,
+      "why": "Animates the charming coastal fog bell landmark inside the eastern safe area."
+    },
+    {
+      "element": "west-mid-cliff-surf",
+      "kind": "water",
+      "crop": { "x": 0, "y": 236, "width": 352, "height": 198 },
+      "mask": [
+        [[6, 244], [94, 244], [64, 344], [74, 424], [6, 424]]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "Against the dark sunlit cliffs of the mid-western coast, the deep slate-teal sea swells heave slowly inward and draw back, pulsing the existing painted white surf foam a few pixels up and down along the dark rock feet without letting the foam vanish or turn into thin parallel lines. Hold every sharp cliff ledge, boulder, and sunlit golden grass tuft on the bluff completely still.",
+      "retryOf": null,
+      "why": "Extends the crashing western sea surf down the steep sunlit coastline."
+    },
+    {
+      "element": "southeast-reef-swell",
+      "kind": "water",
+      "crop": { "x": 1526, "y": 462, "width": 320, "height": 180 },
+      "mask": [
+        [[1788, 470], [1838, 470], [1838, 632], [1748, 632], [1776, 560]]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "In the shadowed deep teal sea beside the southeast headland cliffs, the heavy ocean water rises and falls gently, shifting the existing painted pale foam patches a few pixels toward the dark cliff foot and letting them ease smoothly back. Keep the painted foam cohesive and soft with zero thin white arcs, zero wire-like grids, and no bright flashes. Hold the black coastal rocks, cliff wall, and green turf above completely locked.",
+      "retryOf": "lower-headland-swell",
+      "why": "Restores heavy natural sea swell along the southeast cliffs while forbidding wire-like white arcs."
+    },
+    {
+      "element": "north-headland-grass",
+      "kind": "grass",
+      "crop": { "x": 496, "y": 0, "width": 480, "height": 270 },
+      "mask": [
+        [[514, 10], [956, 10], [956, 166], [514, 166]]
+      ],
+      "featherPx": 10,
+      "depth": 0,
+      "motion": "Across the wide sunlit northern headland slope, a steady coastal breeze ripples smoothly from left to right through the olive-green turf and tall golden grass tufts, bending each grassy patch a few pixels eastward before easing back seamlessly. Keep the rich moody brushwork and palette intact with zero white wind streaks or brightness shifts. Hold the mossy grey rock outcrops, small pink blossoms, and stone road below completely still.",
+      "retryOf": null,
+      "why": "Brings sweeping coastal wind motion to the broad northern headland visible on all screens."
+    },
+    {
+      "element": "northeast-pasture-grass",
+      "kind": "grass",
+      "crop": { "x": 1024, "y": 0, "width": 480, "height": 270 },
+      "mask": [
+        [[1044, 10], [1484, 10], [1484, 134], [1044, 134]]
+      ],
+      "featherPx": 10,
+      "depth": 0,
+      "motion": "Over the broad deep-green northeast pasture above the coastal cliffs, a brisk sea breeze sends a slow gentle ripple through the painted grass blades and tall pale-gold tufts, tipping them a few pixels right and letting them settle cleanly back. Preserve the moody coastal colours with zero pale wind ribbons or flashes. Hold the flat dark slate stones, pink flower clumps, and shadowed earth completely stationary.",
+      "retryOf": null,
+      "why": "Continues the sweeping coastal grass breeze across the eastern headland."
+    },
+    {
+      "element": "southwest-slope-grass",
+      "kind": "grass",
+      "crop": { "x": 144, "y": 636, "width": 384, "height": 216 },
+      "mask": [
+        [[160, 696], [468, 696], [468, 838], [160, 838]]
+      ],
+      "featherPx": 9,
+      "depth": 0,
+      "motion": "Along the warm golden-lit southwest headland slope, the long painted ochre grass blades and dark green turf tufts sway softly rightward by a few pixels in the coastal wind and recover smoothly into their opening curve. Preserve the warm sunlit brushstrokes with zero white streaks or colour changes. Keep the jagged rocky cliff rim, flat grey boulders, and dark turf beneath completely still.",
+      "retryOf": null,
+      "why": "Animates the dramatic golden wind-swept cliffside grass on the southwest headland."
+    }
+  ]
+}

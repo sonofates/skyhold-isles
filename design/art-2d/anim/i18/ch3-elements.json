@@ -1,0 +1,99 @@
+{
+  "island": "i18",
+  "elements": [
+    {
+      "element": "upper-kiln-furnace",
+      "kind": "fire",
+      "crop": { "x": 0, "y": 462, "width": 240, "height": 135 },
+      "mask": [
+        [[48, 502], [112, 502], [122, 568], [46, 566]]
+      ],
+      "featherPx": 5,
+      "depth": 1,
+      "motion": "Inside the arched iron grate of the upper copper glassworks kiln, the warm amber and deep orange furnace glow breathes softly with a slow, subtle ember flicker confined strictly behind the dark iron bars, while the painted orange light on the stone sill gently pulses in sync. Keep all flames inside the grate with no sparks or smoke escaping. Hold the riveted copper dome, iron bars, chimney, and rocky ledge perfectly rigid.",
+      "retryOf": null,
+      "why": "Ignites the upper glassworks kiln hearth, a core landmark of Lantern Glassworks."
+    },
+    {
+      "element": "lower-kiln-furnace",
+      "kind": "fire",
+      "crop": { "x": 110, "y": 640, "width": 240, "height": 135 },
+      "mask": [
+        [[176, 680], [248, 680], [254, 756], [174, 756]]
+      ],
+      "featherPx": 5,
+      "depth": 1,
+      "motion": "Behind the arched iron grate of the lower copper kiln, the bright golden-orange hearth embers shimmer slowly and softly in place, gently warming and settling the existing orange glow cast across the stone threshold right in front of the mouth. No flames leap outside the opening and no colour shifts occur. Keep the riveted copper dome, dark grate bars, ore cart, and nearby crystals completely still.",
+      "retryOf": null,
+      "why": "Brings the main foreground copper kiln furnace to warm living life."
+    },
+    {
+      "element": "alchemist-bench-flasks",
+      "kind": "crystal",
+      "crop": { "x": 388, "y": 548, "width": 240, "height": 135 },
+      "mask": [
+        [[472, 582], [546, 582], [546, 622], [472, 622]]
+      ],
+      "featherPx": 4,
+      "depth": 1,
+      "motion": "Inside the three glass alchemy flasks suspended above the wooden workbench, the existing warm amber, emerald-green, and cobalt-blue liquids softly shimmer with a faint internal light that gently brightens a fraction and eases back to its opening tone. Keep all glow strictly inside the three glass bulbs with no sparks or aura spilling outward. Hold the brass stand, wooden table, glassblowing pipe, and cavern floor perfectly still.",
+      "retryOf": null,
+      "why": "Highlights the signature glassblower workbench right inside the central battle view."
+    },
+    {
+      "element": "west-ledge-crystals",
+      "kind": "crystal",
+      "crop": { "x": 100, "y": 344, "width": 336, "height": 189 },
+      "mask": [
+        [[136, 444], [202, 412], [238, 360], [292, 364], [286, 504], [204, 496], [136, 488]],
+        [[324, 440], [392, 440], [392, 510], [324, 510]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Inside the tall turquoise-green crystal spire cluster on the stepped cliff shelf and the small emerald cluster on the dark floor beside it, a subtle pale mint reflection glides slowly upward along the existing painted crystal facets and settles back to its original tone. Keep all crystal tips, facet outlines, dark slate cliffs, and surrounding floor rock completely fixed with zero new crystals or expanding light.",
+      "retryOf": null,
+      "why": "Animates the prominent untouched crystal formation rising behind the copper kilns."
+    },
+    {
+      "element": "north-central-crystals",
+      "kind": "crystal",
+      "crop": { "x": 756, "y": 0, "width": 480, "height": 270 },
+      "mask": [
+        [[816, 8], [964, 8], [964, 108], [816, 108]],
+        [[1052, 8], [1204, 8], [1204, 98], [1052, 98]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Within the green crystal fan and the neighbouring pale-violet crystal cluster along the northern cavern wall, the existing painted pale mint and soft lilac facet highlights gently brighten a subtle shade and fade back in a calm alternating rhythm. Confine every glint strictly inside the painted crystal planes with no new crystals, no glowing halos, and all rock ledges, stalactites, and cavern floor locked still.",
+      "retryOf": null,
+      "why": "Lights up the wide dark northern cavern rim right above the main road."
+    },
+    {
+      "element": "northeast-vault-crystals",
+      "kind": "crystal",
+      "crop": { "x": 1344, "y": 0, "width": 352, "height": 198 },
+      "mask": [
+        [[1396, 8], [1588, 8], [1588, 104], [1396, 104]],
+        [[1572, 72], [1682, 72], [1682, 168], [1572, 168]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Across the northeast cavern rim, the broad mint-green crystal blades and the lower lavender-violet crystal cluster catch a restrained internal shimmer that slowly swells along their existing pale faces and settles cleanly back to rest. Preserve every sharp facet line and crystal silhouette with zero new formations or light spilling onto the slate floor. Hold the dark cave wall, mushrooms, and floor rock perfectly still.",
+      "retryOf": null,
+      "why": "Balances the upper-right crystal gallery leading into the amethyst geode."
+    },
+    {
+      "element": "southeast-crystal-seam",
+      "kind": "crystal",
+      "crop": { "x": 1526, "y": 496, "width": 320, "height": 180 },
+      "mask": [
+        [[1720, 508], [1838, 508], [1838, 666], [1666, 666], [1670, 594]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Strictly inside the existing glowing turquoise crystal ridge embedded in the southeast cavern wall, the pale mint highlights along the painted facets gently brighten a small degree and dim back to their opening value in place. Do not grow, shift, or add any new crystal shapes anywhere on the wall or cavern floor. Hold the purple rock boulders, dark slate floor, and every crystal outline perfectly stationary.",
+      "retryOf": "east-wall-vein",
+      "why": "Tightly re-frames the glowing southeast crystal wall so only the facets shimmer without growing floor crystals."
+    }
+  ]
+}

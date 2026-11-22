@@ -1,0 +1,36 @@
+{
+  "element": "north-balustrade-lawns",
+  "id": "i09-north-balustrade-lawns",
+  "source": "public/art2d/map-i09-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 880,
+    "y": 0,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2640,
+    0,
+    3984,
+    756
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809524,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    51,
+    34,
+    1218,
+    275
+  ],
+  "featherInwardStartPx": 20
+}

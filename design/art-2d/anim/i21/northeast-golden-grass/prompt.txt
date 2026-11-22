@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Along the sunlit northeast ridge, the tall golden-cream wild grass plumes and pink cliff-rim heather sway softly rightward a few pixels in a rolling breeze and recover smoothly to their opening lean. Preserve the soft painterly grass strokes with no pale air streaks or colour shifts. Keep the limestone cliff rocks and dirt road completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

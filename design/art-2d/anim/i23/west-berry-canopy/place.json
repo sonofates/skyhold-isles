@@ -1,0 +1,36 @@
+{
+  "id": "i23-west-berry-canopy",
+  "element": "west-berry-canopy",
+  "source": "public/art2d/map-i23-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 196,
+    "width": 368,
+    "height": 207
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    588,
+    1104,
+    1209
+  ],
+  "startPxPerLayoutPx": 3.4782608695652173,
+  "startPxPerSourcePx": 1.1594202898550725,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    20,
+    34,
+    536,
+    661
+  ],
+  "featherInwardStartPx": 24
+}

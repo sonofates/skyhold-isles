@@ -1,0 +1,36 @@
+{
+  "element": "south-west-meadow-tufts",
+  "id": "i09-south-west-meadow-tufts",
+  "source": "public/art2d/map-i09-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 180,
+    "y": 600,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    540,
+    1800,
+    1788,
+    2502
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410258,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    80,
+    86,
+    1194,
+    671
+  ],
+  "featherInwardStartPx": 25
+}

@@ -1,0 +1,36 @@
+{
+  "id": "i19-north-glade-meadow",
+  "element": "north-glade-meadow",
+  "source": "public/art2d/map-i19-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 640,
+    "y": 0,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1920,
+    0,
+    3264,
+    756
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    40,
+    22,
+    1235,
+    263
+  ],
+  "featherInwardStartPx": 23
+}

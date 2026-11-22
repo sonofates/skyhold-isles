@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Within the green crystal fan and the neighbouring pale-violet crystal cluster along the northern cavern wall, the existing painted pale mint and soft lilac facet highlights gently brighten a subtle shade and fade back in a calm alternating rhythm. Confine every glint strictly inside the painted crystal planes with no new crystals, no glowing halos, and all rock ledges, stalactites, and cavern floor locked still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

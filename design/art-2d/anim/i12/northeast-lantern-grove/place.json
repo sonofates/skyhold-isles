@@ -1,0 +1,36 @@
+{
+  "element": "northeast-lantern-grove",
+  "id": "i12-northeast-lantern-grove",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1526,
+    "y": 0,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4578,
+    0,
+    5538,
+    540
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    184,
+    40,
+    1225,
+    673
+  ],
+  "featherInwardStartPx": 24
+}

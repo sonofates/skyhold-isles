@@ -1,0 +1,96 @@
+{
+  "island": "i11",
+  "elements": [
+    {
+      "element": "east-spire-cloudsea",
+      "kind": "cloud",
+      "crop": { "x": 1414, "y": 165, "width": 432, "height": 243 },
+      "mask": [
+        [[1464, 266], [1832, 266], [1832, 378], [1660, 376], [1484, 344]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Below the eastern rock spires, the soft cream-white and pale periwinkle cloud bank drifts slowly from left to right along the chasm floor. Existing rounded cloud puffs soften and slide horizontally a few pixels while cool lavender shadows roll gently beneath them, never forming spirals, hard edges or climbing over the rock faces. Keep the jagged stone spires, their tiny flags, the distant cliffs and the grassy foreground cliff rim sharply locked and still.",
+      "retryOf": "spire-foot-cloud",
+      "why": "Retries the dramatic eastern cloud sea strictly in the low valley below the spire tips with soft non-spiral drift."
+    },
+    {
+      "element": "north-spire-pennant",
+      "kind": "cloth",
+      "crop": { "x": 1070, "y": 0, "width": 288, "height": 162 },
+      "mask": [
+        [[1172, 10], [1278, 10], [1278, 56], [1172, 56]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "A steady highland wind sends a smooth horizontal wave from left to right along the long dark-emerald cloth pennant flying from the stone lookout spire. The forked tail lifts and dips three to four pixels while the painted gold spiral motif ripples naturally with the cloth, returning cleanly to the opening wave. Keep the flagpole, wooden crow's nest, carved stone spire, cliff rim and green grass completely rigid and still.",
+      "retryOf": null,
+      "why": "Animates the unmistakable emerald lookout pennant streaming over the northern cliffs."
+    },
+    {
+      "element": "west-dyed-banner-rack",
+      "kind": "cloth",
+      "crop": { "x": 140, "y": 420, "width": 256, "height": 144 },
+      "mask": [
+        [[252, 468], [336, 468], [336, 510], [252, 510]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "A brisk mountain breeze ripples the four dyed cloth panels—scarlet, orange, ochre-gold and dark teal—hanging side by side on the wooden drying frame. Their lower hems swing gently outward and back by three to four pixels in a staggered ripple while the upper folds stay draped tightly over the crossbar. Keep the wooden posts, crossbar, workbench, coiled ropes, sacks and surrounding highland grass completely still.",
+      "retryOf": null,
+      "why": "Turns the colourful western highland signal rack into a lively wind-driven landmark."
+    },
+    {
+      "element": "southeast-beacon-tower",
+      "kind": "fire",
+      "crop": { "x": 1200, "y": 654, "width": 288, "height": 162 },
+      "mask": [
+        [[1294, 678], [1378, 678], [1378, 772], [1294, 772]]
+      ],
+      "featherPx": 4,
+      "depth": 1,
+      "motion": "At the top of the stone watch beacon, the narrow gold-and-orange wind pennant ripples steadily to the right in the breeze while the warm amber lantern flame inside the curved glass chamber flickers softly in place. Keep the warm glow strictly confined behind the existing painted window mullions without brightening the stone tower, red roof, stairs or surrounding grass, all of which stay completely still.",
+      "retryOf": null,
+      "why": "Animates the glowing highland watch-beacon and its rooftop pennant beside the castle."
+    },
+    {
+      "element": "northwest-highland-grass",
+      "kind": "grass",
+      "crop": { "x": 0, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[16, 12], [420, 12], [420, 146], [16, 146]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A steady highland breeze sweeps left to right across the broad sunlit yellow-green grass plateau and low violet heather patches above the western cliff. The painted grass tufts and small wildflower blades bend gently two to three pixels to the right and settle back in a soft wave. Keep the standing carved rune stone, pale limestone cliff rim, boulders and flat earth patches completely fixed, with no white wind streaks or light changes.",
+      "retryOf": null,
+      "why": "Gives sweeping highland wind motion to the wide open northwestern plateau."
+    },
+    {
+      "element": "southwest-windswept-meadow",
+      "kind": "grass",
+      "crop": { "x": 0, "y": 540, "width": 448, "height": 252 },
+      "mask": [
+        [[16, 558], [392, 558], [392, 736], [16, 736]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Across the windswept southwestern highland meadow, the small wind-bent dark shrub on the left and the scattered pale-green grass tufts and purple heather sprays lean gently to the right by two to three pixels and ease back together. Keep the mossy ground shading, scattered field stones and the stepped limestone cliff edge at the bottom completely steady, with no extra streaks or brightness shift.",
+      "retryOf": null,
+      "why": "Animates the broad open meadow and windswept bush in the lower-left quadrant."
+    },
+    {
+      "element": "southeast-highland-slope",
+      "kind": "grass",
+      "crop": { "x": 1414, "y": 540, "width": 432, "height": 243 },
+      "mask": [
+        [[1492, 564], [1830, 564], [1830, 724], [1492, 724]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A calm mountain breeze rolls across the broad emerald-and-ochre grass slope on the southeastern plateau. Painted tufts of pale highland grass and low heather patches nod gently two to three pixels to the right and recover in a slow travelling wave. Hold the grey field stones, stepped limestone cliff below and distant road edge completely fixed with unchanged daylight and colour.",
+      "retryOf": null,
+      "why": "Completes the wind-swept highland atmosphere across the wide eastern meadow."
+    }
+  ]
+}

@@ -1,0 +1,36 @@
+{
+  "element": "southwest-basalt-fissures",
+  "id": "i16-southwest-basalt-fissures",
+  "source": "public/art2d/map-i16-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 609,
+    "width": 432,
+    "height": 243
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1827,
+    1296,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.962962962962963,
+  "startPxPerSourcePx": 0.9876543209876543,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    47,
+    97,
+    1109,
+    673
+  ],
+  "featherInwardStartPx": 21
+}

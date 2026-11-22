@@ -1,0 +1,36 @@
+{
+  "id": "i18-upper-kiln-furnace",
+  "element": "upper-kiln-furnace",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 462,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1386,
+    720,
+    1791
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    245,
+    213,
+    652,
+    566
+  ],
+  "featherInwardStartPx": 27
+}

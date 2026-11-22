@@ -1,0 +1,36 @@
+{
+  "id": "i18-west-ledge-crystals",
+  "element": "west-ledge-crystals",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 100,
+    "y": 344,
+    "width": 336,
+    "height": 189
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    300,
+    1032,
+    1308,
+    1599
+  ],
+  "startPxPerLayoutPx": 3.8095238095238093,
+  "startPxPerSourcePx": 1.2698412698412698,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    137,
+    60,
+    1113,
+    633
+  ],
+  "featherInwardStartPx": 23
+}

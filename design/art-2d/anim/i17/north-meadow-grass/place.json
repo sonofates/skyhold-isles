@@ -1,0 +1,36 @@
+{
+  "id": "i17-north-meadow-grass",
+  "element": "north-meadow-grass",
+  "source": "public/art2d/map-i17-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 510,
+    "y": 0,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1530,
+    0,
+    2874,
+    756
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    57,
+    40,
+    1223,
+    641
+  ],
+  "featherInwardStartPx": 29
+}

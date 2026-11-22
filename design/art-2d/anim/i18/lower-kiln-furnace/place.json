@@ -1,0 +1,36 @@
+{
+  "id": "i18-lower-kiln-furnace",
+  "element": "lower-kiln-furnace",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 110,
+    "y": 640,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    330,
+    1920,
+    1050,
+    2325
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    341,
+    213,
+    769,
+    619
+  ],
+  "featherInwardStartPx": 27
+}

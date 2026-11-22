@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Along the sunlit northern canyon rim above the road, a dry desert breeze gently sways the olive sage shrubs, yellow flowering desert bushes and stiff blue-green agave tips by two pixels while a very faint, translucent wisp of warm terracotta dust skims low across the flat ochre sand and disperses. Keep the stepped sandstone cliffs, rocks, ground cracks and the upper sandy road completely still, with no opaque clouds or colour changes.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

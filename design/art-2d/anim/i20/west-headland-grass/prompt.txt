@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Across the windswept western headland slope, the olive-green coastal turf and tall golden grass tufts lean gently right by a few pixels in a steady sea squall and spring softly back in a rolling wave. Keep the brushwork natural and earthy with zero white wind streaks or colour shifts. Hold the grey slate rock outcrops, pink coastal flowers, and stone ground steady.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

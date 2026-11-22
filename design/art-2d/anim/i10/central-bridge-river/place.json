@@ -1,0 +1,36 @@
+{
+  "element": "central-bridge-river",
+  "id": "i10-central-bridge-river",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 580,
+    "y": 240,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1740,
+    720,
+    2700,
+    1260
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    448,
+    216,
+    657,
+    585
+  ],
+  "featherInwardStartPx": 16
+}

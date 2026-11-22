@@ -1,0 +1,36 @@
+{
+  "element": "southeast-highland-slope",
+  "id": "i11-southeast-highland-slope",
+  "source": "public/art2d/map-i11-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1414,
+    "y": 540,
+    "width": 432,
+    "height": 243
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4242,
+    1620,
+    5538,
+    2349
+  ],
+  "startPxPerLayoutPx": 2.962962962962963,
+  "startPxPerSourcePx": 0.9876543209876543,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    231,
+    71,
+    1233,
+    546
+  ],
+  "featherInwardStartPx": 24
+}

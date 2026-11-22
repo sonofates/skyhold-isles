@@ -1,0 +1,366 @@
+[
+  {
+    "id": "i09-west-cypress-grove",
+    "island": "i09",
+    "element": "west-cypress-grove",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA gentle garden breeze moves left to right across the three tapered olive-and-lime cypress trees and the three small hanging gold cloth standards in the western lawn. Each cypress crown tilts three to four pixels to the right near its pointed tip and eases back, while the pale olive and cream border bushes on the far left shift slightly in the same rhythm and each narrow gold pennant sways a couple of pixels from its crossbar. Keep every trunk base, wooden pole, white stone balustrade, cast ground shadow and the open green grass between them completely still, with no new branches, outlines or brightening.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i09/west-cypress-grove/start.png"
+  },
+  {
+    "id": "i09-north-meadow-standards",
+    "island": "i09",
+    "element": "north-meadow-standards",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA soft breeze ripples across the sunlit north garden lawn above the stone road. The small painted yellow-green grass tufts and wildflower clusters nod gently two to three pixels to the right and settle back, while the rounded yellow flowering shrub at the upper left and the slender hanging ochre banners on the gold standards sway slightly in time. Hold the pale stone balustrades, wooden banner posts, smooth green lawn tone and the paved road below completely fixed, with no white wind streaks or colour brightening.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i09/north-meadow-standards/start.png"
+  },
+  {
+    "id": "i09-north-balustrade-lawns",
+    "island": "i09",
+    "element": "north-balustrade-lawns",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the narrow northern garden terrace above the upper road, a light breeze combs the small painted grass tufts, tiny clover patches and the rounded yellow-blooming shrub near the top border. The slender ochre banner hanging from the gold standard sways gently sideways by a few pixels and settles back as the foliage eases to rest. Keep the paved pink-stone road, wooden post, pale lawn shading and distant border stonework completely locked in place.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i09/north-balustrade-lawns/start.png"
+  },
+  {
+    "id": "i09-east-cypress-terrace",
+    "island": "i09",
+    "element": "east-cypress-terrace",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA light breeze brushes the three tall tapered olive-green cypresses and the soft flowering shrubs along the eastern garden border. The upper rounded lobes of each cypress bend a few pixels to the right and recover in a staggered wave, while the narrow gold cloth hanging on each nearby garden standard flutters gently without detaching from its bar. Keep the cypress trunks, stone balustrades, cast shadows and flat green lawn completely steady, with no extra leaves or brightness shifts.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i09/east-cypress-terrace/start.png"
+  },
+  {
+    "id": "i09-south-west-meadow-tufts",
+    "island": "i09",
+    "element": "south-west-meadow-tufts",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA calm breeze sweeps slowly across the broad sunlit southwest lawn. Each painted clump of pale yellow-green grass blades and tiny cream wildflowers leans two to three pixels to the right and springs back in a soft travelling wave, while the hanging gold cloth on the small wooden standard near the left margin swings slightly from its top bar. Hold the smooth mottled green turf, the wooden standard posts and the surrounding flowering border bushes completely still, with no light streaks or colour change.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i09/south-west-meadow-tufts/start.png"
+  },
+  {
+    "id": "i09-northeast-cypress-garden",
+    "island": "i09",
+    "element": "northeast-cypress-garden",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA mild breeze nudges the tall tapered olive-green cypress tree on the eastern terrace and the soft pale-green hedge tufts beside the eastern border. The pointed crown of the cypress leans three pixels to the right and settles slowly back, keeping its existing painted leaf clusters intact, while the small gold banner on the standard above the stone balustrade sways gently by two pixels. Hold the white balustrade, dark trunk base, cast shadow and clipped green lawn completely still, with no new branches or brightening.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i09/northeast-cypress-garden/start.png"
+  },
+  {
+    "id": "i10-northwest-river-chute",
+    "island": "i10",
+    "element": "northwest-river-chute",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nWithin the muted sage-blue mountain stream flowing diagonally down-right from the upper bank, the existing soft pale-green and dusty-teal ripple strokes glide slowly downstream a few pixels and dissolve into the next stroke behind them. Keep the exact muted hand-painted water palette with no bright turquoise highlights, no dark outlines and no extra foam. Hold the mossy grassy banks, smooth boulders, ferns and the wooden bridge completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/northwest-river-chute/start.png"
+  },
+  {
+    "id": "i10-central-bridge-river",
+    "island": "i10",
+    "element": "central-bridge-river",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nIn the narrow teal-blue river channel between the upper and middle wooden bridges, the painted pale-aqua surface streaks drift smoothly downward along the current toward the lower bridge and fade softly before reaching the timber. Keep the water colour muted and painted, with no flat white ribbons or added sparkle. Hold both bridges, the rocky banks, grass edges and mossy ledges perfectly still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/central-bridge-river/start.png"
+  },
+  {
+    "id": "i10-south-weir-waterfall",
+    "island": "i10",
+    "element": "south-weir-waterfall",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nIn the small foaming weir at the bottom of the valley, thin pale-cream and soft aqua water threads spill steadily down over the narrow lip and curl gently outward across the small teal pool below. Keep the existing painted foam texture soft and low-contrast without turning into flat opaque white bands. Hold the carved stone channel walls, grassy banks and mossy boulders on either side completely fixed.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/south-weir-waterfall/start.png"
+  },
+  {
+    "id": "i10-northwest-willow-grove",
+    "island": "i10",
+    "element": "northwest-willow-grove",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA light valley breeze combs through the hanging yellow-green frond clusters of the two weeping willows on the western terrace and the green fern fronds beside the mossy stones. The drooping outer leaf sprays swing three to four pixels to the right and settle back together in their original rounded brushwork, while the upper crowns barely lean. Keep the thick knotted brown trunks, cast ground shadows, stone steps and mossy grass floor completely fixed, with no new branches sprouting.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/northwest-willow-grove/start.png"
+  },
+  {
+    "id": "i10-north-terrace-willow",
+    "island": "i10",
+    "element": "north-terrace-willow",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlong the upper northern terrace above the road, a gentle breeze sways the drooping olive-and-lime leaf clusters of the weeping willow and nods the small painted grass and fern clumps on either side. The outer willow fronds swing a few pixels to the right and settle softly back into place without adding thin twigs or sharp edges. Hold the forked brown trunk, cast shadow, grassy terrace ledges and the dirt road below completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/north-terrace-willow/start.png"
+  },
+  {
+    "id": "i10-southeast-willows-and-crystal",
+    "island": "i10",
+    "element": "southeast-willows-and-crystal",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA gentle breeze moves across the two weeping willows on the southeastern terrace while a quiet internal shimmer breathes inside the faceted mint-green crystal cluster set between them. The drooping willow leaf clusters sway softly three pixels to the right and recover without growing new twigs, and a muted pale-aqua glint travels slowly up the existing painted crystal planes before dimming back to rest. Keep both brown tree trunks, the mossy stones under the crystal, the stone terrace rim and the grassy ground completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/southeast-willows-and-crystal/start.png"
+  },
+  {
+    "id": "i10-southwest-meadow-ferns",
+    "island": "i10",
+    "element": "southwest-meadow-ferns",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA soft hillside breeze ripples across the green fern clumps, broad grassy tufts and low mossy bushes along the southwestern terraced slope. Each painted fern spray bends two to three pixels to the right and springs back in a calm staggered rhythm. Hold the warm olive meadow ground, weathered stone terrace edges and dirt road completely still, with no white wind streaks or brightness changes.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i10/southwest-meadow-ferns/start.png"
+  },
+  {
+    "id": "i11-east-spire-cloudsea",
+    "island": "i11",
+    "element": "east-spire-cloudsea",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nBelow the eastern rock spires, the soft cream-white and pale periwinkle cloud bank drifts slowly from left to right along the chasm floor. Existing rounded cloud puffs soften and slide horizontally a few pixels while cool lavender shadows roll gently beneath them, never forming spirals, hard edges or climbing over the rock faces. Keep the jagged stone spires, their tiny flags, the distant cliffs and the grassy foreground cliff rim sharply locked and still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/east-spire-cloudsea/start.png"
+  },
+  {
+    "id": "i11-north-spire-pennant",
+    "island": "i11",
+    "element": "north-spire-pennant",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA steady highland wind sends a smooth horizontal wave from left to right along the long dark-emerald cloth pennant flying from the stone lookout spire. The forked tail lifts and dips three to four pixels while the painted gold spiral motif ripples naturally with the cloth, returning cleanly to the opening wave. Keep the flagpole, wooden crow's nest, carved stone spire, cliff rim and green grass completely rigid and still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/north-spire-pennant/start.png"
+  },
+  {
+    "id": "i11-west-dyed-banner-rack",
+    "island": "i11",
+    "element": "west-dyed-banner-rack",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA brisk mountain breeze ripples the four dyed cloth panels\u2014scarlet, orange, ochre-gold and dark teal\u2014hanging side by side on the wooden drying frame. Their lower hems swing gently outward and back by three to four pixels in a staggered ripple while the upper folds stay draped tightly over the crossbar. Keep the wooden posts, crossbar, workbench, coiled ropes, sacks and surrounding highland grass completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/west-dyed-banner-rack/start.png"
+  },
+  {
+    "id": "i11-southeast-beacon-tower",
+    "island": "i11",
+    "element": "southeast-beacon-tower",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAt the top of the stone watch beacon, the narrow gold-and-orange wind pennant ripples steadily to the right in the breeze while the warm amber lantern flame inside the curved glass chamber flickers softly in place. Keep the warm glow strictly confined behind the existing painted window mullions without brightening the stone tower, red roof, stairs or surrounding grass, all of which stay completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/southeast-beacon-tower/start.png"
+  },
+  {
+    "id": "i11-northwest-highland-grass",
+    "island": "i11",
+    "element": "northwest-highland-grass",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA steady highland breeze sweeps left to right across the broad sunlit yellow-green grass plateau and low violet heather patches above the western cliff. The painted grass tufts and small wildflower blades bend gently two to three pixels to the right and settle back in a soft wave. Keep the standing carved rune stone, pale limestone cliff rim, boulders and flat earth patches completely fixed, with no white wind streaks or light changes.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/northwest-highland-grass/start.png"
+  },
+  {
+    "id": "i11-southwest-windswept-meadow",
+    "island": "i11",
+    "element": "southwest-windswept-meadow",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the windswept southwestern highland meadow, the small wind-bent dark shrub on the left and the scattered pale-green grass tufts and purple heather sprays lean gently to the right by two to three pixels and ease back together. Keep the mossy ground shading, scattered field stones and the stepped limestone cliff edge at the bottom completely steady, with no extra streaks or brightness shift.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/southwest-windswept-meadow/start.png"
+  },
+  {
+    "id": "i11-southeast-highland-slope",
+    "island": "i11",
+    "element": "southeast-highland-slope",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA calm mountain breeze rolls across the broad emerald-and-ochre grass slope on the southeastern plateau. Painted tufts of pale highland grass and low heather patches nod gently two to three pixels to the right and recover in a slow travelling wave. Hold the grey field stones, stepped limestone cliff below and distant road edge completely fixed with unchanged daylight and colour.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i11/southeast-highland-slope/start.png"
+  },
+  {
+    "id": "i12-northeast-lantern-grove",
+    "island": "i12",
+    "element": "northeast-lantern-grove",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nIn the quiet twilight corner, a soft night breeze sways the rounded blue-green crown of the small silver tree and the low magenta flowering bush beside it by two to three pixels while the warm amber flames inside the four hanging golden street lanterns breathe gently within their glass housings. Keep the iron-and-gold lampposts, tree trunk, mushrooms, tree stump and plum ground completely still, with no new branches and no added light spill outside the glass.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/northeast-lantern-grove/start.png"
+  },
+  {
+    "id": "i12-east-lantern-hedges",
+    "island": "i12",
+    "element": "east-lantern-hedges",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA light twilight breeze gently rustles the rounded plum-magenta flowering hedges and pale blue-grey grass tufts along the eastern clearing while the warm yellow-orange light inside the ornate golden lamppost flickers softly behind its dark glass frame. Keep the lamp post, mossy stump, twilight floor grain and surrounding shadows completely still with no colour shift or extra glow.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/east-lantern-hedges/start.png"
+  },
+  {
+    "id": "i12-west-twilight-glade",
+    "island": "i12",
+    "element": "west-twilight-glade",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA soft twilight breeze nudges the rounded blue-green crown of the western silver tree and the magenta flowering shrubs below it two to three pixels to the right and gently back, while the warm amber flame inside the curved golden street lantern near the bottom right flickers quietly inside its glass panes. Keep the tree trunk, purple stone cave, carved stone, lamppost stem and plum ground completely still with no sprouting branches.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/west-twilight-glade/start.png"
+  },
+  {
+    "id": "i12-southwest-lantern-row",
+    "island": "i12",
+    "element": "southwest-lantern-row",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nInside the cluster of ornate golden street lanterns along the southwestern clearing, each warm amber flame trembles softly behind its curved glass panes while the small pale blue-grey grass tufts on the plum floor sway two pixels in a slow night breeze. Keep every golden post, curved bracket, mushroom, stump and the surrounding twilight ground completely rigid and unchanged in brightness.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/southwest-lantern-row/start.png"
+  },
+  {
+    "id": "i12-central-shrine-lantern",
+    "island": "i12",
+    "element": "central-shrine-lantern",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nInside the open carved chamber of the golden stone shrine lantern, the warm yellow-orange flame breathes and flickers subtly behind its central opening, shifting softly in place without brightening or expanding onto the surrounding stonework. Keep the curved golden roof, carved stone pedestal, tiny blue blossoms, plum floor and upper stone road completely motionless.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/central-shrine-lantern/start.png"
+  },
+  {
+    "id": "i12-southeast-hollow-dapple",
+    "island": "i12",
+    "element": "southeast-hollow-dapple",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the quiet plum floor of the southeastern hollow, the pale blue-grey grass blades and tiny ferns sway gently two to three pixels in a passing night breeze while the existing soft purple canopy shadow dapples on the ground shift smoothly a few pixels and return. Do not introduce any foreground branches, dark silhouettes, outlines or new objects; keep the tree stumps, carved standing stone, tiny mushrooms and floor texture completely steady.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/southeast-hollow-dapple/start.png"
+  },
+  {
+    "id": "i12-north-edge-tree-lantern",
+    "island": "i12",
+    "element": "north-edge-tree-lantern",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlong the upper twilight border north of the road, a faint breeze tilts the rounded blue-green crown of the small silver tree two to three pixels to the right and back, gently rustling the tiny pale grass tufts while the warm amber glass of the golden street lantern on the right flickers quietly in place. Keep the trunk, lamppost, mossy stumps, mushrooms and the entire pink stone road below completely fixed.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i12/north-edge-tree-lantern/start.png"
+  },
+  {
+    "id": "i13-watch-beacon-pennant",
+    "island": "i13",
+    "element": "watch-beacon-pennant",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA brisk coastal wind ripples the small gold-and-teal cloth pennant flying from the weathered stone watch beacon, sending a smooth wave along its forked tail while the clumps of pale silvery-white storm grass on the wet slate to its right bend three to four pixels to the left and spring back. Keep the stone beacon base, staircase, iron fire-basket, stacked firewood, stone ruin and wet blue-grey slate ledges completely rigid and still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i13/watch-beacon-pennant/start.png"
+  },
+  {
+    "id": "i13-west-windswept-pines",
+    "island": "i13",
+    "element": "west-windswept-pines",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA gusty highland wind bends the dark-olive boughs of the windswept coastal pine tree and combs the pale silvery grass tufts and low rusty heather patches on the wet blue-grey slate around it. The slanted pine foliage leans three to four pixels further left and eases back in its original painted clumps without sharpening into fine needles. Keep the crooked brown trunk, stone ruins, wet rock contours and ground shadows completely steady.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i13/west-windswept-pines/start.png"
+  },
+  {
+    "id": "i13-northwest-slate-terrace",
+    "island": "i13",
+    "element": "northwest-slate-terrace",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the rain-slicked northwestern slate ledges, the dark wind-bent pine on the left shelf sways gently three pixels in the gale while the scattered silvery grass tufts and low rusty heather patches tremble and recover in the same wind direction. Hold every layered slate rock edge, pale stone ridge, driftwood stump and the wet stone hue completely still, with no bright sparkles or added streaks.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i13/northwest-slate-terrace/start.png"
+  },
+  {
+    "id": "i13-northeast-storm-grass",
+    "island": "i13",
+    "element": "northeast-storm-grass",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA cool highland wind sweeps across the broad northeastern wet slate terrace. Each tuft of pale silvery grass and low rusty heather bends gently two to three pixels to the left and eases back in a soft staggered rhythm across the damp hillside. Keep the layered grey-blue slate ledges, small cairn stones and wet rock surfaces completely fixed, with no drifting streamers or bright highlights.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i13/northeast-storm-grass/start.png"
+  },
+  {
+    "id": "i13-east-silver-grass-slope",
+    "island": "i13",
+    "element": "east-silver-grass-slope",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nIn the steady coastal wind, the curved clumps of pale silvery-white storm grass rooted along the eastern slate slope bow three to four pixels to the left and spring smoothly back in a soft wave. Keep the surrounding wet blue-grey slate, rusty rock patches and stone edges completely motionless, with zero pale streamers, zero sparkles and no colour shift on the rock.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i13/east-silver-grass-slope/start.png"
+  },
+  {
+    "id": "i13-southwest-cliff-heather",
+    "island": "i13",
+    "element": "southwest-cliff-heather",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA steady storm breeze combs the pale silvery grass tufts and low rusty-brown heather scattered across the southwestern wet slate ridge. Each tuft leans two to three pixels down-left and recovers smoothly while the damp layered slate shelves, weathered white driftwood pieces and cliff shadows stay completely rigid and unchanged in tone.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i13/southwest-cliff-heather/start.png"
+  },
+  {
+    "id": "i14-west-oasis-scrub",
+    "island": "i14",
+    "element": "west-oasis-scrub",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA warm desert breeze moves through the olive-green canyon shrubs, low sage bushes and small yellow-flowering desert plants tucked along the northwestern sandstone terraces. Each leafy clump sways gently two to three pixels to the right and settles back in its existing hand-painted clusters. Hold the terraced red sandstone cliffs, rocky outcrops, pale sand floor and potter's canopy completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i14/west-oasis-scrub/start.png"
+  },
+  {
+    "id": "i14-north-canyon-scrub-drift",
+    "island": "i14",
+    "element": "north-canyon-scrub-drift",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlong the sunlit northern canyon rim above the road, a dry desert breeze gently sways the olive sage shrubs, yellow flowering desert bushes and stiff blue-green agave tips by two pixels while a very faint, translucent wisp of warm terracotta dust skims low across the flat ochre sand and disperses. Keep the stepped sandstone cliffs, rocks, ground cracks and the upper sandy road completely still, with no opaque clouds or colour changes.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i14/north-canyon-scrub-drift/start.png"
+  },
+  {
+    "id": "i14-northeast-sandstone-scrub",
+    "island": "i14",
+    "element": "northeast-sandstone-scrub",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA warm afternoon breeze stirs the olive desert bushes, tiny yellow blossom clusters and blue-green agave plants perched along the northeastern sandstone ridge. Their outer leaves lean two to three pixels to the right and ease back while the red-ochre rock ledges, scattered stones and the wooden signal brazier below stay completely locked and motionless.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i14/northeast-sandstone-scrub/start.png"
+  },
+  {
+    "id": "i14-bazaar-courtyard-dust",
+    "island": "i14",
+    "element": "bazaar-courtyard-dust",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the open terracotta sand floor east of the market cart, a very thin, translucent breath of warm ochre dust gathers close to the ground, drifts slowly down-right a few brushstrokes and disperses cleanly so the painted clay texture remains visible through it. Keep the market stall, merchant cart, stone tiles, small pebbles and surrounding sunlit ground completely steady.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i14/bazaar-courtyard-dust/start.png"
+  },
+  {
+    "id": "i14-southwest-canyon-agaves",
+    "island": "i14",
+    "element": "southwest-canyon-agaves",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA warm canyon breeze rustles the olive sage shrubs, dry grass tufts and low desert plants along the southwestern sandstone ledges below the cave. Each bush leans gently two to three pixels to the right and settles back while a faint translucent veil of terracotta dust skims briefly across the flat sand pocket. Hold the red sandstone cave, cliff steps and loose rocks completely fixed.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i14/southwest-canyon-agaves/start.png"
+  },
+  {
+    "id": "i14-southeast-wash-scrub",
+    "island": "i14",
+    "element": "southeast-wash-scrub",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the dry southeastern desert wash below the eastern cave, a light hot breeze sways the olive desert shrubs, dry grass blades and low agave leaves two to three pixels to the right while a subtle translucent ribbon of warm rust-coloured dust drifts low across the open terracotta gravel and fades away. Keep the sandstone boulders, cliff ledges, timber post and cave entrance completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i14/southeast-wash-scrub/start.png"
+  },
+  {
+    "id": "i15-northwest-moonlit-cove",
+    "island": "i15",
+    "element": "northwest-moonlit-cove",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the calm steel-blue water of the northwestern moonlit cove, slow horizontal ripples gently stretch and reunite the existing pale silver-blue reflection strokes by three to four pixels while the small tufts of pale blue reeds along the banks sway subtly. Keep the exact muted night palette with no bright glowing trails, no camera motion and no extra highlights. Hold the carved rune stones, little stone-rimmed lily pools, mushrooms and outer banks completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/northwest-moonlit-cove/start.png"
+  },
+  {
+    "id": "i15-west-lily-pond-ripples",
+    "island": "i15",
+    "element": "west-lily-pond-ripples",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nWithin the quiet deep-blue moonlit pond framed by the western shore and lantern, slow horizontal ripples drift softly right across the water surface, subtly shifting the existing pale blue-grey reflection marks by a few pixels before easing back. Keep the camera strictly locked and hold the golden shore lantern, overhanging reeds, carved rune stones, white water lily, mini stone-rimmed lily pool and the eastern bank completely fixed.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/west-lily-pond-ripples/start.png"
+  },
+  {
+    "id": "i15-north-lantern-reeds",
+    "island": "i15",
+    "element": "north-lantern-reeds",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the moonlit northern sanctuary terrace, a soft night breeze combs the pale silver-blue grass tufts and tiny wildflower sprays two to three pixels to the right and back, while the warm amber flame inside the hanging golden street lantern flickers quietly behind its glass panes. Keep the iron lamppost, smooth indigo lawn, carved stone border and the stone road below completely fixed, with no added glow spilling onto the ground.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/north-lantern-reeds/start.png"
+  },
+  {
+    "id": "i15-central-lily-pond-east",
+    "island": "i15",
+    "element": "central-lily-pond-east",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nIn the quiet eastern bay of the central moonlit lily pond, subtle dark-teal and muted silver-blue ripples drift horizontally across the open water by two to three pixels and settle back into the existing brushwork. Keep the water low-contrast and natural with zero electric-blue trails or glowing arcs. Hold the floating green lily pads, shore grass tufts and the surrounding curved stone road completely motionless.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/central-lily-pond-east/start.png"
+  },
+  {
+    "id": "i15-east-moonlit-reeds",
+    "island": "i15",
+    "element": "east-moonlit-reeds",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA calm night breeze moves through the lush indigo-and-silver moonlit reeds, fern sprays and tall blue grass clusters along the eastern sanctuary slope. The upper leaf tips lean gently three pixels to the right and return in a slow wave while the carved standing rune stones, small pebbles and smooth slate-blue ground stay completely fixed.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/east-moonlit-reeds/start.png"
+  },
+  {
+    "id": "i15-southeast-moonlit-foliage",
+    "island": "i15",
+    "element": "southeast-moonlit-foliage",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nA gentle twilight breeze glides across the dense clusters of silver-blue and dark-indigo moonlit ferns and leafy shrubs filling the southeastern corner. The soft painted leaf fans sway three to four pixels to the right and settle back together without sharpening or brightening. Keep the carved rune stones, small round stone-rimmed lily pools, mushrooms and dark mossy floor completely steady.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/southeast-moonlit-foliage/start.png"
+  },
+  {
+    "id": "i15-southwest-lantern-ferns",
+    "island": "i15",
+    "element": "southwest-lantern-ferns",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nIn the quiet southwestern corner, a slow night breeze sways the lush blue-silver ferns, reeds and grass tufts two to three pixels to the right and back while the warm amber flame inside the hanging golden lantern on the left breathes softly within its glass enclosure. Hold the golden lamppost, wooden stumps, standing rune stone, cave wall above and muted indigo ground completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i15/southwest-lantern-ferns/start.png"
+  },
+  {
+    "id": "i16-northwest-ember-ridge",
+    "island": "i16",
+    "element": "northwest-ember-ridge",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlong the dark obsidian cliff ridge in the northwest, a slow subdued pulse of deep ember-orange warmth shifts gently along the existing thin red-orange lava cracks and breathes softly inside the facets of the amber crystal cluster on the left. Keep every crack narrow and dim without widening into bright lava bands or erupting into flames. Hold the black basalt shelves, loose rubble, wooden winch and ash ground completely rigid and still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i16/northwest-ember-ridge/start.png"
+  },
+  {
+    "id": "i16-west-ember-crystals-vents",
+    "island": "i16",
+    "element": "west-ember-crystals-vents",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nBetween the two western forge caves, a slow warm orange-amber gleam breathes softly along the painted facets of the three clustered volcanic amber crystals while the thin red-orange lava cracks in the dark basalt mounds above and below them pulse gently from deep red to dull ember orange and back. Produce zero flames, zero light spill onto the dark ash ground and no new crystal edges; keep every basalt rock contour and the cave stonework completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i16/west-ember-crystals-vents/start.png"
+  },
+  {
+    "id": "i16-southwest-basalt-fissures",
+    "island": "i16",
+    "element": "southwest-basalt-fissures",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the dark stepped basalt cliffs in the southwest, a quiet thermal glow drifts slowly along the existing red-orange ember crevices and fades back to dark crimson while a very faint translucent wisp of warm grey ash haze lifts gently over the lower volcanic rim. Keep all fissures strictly within their painted cracks with zero flames, zero bright flashes and no new light; hold the annealing glass rack above, dark rock edges and ash floor completely still.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i16/southwest-basalt-fissures/start.png"
+  },
+  {
+    "id": "i16-northeast-forge-vents",
+    "island": "i16",
+    "element": "northeast-forge-vents",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAlong the upper volcanic rock wall north of the eastern road, the painted red-orange ember seams inside the dark basalt mounds pulse slowly from deep crimson to muted molten orange and cool back in a staggered rhythm, accompanied by a faint translucent wisp of dark warm furnace haze drifting two to three pixels upward. Keep all basalt rock silhouettes, dry grass tufts, ash floor and the red stone road below completely still, with no flames or widening cracks.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i16/northeast-forge-vents/start.png"
+  },
+  {
+    "id": "i16-east-braziers-and-vents",
+    "island": "i16",
+    "element": "east-braziers-and-vents",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nInside the standing brass forge brazier on the left, the compact painted orange flame flickers and dances gently in place by a few pixels while a subdued ember pulse shifts along the thin red-orange cracks in the dark basalt vents along the eastern ridge and across the amber crystal facets beside them. Keep the flame strictly within its existing size with no tall tongues, no bright flashes and no light spill; hold the brass bowl, dark ash floor and basalt outlines completely fixed.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i16/east-braziers-and-vents/start.png"
+  },
+  {
+    "id": "i16-southeast-magma-ridge",
+    "island": "i16",
+    "element": "southeast-magma-ridge",
+    "prompt": "Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.\n\nAcross the volcanic basalt field of the southeastern forge, the thin red-orange ember cracks inside each dark rock mound and the warm orange facets of the scattered amber crystal clusters breathe softly in a slow staggered glow, deepening to dark crimson and warming gently back to muted ember orange. Keep every fissure narrow and strictly inside its painted rock edges with zero flames, zero widening and no colour shift on the dark ash ground or cliff steps.\n\nMatch the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.",
+    "start": "design/art-2d/anim/i16/southeast-magma-ridge/start.png"
+  }
+]

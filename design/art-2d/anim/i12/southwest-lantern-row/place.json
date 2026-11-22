@@ -1,0 +1,36 @@
+{
+  "element": "southwest-lantern-row",
+  "id": "i12-southwest-lantern-row",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 80,
+    "y": 504,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    240,
+    1512,
+    1296,
+    2106
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    123,
+    50,
+    830,
+    684
+  ],
+  "featherInwardStartPx": 22
+}

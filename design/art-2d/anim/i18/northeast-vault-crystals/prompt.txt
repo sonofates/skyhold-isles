@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Across the northeast cavern rim, the broad mint-green crystal blades and the lower lavender-violet crystal cluster catch a restrained internal shimmer that slowly swells along their existing pale faces and settles cleanly back to rest. Preserve every sharp facet line and crystal silhouette with zero new formations or light spilling onto the slate floor. Hold the dark cave wall, mushrooms, and floor rock perfectly still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

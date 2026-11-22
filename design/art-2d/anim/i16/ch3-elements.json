@@ -1,0 +1,83 @@
+{
+  "island": "i16",
+  "elements": [
+    {
+      "element": "northwest-ember-ridge",
+      "kind": "lava",
+      "crop": { "x": 0, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[14, 14], [420, 14], [420, 116], [164, 138], [14, 138]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Along the dark obsidian cliff ridge in the northwest, a slow subdued pulse of deep ember-orange warmth shifts gently along the existing thin red-orange lava cracks and breathes softly inside the facets of the amber crystal cluster on the left. Keep every crack narrow and dim without widening into bright lava bands or erupting into flames. Hold the black basalt shelves, loose rubble, wooden winch and ash ground completely rigid and still.",
+      "retryOf": null,
+      "why": "Brings the volcanic obsidian cliffs and glowing fissures along the northwest ridge to life."
+    },
+    {
+      "element": "west-ember-crystals-vents",
+      "kind": "crystal",
+      "crop": { "x": 0, "y": 318, "width": 320, "height": 180 },
+      "mask": [
+        [[16, 338], [238, 338], [238, 480], [16, 480]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Between the two western forge caves, a slow warm orange-amber gleam breathes softly along the painted facets of the three clustered volcanic amber crystals while the thin red-orange lava cracks in the dark basalt mounds above and below them pulse gently from deep red to dull ember orange and back. Produce zero flames, zero light spill onto the dark ash ground and no new crystal edges; keep every basalt rock contour and the cave stonework completely still.",
+      "retryOf": null,
+      "why": "Animates the striking volcanic amber crystal clusters and lava vents on the western flank."
+    },
+    {
+      "element": "southwest-basalt-fissures",
+      "kind": "lava",
+      "crop": { "x": 0, "y": 609, "width": 432, "height": 243 },
+      "mask": [
+        [[16, 642], [122, 642], [126, 676], [374, 676], [374, 836], [16, 836]]
+      ],
+      "featherPx": 7,
+      "depth": 1,
+      "motion": "Across the dark stepped basalt cliffs in the southwest, a quiet thermal glow drifts slowly along the existing red-orange ember crevices and fades back to dark crimson while a very faint translucent wisp of warm grey ash haze lifts gently over the lower volcanic rim. Keep all fissures strictly within their painted cracks with zero flames, zero bright flashes and no new light; hold the annealing glass rack above, dark rock edges and ash floor completely still.",
+      "retryOf": null,
+      "why": "Animates the broad southwestern volcanic basalt ridge and ember cracks without disturbing the annealing rack."
+    },
+    {
+      "element": "northeast-forge-vents",
+      "kind": "lava",
+      "crop": { "x": 1020, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[1040, 12], [1440, 12], [1440, 108], [1040, 108]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Along the upper volcanic rock wall north of the eastern road, the painted red-orange ember seams inside the dark basalt mounds pulse slowly from deep crimson to muted molten orange and cool back in a staggered rhythm, accompanied by a faint translucent wisp of dark warm furnace haze drifting two to three pixels upward. Keep all basalt rock silhouettes, dry grass tufts, ash floor and the red stone road below completely still, with no flames or widening cracks.",
+      "retryOf": null,
+      "why": "Extends volcanic ember life across the entire northern foundry cliff east of north-ember-seam."
+    },
+    {
+      "element": "east-braziers-and-vents",
+      "kind": "fire",
+      "crop": { "x": 1526, "y": 424, "width": 320, "height": 180 },
+      "mask": [
+        [[1584, 432], [1632, 432], [1638, 452], [1830, 452], [1830, 594], [1584, 594]]
+      ],
+      "featherPx": 5,
+      "depth": 1,
+      "motion": "Inside the standing brass forge brazier on the left, the compact painted orange flame flickers and dances gently in place by a few pixels while a subdued ember pulse shifts along the thin red-orange cracks in the dark basalt vents along the eastern ridge and across the amber crystal facets beside them. Keep the flame strictly within its existing size with no tall tongues, no bright flashes and no light spill; hold the brass bowl, dark ash floor and basalt outlines completely fixed.",
+      "retryOf": null,
+      "why": "Animates the signature blazing eastern forge brazier, amber crystals and flanking magma vents."
+    },
+    {
+      "element": "southeast-magma-ridge",
+      "kind": "lava",
+      "crop": { "x": 1366, "y": 582, "width": 480, "height": 270 },
+      "mask": [
+        [[1436, 602], [1822, 602], [1822, 822], [1436, 822]]
+      ],
+      "featherPx": 7,
+      "depth": 1,
+      "motion": "Across the volcanic basalt field of the southeastern forge, the thin red-orange ember cracks inside each dark rock mound and the warm orange facets of the scattered amber crystal clusters breathe softly in a slow staggered glow, deepening to dark crimson and warming gently back to muted ember orange. Keep every fissure narrow and strictly inside its painted rock edges with zero flames, zero widening and no colour shift on the dark ash ground or cliff steps.",
+      "retryOf": "south-cooling-seam",
+      "why": "Replaces the overly tight cooling-seam crop with the broader eastern magma vent field under strict no-flame guidance."
+    }
+  ]
+}

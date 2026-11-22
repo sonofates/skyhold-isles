@@ -1,0 +1,36 @@
+{
+  "id": "i20-northwest-reef-surf",
+  "element": "northwest-reef-surf",
+  "source": "public/art2d/map-i20-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 304,
+    "y": 0,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    912,
+    0,
+    1776,
+    486
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814814,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    44,
+    26,
+    1076,
+    383
+  ],
+  "featherInwardStartPx": 31
+}

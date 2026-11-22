@@ -1,0 +1,36 @@
+{
+  "id": "i24-southwest-slope-grass",
+  "element": "southwest-slope-grass",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 144,
+    "y": 636,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    432,
+    1908,
+    1584,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    53,
+    200,
+    1081,
+    674
+  ],
+  "featherInwardStartPx": 30
+}

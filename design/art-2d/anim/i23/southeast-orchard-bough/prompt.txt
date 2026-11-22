@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Across the lush southeast autumn bough, a soft orchard breeze moves the entire painted cluster of warm ochre, russet, and olive leaves together in a subtle three-pixel sway and settles them smoothly back. Preserve the soft storybook brush marks as one unified foliage mass with zero peeling leaves, zero new outlines, and all golden fruit and red berries held firmly attached. Keep the golden orchard grass outside the bough completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

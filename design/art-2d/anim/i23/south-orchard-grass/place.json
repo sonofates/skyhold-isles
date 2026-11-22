@@ -1,0 +1,36 @@
+{
+  "id": "i23-south-orchard-grass",
+  "element": "south-orchard-grass",
+  "source": "public/art2d/map-i23-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 800,
+    "y": 672,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2400,
+    2016,
+    3360,
+    2556
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    112,
+    184,
+    937,
+    673
+  ],
+  "featherInwardStartPx": 32
+}

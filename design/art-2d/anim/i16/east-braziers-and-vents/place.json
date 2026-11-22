@@ -1,0 +1,36 @@
+{
+  "element": "east-braziers-and-vents",
+  "id": "i16-east-braziers-and-vents",
+  "source": "public/art2d/map-i16-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1526,
+    "y": 424,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4578,
+    1272,
+    5538,
+    1812
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    232,
+    32,
+    1217,
+    681
+  ],
+  "featherInwardStartPx": 20
+}

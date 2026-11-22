@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Strictly inside the glass lantern room at the top of the stone coastal lighthouse, a soft warm pale-amber lamp glow slowly brightens a gentle shade behind the vertical mullions and dims smoothly back as the beacon turns. Keep all light strictly confined inside the painted glass panes with no outward rays, beams, or lens flares. Hold the verdigris copper dome, fish weathervane, red-and-stone masonry tower, and dark green turf completely rigid.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

@@ -1,0 +1,36 @@
+{
+  "id": "i19-hoist-seed-basket",
+  "element": "hoist-seed-basket",
+  "source": "public/art2d/map-i19-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 272,
+    "y": 324,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    816,
+    972,
+    1440,
+    1323
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.051282051282051,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    713,
+    221,
+    1096,
+    677
+  ],
+  "featherInwardStartPx": 31
+}

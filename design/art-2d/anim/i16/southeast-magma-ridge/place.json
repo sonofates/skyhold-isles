@@ -1,0 +1,36 @@
+{
+  "element": "southeast-magma-ridge",
+  "id": "i16-southeast-magma-ridge",
+  "source": "public/art2d/map-i16-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1366,
+    "y": 582,
+    "width": 480,
+    "height": 270
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4098,
+    1746,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.6666666666666665,
+  "startPxPerSourcePx": 0.8888888888888888,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    186,
+    53,
+    1217,
+    641
+  ],
+  "featherInwardStartPx": 19
+}

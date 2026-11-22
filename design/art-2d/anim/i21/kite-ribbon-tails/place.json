@@ -1,0 +1,36 @@
+{
+  "id": "i21-kite-ribbon-tails",
+  "element": "kite-ribbon-tails",
+  "source": "public/art2d/map-i21-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 740,
+    "y": 368,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2220,
+    1104,
+    2988,
+    1536
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    240,
+    320,
+    691,
+    521
+  ],
+  "featherInwardStartPx": 20
+}

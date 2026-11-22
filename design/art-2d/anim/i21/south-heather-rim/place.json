@@ -1,0 +1,36 @@
+{
+  "id": "i21-south-heather-rim",
+  "element": "south-heather-rim",
+  "source": "public/art2d/map-i21-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 464,
+    "y": 636,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1392,
+    1908,
+    2544,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    53,
+    360,
+    1227,
+    674
+  ],
+  "featherInwardStartPx": 27
+}

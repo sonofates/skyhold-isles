@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Within the muted sage-blue mountain stream flowing diagonally down-right from the upper bank, the existing soft pale-green and dusty-teal ripple strokes glide slowly downstream a few pixels and dissolve into the next stroke behind them. Keep the exact muted hand-painted water palette with no bright turquoise highlights, no dark outlines and no extra foam. Hold the mossy grassy banks, smooth boulders, ferns and the wooden bridge completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

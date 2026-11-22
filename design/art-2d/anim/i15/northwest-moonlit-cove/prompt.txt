@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Across the calm steel-blue water of the northwestern moonlit cove, slow horizontal ripples gently stretch and reunite the existing pale silver-blue reflection strokes by three to four pixels while the small tufts of pale blue reeds along the banks sway subtly. Keep the exact muted night palette with no bright glowing trails, no camera motion and no extra highlights. Hold the carved rune stones, little stone-rimmed lily pools, mushrooms and outer banks completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

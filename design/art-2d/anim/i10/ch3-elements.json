@@ -1,0 +1,96 @@
+{
+  "island": "i10",
+  "elements": [
+    {
+      "element": "northwest-river-chute",
+      "kind": "water",
+      "crop": { "x": 270, "y": 0, "width": 352, "height": 198 },
+      "mask": [
+        [[348, 8], [430, 8], [472, 134], [432, 148], [386, 112], [352, 54]]
+      ],
+      "featherPx": 5,
+      "depth": 0,
+      "motion": "Within the muted sage-blue mountain stream flowing diagonally down-right from the upper bank, the existing soft pale-green and dusty-teal ripple strokes glide slowly downstream a few pixels and dissolve into the next stroke behind them. Keep the exact muted hand-painted water palette with no bright turquoise highlights, no dark outlines and no extra foam. Hold the mossy grassy banks, smooth boulders, ferns and the wooden bridge completely still.",
+      "retryOf": "north-terrace-inlet",
+      "why": "Retries the upper river inlet with strict palette restraint so the main river enters the valley visibly flowing."
+    },
+    {
+      "element": "central-bridge-river",
+      "kind": "water",
+      "crop": { "x": 580, "y": 240, "width": 320, "height": 180 },
+      "mask": [
+        [[692, 294], [742, 294], [744, 386], [708, 386]]
+      ],
+      "featherPx": 4,
+      "depth": 0,
+      "motion": "In the narrow teal-blue river channel between the upper and middle wooden bridges, the painted pale-aqua surface streaks drift smoothly downward along the current toward the lower bridge and fade softly before reaching the timber. Keep the water colour muted and painted, with no flat white ribbons or added sparkle. Hold both bridges, the rocky banks, grass edges and mossy ledges perfectly still.",
+      "retryOf": null,
+      "why": "Animates the signature central river rushing right through the heart of the island between the two main bridges."
+    },
+    {
+      "element": "south-weir-waterfall",
+      "kind": "waterfall",
+      "crop": { "x": 850, "y": 654, "width": 352, "height": 198 },
+      "mask": [
+        [[924, 776], [990, 776], [994, 846], [920, 846]]
+      ],
+      "featherPx": 4,
+      "depth": 0,
+      "motion": "In the small foaming weir at the bottom of the valley, thin pale-cream and soft aqua water threads spill steadily down over the narrow lip and curl gently outward across the small teal pool below. Keep the existing painted foam texture soft and low-contrast without turning into flat opaque white bands. Hold the carved stone channel walls, grassy banks and mossy boulders on either side completely fixed.",
+      "retryOf": null,
+      "why": "Brings the foaming stone sluice waterfall at the southern outflow of the river to life."
+    },
+    {
+      "element": "northwest-willow-grove",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 70, "width": 384, "height": 216 },
+      "mask": [
+        [[18, 92], [186, 92], [186, 274], [18, 274]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A light valley breeze combs through the hanging yellow-green frond clusters of the two weeping willows on the western terrace and the green fern fronds beside the mossy stones. The drooping outer leaf sprays swing three to four pixels to the right and settle back together in their original rounded brushwork, while the upper crowns barely lean. Keep the thick knotted brown trunks, cast ground shadows, stone steps and mossy grass floor completely fixed, with no new branches sprouting.",
+      "retryOf": null,
+      "why": "Animates the prominent pair of weeping willows and ferns framing the northwest terraced banks."
+    },
+    {
+      "element": "north-terrace-willow",
+      "kind": "foliage",
+      "crop": { "x": 1150, "y": 0, "width": 416, "height": 234 },
+      "mask": [
+        [[1178, 10], [1518, 10], [1518, 106], [1178, 106]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "Along the upper northern terrace above the road, a gentle breeze sways the drooping olive-and-lime leaf clusters of the weeping willow and nods the small painted grass and fern clumps on either side. The outer willow fronds swing a few pixels to the right and settle softly back into place without adding thin twigs or sharp edges. Hold the forked brown trunk, cast shadow, grassy terrace ledges and the dirt road below completely still.",
+      "retryOf": null,
+      "why": "Adds broad living foliage motion along the top-right hillside overlooking the terraced roads."
+    },
+    {
+      "element": "southeast-willows-and-crystal",
+      "kind": "foliage",
+      "crop": { "x": 1240, "y": 582, "width": 480, "height": 270 },
+      "mask": [
+        [[1410, 616], [1628, 616], [1628, 838], [1292, 838], [1292, 718], [1398, 708]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A gentle breeze moves across the two weeping willows on the southeastern terrace while a quiet internal shimmer breathes inside the faceted mint-green crystal cluster set between them. The drooping willow leaf clusters sway softly three pixels to the right and recover without growing new twigs, and a muted pale-aqua glint travels slowly up the existing painted crystal planes before dimming back to rest. Keep both brown tree trunks, the mossy stones under the crystal, the stone terrace rim and the grassy ground completely still.",
+      "retryOf": null,
+      "why": "Combines the twin southeast weeping willows and glowing mint crystal shrine into one lush focal loop."
+    },
+    {
+      "element": "southwest-meadow-ferns",
+      "kind": "grass",
+      "crop": { "x": 0, "y": 636, "width": 384, "height": 216 },
+      "mask": [
+        [[18, 678], [336, 678], [336, 838], [18, 838]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A soft hillside breeze ripples across the green fern clumps, broad grassy tufts and low mossy bushes along the southwestern terraced slope. Each painted fern spray bends two to three pixels to the right and springs back in a calm staggered rhythm. Hold the warm olive meadow ground, weathered stone terrace edges and dirt road completely still, with no white wind streaks or brightness changes.",
+      "retryOf": null,
+      "why": "Balances the island with breezy foreground vegetation across the quiet lower-left terrace."
+    }
+  ]
+}

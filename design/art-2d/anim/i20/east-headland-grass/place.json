@@ -1,0 +1,36 @@
+{
+  "id": "i20-east-headland-grass",
+  "element": "east-headland-grass",
+  "source": "public/art2d/map-i20-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1462,
+    "y": 280,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4386,
+    840,
+    5538,
+    1488
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    166,
+    46,
+    1207,
+    674
+  ],
+  "featherInwardStartPx": 33
+}

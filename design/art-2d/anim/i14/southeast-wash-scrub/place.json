@@ -1,0 +1,36 @@
+{
+  "element": "southeast-wash-scrub",
+  "id": "i14-southeast-wash-scrub",
+  "source": "public/art2d/map-i14-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1460,
+    "y": 636,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4380,
+    1908,
+    5532,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    186,
+    73,
+    1227,
+    667
+  ],
+  "featherInwardStartPx": 23
+}

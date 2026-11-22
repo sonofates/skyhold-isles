@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Beneath the hollow bee tree on the eastern orchard rim, a gentle breeze stirs the painted autumn russet leaves and red berry twigs by a few pixels inward and eases them smoothly back to rest. Keep every berry cluster attached and maintain the exact warm autumn palette and brushwork. Hold the gnarled brown tree roots and sunlit golden meadow completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

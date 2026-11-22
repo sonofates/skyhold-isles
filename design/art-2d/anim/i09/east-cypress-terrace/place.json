@@ -1,0 +1,36 @@
+{
+  "element": "east-cypress-terrace",
+  "id": "i09-east-cypress-terrace",
+  "source": "public/art2d/map-i09-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1446,
+    "y": 360,
+    "width": 400,
+    "height": 225
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4338,
+    1080,
+    5538,
+    1755
+  ],
+  "startPxPerLayoutPx": 3.2,
+  "startPxPerSourcePx": 1.0666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    646,
+    38,
+    1242,
+    685
+  ],
+  "featherInwardStartPx": 19
+}

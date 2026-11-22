@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Along the upper northern terrace above the road, a gentle breeze sways the drooping olive-and-lime leaf clusters of the weeping willow and nods the small painted grass and fern clumps on either side. The outer willow fronds swing a few pixels to the right and settle softly back into place without adding thin twigs or sharp edges. Hold the forked brown trunk, cast shadow, grassy terrace ledges and the dirt road below completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

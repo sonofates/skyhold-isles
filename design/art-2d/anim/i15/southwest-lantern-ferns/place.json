@@ -1,0 +1,36 @@
+{
+  "element": "southwest-lantern-ferns",
+  "id": "i15-southwest-lantern-ferns",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 626,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1878,
+    1152,
+    2526
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    46,
+    80,
+    1054,
+    667
+  ],
+  "featherInwardStartPx": 23
+}

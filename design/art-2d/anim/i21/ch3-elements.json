@@ -1,0 +1,96 @@
+{
+  "island": "i21",
+  "elements": [
+    {
+      "element": "kite-ribbon-tails",
+      "kind": "cloth",
+      "crop": { "x": 740, "y": 368, "width": 256, "height": 144 },
+      "mask": [
+        [[788, 456], [836, 442], [872, 432], [878, 450], [838, 472], [788, 472]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "Along the grass beside the grounded diamond kite, only the upper crimson silk ribbon tail flutters gently in a steady breeze, sending one soft shallow ripple from its tied base out to its forked tip before settling cleanly back on the turf. Keep the lower gold ribbon, the entire diamond kite body, wooden cross spars, brass corners, coiled cream string, and surrounding meadow completely flat and motionless.",
+      "retryOf": "weather-kite-silk",
+      "why": "Safely animates the signature central kite tails while locking the rigid diamond frame completely outside the mask."
+    },
+    {
+      "element": "kite-rack-canvas",
+      "kind": "cloth",
+      "crop": { "x": 144, "y": 192, "width": 192, "height": 108 },
+      "mask": [
+        [[198, 236], [262, 214], [280, 248], [218, 264]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "On the low wooden kite-making rack, a gentle highland breeze softly lifts and relaxes the stretched cream-and-crimson cloth panel by a few pixels in the centre, causing its painted shallow folds to breathe smoothly against the lashings. Keep the wooden rails, legs, rolled red cloth, bound sticks, and surrounding meadow grass perfectly still.",
+      "retryOf": null,
+      "why": "Adds subtle wind-driven cloth movement to the kitewright workshop frame inside the safe area."
+    },
+    {
+      "element": "north-center-meadow",
+      "kind": "grass",
+      "crop": { "x": 544, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[560, 8], [974, 8], [974, 102], [560, 102]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Across the high northern downland meadow, a steady highland breeze brushes gently from left to right through the green turf, pale yellow grass tufts, and low pink heather clumps. The painted tufts lean a few pixels eastward and ease smoothly back with zero white wind lines or brightness changes. Hold the distant horizon clouds, cliff rim rocks, and dirt road below completely stationary.",
+      "retryOf": null,
+      "why": "Brings broad windswept grassland movement to the upper central view visible on phones and desktop."
+    },
+    {
+      "element": "northeast-golden-grass",
+      "kind": "grass",
+      "crop": { "x": 1104, "y": 0, "width": 368, "height": 207 },
+      "mask": [
+        [[1124, 10], [1452, 10], [1452, 128], [1340, 128], [1220, 108], [1124, 102]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Along the sunlit northeast ridge, the tall golden-cream wild grass plumes and pink cliff-rim heather sway softly rightward a few pixels in a rolling breeze and recover smoothly to their opening lean. Preserve the soft painterly grass strokes with no pale air streaks or colour shifts. Keep the limestone cliff rocks and dirt road completely still.",
+      "retryOf": null,
+      "why": "Animates the prominent tall golden grass tufts crowning the northeast slope."
+    },
+    {
+      "element": "west-downland-grass",
+      "kind": "grass",
+      "crop": { "x": 96, "y": 320, "width": 352, "height": 198 },
+      "mask": [
+        [[112, 334], [430, 334], [430, 444], [312, 448], [308, 504], [112, 504]]
+      ],
+      "featherPx": 9,
+      "depth": 0,
+      "motion": "Over the open sunlit western meadow, the warm yellow-green grass blades, golden seed tufts, and scattered pink heather clumps ripple gently in a slow eastward breeze, leaning a few pixels and settling back smoothly. Keep the sunlit brushwork natural with zero white wind ribbons or flashes. Hold the cliffside rocks, cave entrance above, and bare ground tones completely still.",
+      "retryOf": null,
+      "why": "Fills the huge quiet western grass plateau with natural breeze motion."
+    },
+    {
+      "element": "east-downland-grass",
+      "kind": "grass",
+      "crop": { "x": 1446, "y": 408, "width": 384, "height": 216 },
+      "mask": [
+        [[1474, 420], [1770, 420], [1770, 608], [1474, 608]]
+      ],
+      "featherPx": 10,
+      "depth": 0,
+      "motion": "Along the broad eastern downland meadow overlooking the clouds, the olive-green turf, tall golden grass sprays, and small pink flower tufts sway smoothly a few pixels rightward in a gentle highland gust and return cleanly to rest. Keep the daylight tones and soft brush marks unchanged with no pale streaks. Hold the limestone cliff rim and distant clouds completely steady.",
+      "retryOf": null,
+      "why": "Balances the island with sweeping grass motion across the eastern highland meadow."
+    },
+    {
+      "element": "south-heather-rim",
+      "kind": "grass",
+      "crop": { "x": 464, "y": 636, "width": 384, "height": 216 },
+      "mask": [
+        [[480, 744], [832, 744], [832, 838], [480, 838]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Along the southern cliff rim below the road, the painted dusty-pink heather beds and golden-green grass tufts nod gently by a few pixels in the highland breeze and ease smoothly back into place. Preserve the soft storybook brushwork with zero sharpening, no new flowers, and no wind lines. Hold the pale limestone cliff face and curved dirt road above completely rigid.",
+      "retryOf": null,
+      "why": "Animates the colourful pink heather border along the southern edge of the island."
+    }
+  ]
+}

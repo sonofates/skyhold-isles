@@ -1,0 +1,36 @@
+{
+  "id": "i24-west-mid-cliff-surf",
+  "element": "west-mid-cliff-surf",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 236,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    708,
+    1056,
+    1302
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    21,
+    29,
+    342,
+    684
+  ],
+  "featherInwardStartPx": 22
+}

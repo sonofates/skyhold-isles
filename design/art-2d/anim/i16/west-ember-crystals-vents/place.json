@@ -1,0 +1,36 @@
+{
+  "element": "west-ember-crystals-vents",
+  "id": "i16-west-ember-crystals-vents",
+  "source": "public/art2d/map-i16-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 318,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    954,
+    960,
+    1494
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    64,
+    80,
+    953,
+    649
+  ],
+  "featherInwardStartPx": 24
+}

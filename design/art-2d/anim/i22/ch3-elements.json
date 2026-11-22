@@ -1,0 +1,85 @@
+{
+  "island": "i22",
+  "elements": [
+    {
+      "element": "brine-ferry-bob",
+      "kind": "water",
+      "crop": { "x": 844, "y": 310, "width": 352, "height": 198 },
+      "mask": [
+        [[892, 356], [1048, 356], [1112, 384], [1124, 434], [1082, 476], [978, 492], [892, 490]]
+      ],
+      "featherPx": 7,
+      "depth": 1,
+      "motion": "Inside the deep jade underground brine pool, the moored wooden cargo ferry gently bobs up and down by two pixels on its slack rope while soft, dark-green ripples and the pale reflection beneath the right stone mooring post sway quietly in place. Keep all water motion strictly inside the dark emerald basin with zero bright mint ribbons and no water touching the dry rocky bank. Hold the right stone post, mineral ledge, salt crust, and cavern floor perfectly still.",
+      "retryOf": "ferry-pool-undercurrent",
+      "why": "Brings the namesake Brineglass Ferry boat and jade sinkhole water to life right at map center."
+    },
+    {
+      "element": "sinkhole-north-water",
+      "kind": "water",
+      "crop": { "x": 668, "y": 292, "width": 304, "height": 171 },
+      "mask": [
+        [[704, 358], [780, 358], [780, 384], [704, 384]],
+        [[828, 356], [886, 356], [886, 384], [828, 384]]
+      ],
+      "featherPx": 5,
+      "depth": 0,
+      "motion": "Across the northern shaded pocket of the emerald brine sinkhole on either side of the left stone mooring post, the dark teal water surface and soft pale-green reflections gently shimmer and drift a few pixels sideways before settling smoothly back. Keep the subtle dark jade palette unchanged with no bright lines or splashes. Hold the left stone post, overhanging mineral rim, and dry cavern floor rock completely still.",
+      "retryOf": null,
+      "why": "Completes the living water surface across the upper half of the central brine sinkhole."
+    },
+    {
+      "element": "lantern-gantry-sway",
+      "kind": "other",
+      "crop": { "x": 576, "y": 324, "width": 160, "height": 90 },
+      "mask": [
+        [[618, 348], [644, 348], [644, 378], [618, 378]],
+        [[654, 350], [678, 350], [678, 386], [654, 386]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "On the wooden lantern hoist beside the sinkhole rim, the small hanging brass oil lantern on the left and the suspended rope pulley loop on the right swing very subtly by two pixels while the lantern's warm amber flame core breathes faintly inside its glass. Keep all glow confined tightly within the painted lantern with no flare or colour wash. Hold the timber post, crossbar, coiled red rope, and stone floor completely rigid.",
+      "retryOf": null,
+      "why": "Animates the charming lantern hoist right next to the ferry pool inside the safe area."
+    },
+    {
+      "element": "northwest-stalactite-glint",
+      "kind": "crystal",
+      "crop": { "x": 48, "y": 32, "width": 288, "height": 162 },
+      "mask": [
+        [[122, 48], [218, 48], [218, 178], [122, 178]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Strictly inside the hanging pale-turquoise mineral stalactites clinging to the purple cavern ceiling, a soft moist sheen slowly brightens a subtle shade along the existing painted cyan tips and settles cleanly back to its opening tone. Keep every stalactite outline rigid with no falling drops, no new shapes, and zero change on the cavern floor below. Hold the purple rock overhang, ore cart, and salt floor perfectly still.",
+      "retryOf": null,
+      "why": "Adds subtle damp mineral shimmer to the hanging northwest stalactite formation."
+    },
+    {
+      "element": "northeast-stalactite-glint",
+      "kind": "crystal",
+      "crop": { "x": 1622, "y": 0, "width": 224, "height": 126 },
+      "mask": [
+        [[1724, 6], [1838, 6], [1838, 118], [1724, 118]]
+      ],
+      "featherPx": 5,
+      "depth": 1,
+      "motion": "Within the narrow turquoise brine stalactites hanging from the upper-right cave roof, the existing pale sea-green moisture highlights gently brighten a small degree and dim smoothly back in place. Preserve every pointed silhouette and dark outline with zero new drops or shifting edges. Hold the purple ceiling rock and dusty cavern floor completely stationary.",
+      "retryOf": null,
+      "why": "Mirrors the damp mineral cavern atmosphere on the northeast ceiling overhang."
+    },
+    {
+      "element": "salt-terrace-shimmer",
+      "kind": "crystal",
+      "crop": { "x": 1398, "y": 600, "width": 448, "height": 252 },
+      "mask": [
+        [[1450, 740], [1630, 680], [1770, 616], [1838, 616], [1838, 844], [1424, 844]]
+      ],
+      "featherPx": 9,
+      "depth": 1,
+      "motion": "Across the broad stepped terrace of translucent ivory and pale rose salt crystals in the lower right, two or three existing flat crystal facets softly catch a faint pale sheen in place and settle smoothly back to their original painted tone. Keep the lighting variation very restrained with zero moving objects, zero spheres or beads, and no glow spilling onto the floor. Hold every sharp crystal ridge, facet edge, and lavender salt floor completely fixed.",
+      "retryOf": "salt-crystal-terrace",
+      "why": "Safely restores restrained crystal-facet sheen to the massive southeast salt terrace without rolling objects."
+    }
+  ]
+}

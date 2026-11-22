@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A brisk coastal wind ripples the small gold-and-teal cloth pennant flying from the weathered stone watch beacon, sending a smooth wave along its forked tail while the clumps of pale silvery-white storm grass on the wet slate to its right bend three to four pixels to the left and spring back. Keep the stone beacon base, staircase, iron fire-basket, stacked firewood, stone ruin and wet blue-grey slate ledges completely rigid and still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.
