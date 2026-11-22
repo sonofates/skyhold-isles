@@ -1,0 +1,194 @@
+{
+  "island": "i17",
+  "browser": "159.0.8154.6",
+  "cases": [
+    {
+      "name": "desktop",
+      "viewport": [
+        2000,
+        991
+      ],
+      "dpr": 1,
+      "perf": {
+        "frames": 34,
+        "meanMs": 74.02,
+        "p50Ms": 66.7,
+        "p95Ms": 83.4
+      },
+      "liveLife": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "smallBake": false,
+        "tier": "high",
+        "time": 7.516,
+        "swayReady": true,
+        "activeClouds": 3,
+        "activeBirds": 4,
+        "activeButterflies": 7,
+        "flocksSpawned": 1
+      },
+      "liveAmbient": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "time": 9.6,
+        "activeParticles": 28,
+        "particleCap": 46,
+        "crackSegments": 0,
+        "flames": 0,
+        "glows": 3,
+        "zones": 5
+      },
+      "stripState": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "smallBake": false,
+        "tier": "high",
+        "time": 54.666,
+        "swayReady": true,
+        "activeClouds": 3,
+        "activeBirds": 6,
+        "activeButterflies": 7,
+        "flocksSpawned": 2
+      },
+      "reducedDisabled": true,
+      "errors": []
+    },
+    {
+      "name": "phone",
+      "viewport": [
+        844,
+        390
+      ],
+      "dpr": 2,
+      "perf": {
+        "frames": 56,
+        "meanMs": 44.94,
+        "p50Ms": 33.4,
+        "p95Ms": 116.7
+      },
+      "liveLife": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "smallBake": true,
+        "tier": "high",
+        "time": 5.833,
+        "swayReady": true,
+        "activeClouds": 3,
+        "activeBirds": 4,
+        "activeButterflies": 7,
+        "flocksSpawned": 1
+      },
+      "liveAmbient": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "time": 7.833,
+        "activeParticles": 27,
+        "particleCap": 46,
+        "crackSegments": 0,
+        "flames": 0,
+        "glows": 3,
+        "zones": 5
+      },
+      "stripState": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "smallBake": true,
+        "tier": "high",
+        "time": 57.85,
+        "swayReady": true,
+        "activeClouds": 3,
+        "activeBirds": 5,
+        "activeButterflies": 7,
+        "flocksSpawned": 2
+      },
+      "reducedDisabled": true,
+      "errors": []
+    },
+    {
+      "name": "phone-low",
+      "lowLife": {
+        "island": "i17",
+        "built": false,
+        "enabled": false,
+        "paused": false,
+        "smallBake": true,
+        "tier": "low",
+        "time": 0,
+        "swayReady": false,
+        "activeClouds": 0,
+        "activeBirds": 0,
+        "activeButterflies": 0,
+        "flocksSpawned": 0
+      },
+      "errors": []
+    },
+    {
+      "name": "phone-med",
+      "medLife": {
+        "island": "i17",
+        "built": true,
+        "enabled": true,
+        "paused": false,
+        "smallBake": true,
+        "tier": "med",
+        "time": 1.183,
+        "swayReady": true,
+        "activeClouds": 2,
+        "activeBirds": 0,
+        "activeButterflies": 0,
+        "flocksSpawned": 0
+      },
+      "errors": []
+    }
+  ],
+  "pixelDiff": {
+    "before_desktop": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 0.292,
+      "pct_gt15": 0.346,
+      "mean_drgb": 0.51
+    },
+    "after_desktop": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 2.797,
+      "pct_gt15": 13.327,
+      "mean_drgb": 6.27
+    },
+    "before_phone": {
+      "shape": [
+        390,
+        844
+      ],
+      "pct_gt30": 1.11,
+      "pct_gt15": 1.274,
+      "mean_drgb": 1.93
+    },
+    "after_phone": {
+      "shape": [
+        390,
+        844
+      ],
+      "pct_gt30": 2.872,
+      "pct_gt15": 11.614,
+      "mean_drgb": 6.56
+    }
+  }
+}
