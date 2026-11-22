@@ -33,6 +33,7 @@ import { GRAPHICS_EVENT, graphicsEngineState, loadGraphics, type GraphicsEngineS
 import type { AbilityBar2D } from './ui/abilityBar2d.ts';
 import type { AbilityId } from '../core/types.ts';
 import { mapAnimLayer } from './mapAnimLayer.ts';
+import { mapLifeLayer } from './mapLifeLayer.ts';
 import type { MapView } from './mapView.ts';
 import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
@@ -135,6 +136,9 @@ declare global {
       /** QA: procedural ambient FX state and deterministic step helper. */
       ambient?: () => ReturnType<import('./mapAnimLayer.ts').MapAnimController['debug']>;
       stepAmbient?: (dtSec: number) => void;
+      /** QA: procedural map-life layer state and deterministic step helper. */
+      mapLife?: () => ReturnType<import('./mapLifeLayer.ts').MapLifeController['debug']> | null;
+      stepMapLife?: (dtSec: number) => void;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
       gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
@@ -722,6 +726,7 @@ async function main(): Promise<void> {
   setBootProgress(0.95);
   watchMap(game.map, game.gates);
   const ambient = mapAnimLayer(game.map.world, level.id, art.baseUrl);
+  const life = mapLifeLayer(game.map.world, game.map, game.layers, level.id, art.baseUrl);
   draws?.take();
   // Settings → Graphics: frame-rate cap, FPS chip, and live re-apply while a run is open.
   const fpsChip = mountFpsCounter();
@@ -1090,7 +1095,10 @@ async function main(): Promise<void> {
     const t0 = performance.now();
     stats.record(t.deltaMS, t0);
     if (!manual) game.frame(t.deltaMS / 1000);
-    ambient?.update(game.qualityTier !== 'low' && !gfx.reducedMotion, game.stepper.paused, game.map.texelScale <= 1, t.deltaMS / 1000, game.qualityTier);
+    const smallBake = game.map.texelScale <= 1;
+    const lifeOn = game.qualityTier !== 'low' && !gfx.reducedMotion;
+    ambient?.update(lifeOn, game.stepper.paused, smallBake, t.deltaMS / 1000, game.qualityTier);
+    life?.update(lifeOn, game.stepper.paused, smallBake, t.deltaMS / 1000, game.qualityTier);
     abilities?.frame(t.deltaMS / 1000);
     itemBelt?.frame(t.deltaMS / 1000);
     heroHud?.frame(t.deltaMS / 1000);
@@ -1223,6 +1231,18 @@ async function main(): Promise<void> {
     ambient: () => ambient?.debug() ?? null,
     stepAmbient: (dt) => {
       ambient?.stepFx(dt, game.qualityTier);
+      app.render();
+    },
+    mapLife: () => life?.debug() ?? null,
+    stepMapLife: (dt) => {
+      if (life) {
+        let rem = Math.max(0, dt);
+        while (rem > 1e-6) {
+          const chunk = Math.min(0.1, rem);
+          life.step(chunk, game.qualityTier);
+          rem -= chunk;
+        }
+      }
       app.render();
     },
     gates: () => gateRectsRef?.() ?? [],

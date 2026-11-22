@@ -22,6 +22,8 @@ export class MapView {
   /** Map-px space: everything that lives on the map goes in here. */
   readonly world = new Container();
   private readonly bands = new Container();
+  /** Base painted layer (index 0 in `world`): mirrored pan edges + main map sprite. */
+  private readonly mapBase = new Container();
   private readonly mapSprite: Sprite;
   private readonly backdrop: Sprite;
   private readonly backdropTex: Texture | null;
@@ -47,14 +49,17 @@ export class MapView {
   constructor(texture: Texture, layout: Level2DLayout) {
     this.texture = texture;
     this.layout = layout;
+    this.mapBase.eventMode = 'none';
+    this.mapBase.interactiveChildren = false;
     this.mapSprite = new Sprite(texture);
     for (let i = 0; i < 8; i++) {
       const e = new Sprite(texture);
       e.visible = false;
       this.edgeSprites.push(e);
-      this.world.addChild(e);
+      this.mapBase.addChild(e);
     }
-    this.world.addChild(this.mapSprite);
+    this.mapBase.addChild(this.mapSprite);
+    this.world.addChild(this.mapBase);
     // Built once per map (the island's first bake; a later sharper bake of the same painting
     // would blur to the same thing).
     const t0 = performance.now();
