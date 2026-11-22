@@ -151,11 +151,13 @@
   text-align: center;
 }
 
-.pu-diff[data-diff='hard'] .pu-diff-desc {
+.pu-diff[data-diff='hard'] .pu-diff-desc,
+.pu-brief-gold[data-diff='hard'] {
   color: #8f2a14;
 }
 
-.pu-diff[data-diff='easy'] .pu-diff-desc {
+.pu-diff[data-diff='easy'] .pu-diff-desc,
+.pu-brief-gold[data-diff='easy'] {
   color: #3f6e2c;
 }
 

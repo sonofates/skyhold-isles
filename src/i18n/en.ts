@@ -150,8 +150,8 @@ export const EN = {
   'diff.hpDown': 'foes −{n}% health',
   'diff.speedUp': '+{n}% speed',
   'diff.speedDown': '−{n}% speed',
-  'diff.goldUp': '+{n}% gold',
-  'diff.goldDown': '−{n}% gold',
+  'diff.goldUp': 'starting gold +{n}%',
+  'diff.goldDown': 'starting gold −{n}%',
   'diff.startGoldDown': 'starting gold −{n}% −{g}',
   'diff.killGoldUp': '+{n}% gold per foe',
   'diff.cooldownSlow': 'abilities recharge {n}% slower',
@@ -172,6 +172,9 @@ export const EN = {
 
   // --- briefing card -------------------------------------------------------------------------
   'brief.waves': { one: '{n} wave', other: '{n} waves' },
+  'brief.startGold': '{g} gold',
+  'brief.startGoldDelta': '{g} gold ({delta})',
+  'brief.startGoldTitle': 'Starting gold on this difficulty',
   'brief.perfect': 'Perfect defence',
   'brief.goal3': '3★: {goal}',
   'brief.goalNoLoss': 'no lives lost',

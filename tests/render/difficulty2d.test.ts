@@ -10,6 +10,7 @@ import {
   parseDifficulty,
   sanitizeDifficultyWins,
   starsAwarded,
+  startingGoldForDifficulty,
   withDifficulty,
 } from '../../src/data/difficulty.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
@@ -313,7 +314,18 @@ describe('selector wording', () => {
     if ((p.abilityCooldownMul ?? 1) > 1) expect(difficultyRuleText('hard')).toContain('abilities recharge');
     setLocale('tr');
     expect(difficultyRuleText('hard')).toContain(`başlangıç altını −%${n} −${g}`);
+    expect(difficultyRuleText('easy')).toContain('başlangıç altını +%25');
     setLocale('en');
+    expect(difficultyRuleText('easy')).toContain('starting gold +25%');
+  });
+
+  it('startingGoldForDifficulty matches SimWorld starting gold on Easy, Normal and Hard', () => {
+    for (const lvl of [LEVELS_2D[0], LEVELS_2D[13], LEVELS_2D[24]]) {
+      for (const diff of ['easy', 'normal', 'hard'] as const) {
+        const sim = new SimWorld(lvl, new EventBus(), { modifiers: withDifficulty(NEUTRAL_RUN_MODIFIERS, diff) });
+        expect(startingGoldForDifficulty(lvl.startingGold, diff), `${lvl.id} ${diff}`).toBe(sim.gold);
+      }
+    }
   });
 
   it('pins the in-run difficulty pill centred on the wave banner rope across desktop and small windows', () => {

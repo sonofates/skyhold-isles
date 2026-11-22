@@ -69,6 +69,14 @@ export function difficultyPatch(id: DifficultyId): RunModifierPatch {
   return (DIFFICULTIES[id] ?? DIFFICULTIES.normal).patch;
 }
 
+/** Effective island starting gold on `id` (same rounding and ≥ 0 floor as SimWorld). */
+export function startingGoldForDifficulty(baseGold: number, id: DifficultyId): number {
+  const p = difficultyPatch(id);
+  const mul = p.startGoldMul !== undefined && Number.isFinite(p.startGoldMul) ? p.startGoldMul : 1;
+  const bonus = p.startGoldBonus !== undefined && Number.isFinite(p.startGoldBonus) ? Math.round(p.startGoldBonus) : 0;
+  return Math.max(0, Math.round(baseGold * mul) + bonus);
+}
+
 /** Stacks the difficulty patch on already composed run modifiers (Normal returns `base` as is). */
 export function withDifficulty(base: RunModifiers, id: DifficultyId): RunModifiers {
   if (!isDifficultyId(id) || id === 'normal') return base;

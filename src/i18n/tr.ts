@@ -158,8 +158,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'diff.hpDown': 'düşman canı −%{n}',
   'diff.speedUp': 'hız +%{n}',
   'diff.speedDown': 'hız −%{n}',
-  'diff.goldUp': 'altın +%{n}',
-  'diff.goldDown': 'altın −%{n}',
+  'diff.goldUp': 'başlangıç altını +%{n}',
+  'diff.goldDown': 'başlangıç altını −%{n}',
   'diff.startGoldDown': 'başlangıç altını −%{n} −{g}',
   'diff.killGoldUp': 'düşman başına altın +%{n}',
   'diff.cooldownSlow': 'yetenekler %{n} geç dolar',
@@ -180,6 +180,9 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
 
   // --- briefing card -------------------------------------------------------------------------
   'brief.waves': '{n} dalga',
+  'brief.startGold': '{g} altın',
+  'brief.startGoldDelta': '{g} altın ({delta})',
+  'brief.startGoldTitle': 'Bu zorlukta başlangıç altını',
   'brief.perfect': 'Kusursuz savunma',
   'brief.goal3': '3★: {goal}',
   'brief.goalNoLoss': 'hiç can kaybetme',
