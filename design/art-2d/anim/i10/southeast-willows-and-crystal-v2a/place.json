@@ -1,0 +1,36 @@
+{
+  "element": "southeast-willows-and-crystal-v2a",
+  "id": "i10-southeast-willows-and-crystal-v2a",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1440,
+    "y": 602,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4320,
+    1806,
+    4944,
+    2157
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.0512820512820515,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    410,
+    168,
+    975,
+    635
+  ],
+  "featherInwardStartPx": 8
+}

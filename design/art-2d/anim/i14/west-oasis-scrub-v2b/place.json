@@ -1,0 +1,36 @@
+{
+  "element": "west-oasis-scrub-v2b",
+  "id": "i14-west-oasis-scrub-v2b",
+  "source": "public/art2d/map-i14-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 6,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    18,
+    768,
+    450
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    56,
+    56,
+    1165,
+    715
+  ],
+  "featherInwardStartPx": 6
+}

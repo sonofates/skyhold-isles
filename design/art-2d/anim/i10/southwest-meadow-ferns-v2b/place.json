@@ -1,0 +1,36 @@
+{
+  "element": "southwest-meadow-ferns-v2b",
+  "id": "i10-southwest-meadow-ferns-v2b",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 76,
+    "y": 678,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    228,
+    2034,
+    996,
+    2466
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    180,
+    78,
+    875,
+    668
+  ],
+  "featherInwardStartPx": 6
+}

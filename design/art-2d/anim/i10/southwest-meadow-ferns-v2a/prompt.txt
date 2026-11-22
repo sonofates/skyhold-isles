@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork and soft valley daylight palette unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Only the existing painted green fern fronds and cattail blades sway gently by a few pixels in a soft valley daylight breeze and return smoothly to rest. Keep the weathered stone terrace ledges, boulders, pebbles and olive meadow ground completely locked. Do not add any new plants, leaves, ferns, flecks, ribbons, streaks, sparkles, shadows or light; bare ground, rock, sand and water stay exactly as painted; no colour change.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.
