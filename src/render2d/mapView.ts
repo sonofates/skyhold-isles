@@ -29,6 +29,12 @@ export class MapView {
   private readonly shadowTex: { edge: Texture; corner: Texture } | null;
   private readonly shadowSprites: Sprite[] = [];
   private readonly border = new Graphics();
+  /**
+   * The painting mirrored past its edges (L, R, T, B, then TL, TR, BL, BR): the pan may reach a
+   * little past a covered axis's edge so a plot under the HUD can be lifted clear (fullBleed.ts
+   * reachRange); that strip shows the map's own painted edge, never the dark frame.
+   */
+  private readonly edgeSprites: Sprite[] = [];
   private tier: QualityTier = 'high';
   /** QA: how long building the backdrop took (ms, once per map). */
   private readonly backdropMs: number;
@@ -42,6 +48,12 @@ export class MapView {
     this.texture = texture;
     this.layout = layout;
     this.mapSprite = new Sprite(texture);
+    for (let i = 0; i < 8; i++) {
+      const e = new Sprite(texture);
+      e.visible = false;
+      this.edgeSprites.push(e);
+      this.world.addChild(e);
+    }
     this.world.addChild(this.mapSprite);
     // Built once per map (the island's first bake; a later sharper bake of the same painting
     // would blur to the same thing).
@@ -84,6 +96,7 @@ export class MapView {
     this.mapSprite.texture = texture;
     this.mapSprite.width = this.imageW;
     this.mapSprite.height = this.imageH;
+    for (const e of this.edgeSprites) e.texture = texture;
     this.layoutBands();
   }
 
@@ -165,7 +178,14 @@ export class MapView {
     const y0 = f.offsetY;
     const x1 = x0 + iw * s;
     const y1 = y0 + ih * s;
-    const open = f.bandLeft > 0.5 || f.bandRight > 0.5 || f.bandTop > 0.5 || f.bandBottom > 0.5;
+    // A band on an axis the painting covers is the pan's reach past the edge: the mirrored edge
+    // fills it. Only a band on an axis the painting can't cover (an extreme aspect) is framed.
+    const coverX = iw * s >= sw - 0.5;
+    const coverY = ih * s >= sh - 0.5;
+    const reach = [coverX && f.bandLeft > 0.5, coverX && f.bandRight > 0.5, coverY && f.bandTop > 0.5, coverY && f.bandBottom > 0.5];
+    this.layoutEdges(reach);
+    const bandOpen = [f.bandLeft > 0.5 && !reach[0], f.bandRight > 0.5 && !reach[1], f.bandTop > 0.5 && !reach[2], f.bandBottom > 0.5 && !reach[3]];
+    const open = bandOpen.some(Boolean);
     const rich = open && this.tier !== 'low';
 
     // Backdrop: the blurred map around the map's centre, covering the screen (+ shake overscan).
@@ -195,7 +215,7 @@ export class MapView {
 
     // Shadow: edges (left, right, top, bottom) then corners (tl, tr, bl, br), outside the map.
     const bw = borderWidth(sw, sh);
-    const reach = shadowReach(sw, sh);
+    const shadowLen = shadowReach(sw, sh);
     const r0 = bw * 0.5; // starts under the border so its darkest part meets the wood, not a gap
     const showShadow = rich && this.shadowTex !== null;
     // Edge texture: u along the edge, v = outward falloff (darkest at v = 0). Each strip runs the
@@ -207,7 +227,6 @@ export class MapView {
       [x1 + r0, y0 - r0, x1 - x0 + 2 * r0, Math.PI, 2], // u → −x, v → −y
       [x0 - r0, y1 + r0, x1 - x0 + 2 * r0, 0, 3], // u → +x, v → +y
     ];
-    const bandOpen = [f.bandLeft > 0.5, f.bandRight > 0.5, f.bandTop > 0.5, f.bandBottom > 0.5];
     for (let i = 0; i < 4; i++) {
       const sp = this.shadowSprites[i];
       const [x, y, len, rot, b] = sides[i];
@@ -216,7 +235,7 @@ export class MapView {
       sp.rotation = rot;
       sp.position.set(x, y);
       sp.width = len;
-      sp.height = reach;
+      sp.height = shadowLen;
     }
     const corners: [number, number, number, number][] = [
       [x0 - r0, y0 - r0, -1, -1],
@@ -230,8 +249,8 @@ export class MapView {
       sp.visible = showShadow && (dx < 0 ? bandOpen[0] : bandOpen[1]) && (dy < 0 ? bandOpen[2] : bandOpen[3]);
       if (!sp.visible) continue;
       sp.position.set(x, y);
-      sp.width = reach * dx;
-      sp.height = reach * dy;
+      sp.width = shadowLen * dx;
+      sp.height = shadowLen * dy;
     }
 
     // Border: a thin painted moulding just outside the image (under the world, so a sprite that
@@ -259,6 +278,25 @@ export class MapView {
         ring(d, w, color, alpha);
         d += w;
       }
+    }
+  }
+
+  /** The mirrored copies of the painting along the sides (and corners) the pan reaches past. */
+  private layoutEdges(open: readonly boolean[]): void {
+    const [iw, ih] = this.layout.imageSize;
+    // [x flip, y flip]: -1 / +1 = mirrored to the left / right (top / bottom), 0 = not mirrored.
+    const spots: [number, number][] = [[-1, 0], [1, 0], [0, -1], [0, 1], [-1, -1], [1, -1], [-1, 1], [1, 1]];
+    for (let i = 0; i < 8; i++) {
+      const e = this.edgeSprites[i];
+      const [fx, fy] = spots[i];
+      e.visible = (fx === 0 || open[fx < 0 ? 0 : 1]) && (fy === 0 || open[fy < 0 ? 2 : 3]);
+      if (!e.visible) continue;
+      // Mirrored about the edge: a flipped copy anchored on the edge it continues.
+      e.scale.set(1, 1);
+      e.width = iw;
+      e.height = ih;
+      e.scale.set(fx === 0 ? e.scale.x : -e.scale.x, fy === 0 ? e.scale.y : -e.scale.y);
+      e.position.set(fx === 0 ? 0 : fx < 0 ? 0 : 2 * iw, fy === 0 ? 0 : fy < 0 ? 0 : 2 * ih);
     }
   }
 
