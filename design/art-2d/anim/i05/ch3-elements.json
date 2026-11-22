@@ -1,0 +1,156 @@
+{
+  "island": "i05",
+  "elements": [
+    {
+      "element": "scarecrow-lower-wheat",
+      "kind": "grass",
+      "crop": {
+        "x": 0,
+        "y": 264,
+        "width": 400,
+        "height": 225
+      },
+      "mask": [
+        [
+          [10, 274],
+          [322, 274],
+          [250, 326],
+          [250, 412],
+          [185, 478],
+          [10, 478]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A slow harvest breeze rolls through the golden wheat rows below the upper field, tilting the painted amber grain heads slightly right and letting them ease back together. Keep every stalk rooted in its painted row with no pale wind streaks, white ribbons or brightness shifts. Hold the wooden scarecrow, bare ochre path edges and lower field margin completely still.",
+      "retryOf": null,
+      "why": "Extends the western harvest motion all the way down around the scarecrow."
+    },
+    {
+      "element": "north-ridge-wheat",
+      "kind": "grass",
+      "crop": {
+        "x": 500,
+        "y": 0,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [545, 8],
+          [928, 8],
+          [920, 96],
+          [545, 96]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A steady breeze combs the long northern band of golden wheat from left to right, bowing the painted yellow-ochre stalks a few pixels right before they recover upright. Preserve the warm painted brushwork with no white wind lines or floating chaff. Keep the ochre slope below, dirt road and autumn tree at the right edge completely still.",
+      "retryOf": null,
+      "why": "Animates the wide golden wheat strip framing the top-center horizon."
+    },
+    {
+      "element": "northeast-wheat-patch",
+      "kind": "grass",
+      "crop": {
+        "x": 1170,
+        "y": 0,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [1226, 8],
+          [1455, 8],
+          [1435, 132],
+          [1226, 138]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A light harvest breeze bends the tall golden wheat stalks on the northeast ridge gently right and lets them settle smoothly back into their original slant. Keep all stalks anchored with no white wind ribbons or colour brightening. Hold the ochre earth, orchard tree on the right and castle roof completely still.",
+      "retryOf": null,
+      "why": "Brings the upper-right wheat patch above the castle into the same living breeze."
+    },
+    {
+      "element": "southeast-wheat-rows",
+      "kind": "grass",
+      "crop": {
+        "x": 1240,
+        "y": 600,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [1268, 708],
+          [1465, 624],
+          [1675, 624],
+          [1675, 795],
+          [1485, 825],
+          [1268, 800]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A gentle breeze ripples across the low golden wheat rows in the southeast field, nodding the painted amber grain tips two to three pixels right and smoothly back in place. Leave the warm ochre soil gaps between rows completely clear and stationary with no white wind ribbons, pale streaks or light flashes. Keep the outer ground margin and stones completely still.",
+      "retryOf": "southern-windrows",
+      "why": "Retries the big southern wheat bands with a tight field-only crop and anti-wind-ribbon prompt."
+    },
+    {
+      "element": "mill-south-wheat",
+      "kind": "grass",
+      "crop": {
+        "x": 515,
+        "y": 560,
+        "width": 256,
+        "height": 144
+      },
+      "mask": [
+        [
+          [565, 590],
+          [670, 568],
+          [738, 578],
+          [732, 668],
+          [654, 650],
+          [602, 652],
+          [562, 676]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "A soft breeze sways the golden wheat stalks surrounding the tied harvest sheaf below the windmill a few pixels right and back to rest. Keep the tied straw sheaf, wooden fence and ochre ground completely fixed, and avoid any pale wind lines or brightness shifts.",
+      "retryOf": null,
+      "why": "Places live swaying grain right at the center of the playfield beneath the windmill."
+    },
+    {
+      "element": "northeast-orchard-trees",
+      "kind": "foliage",
+      "crop": {
+        "x": 1430,
+        "y": 54,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [1450, 68],
+          [1534, 68],
+          [1538, 128],
+          [1448, 128]
+        ],
+        [
+          [1695, 104],
+          [1794, 104],
+          [1798, 174],
+          [1692, 174]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A mild autumn breeze rocks the small russet-and-gold foliage crowns of the two orchard apple trees on the northeast slope two to three pixels right and eases them back to rest. Keep every tiny red fruit riding with its painted leaf cluster without adding branches or changing leaf brushwork. Hold both gnarled brown trunks, cast shadows and the ochre hillside completely still.",
+      "retryOf": null,
+      "why": "Animates the two autumn orchard trees above the castle in the upper-right corner."
+    }
+  ]
+}

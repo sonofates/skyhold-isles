@@ -1,0 +1,184 @@
+{
+  "island": "i06",
+  "elements": [
+    {
+      "element": "east-lagoon-basin",
+      "kind": "water",
+      "crop": {
+        "x": 980,
+        "y": 248,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [1085, 262],
+          [1195, 262],
+          [1204, 338],
+          [1302, 344],
+          [1316, 410],
+          [1212, 448],
+          [1124, 420],
+          [1116, 348]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Calm turquoise lagoon water gently laps within the eastern basin, drifting the existing soft pale foam curls and muted teal brushstrokes a few pixels inward toward the sandy coves and easing them back. Keep the painterly brushwork and gentle translucent colour unchanged with no hard white arcs or glowing bands. Hold every sandy islet, shell, wooden bridge plank and road edge completely still.",
+      "retryOf": null,
+      "why": "Animates the large completely static eastern half of the central lagoon."
+    },
+    {
+      "element": "southwest-ocean-surf",
+      "kind": "water",
+      "crop": {
+        "x": 0,
+        "y": 420,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [10, 428],
+          [186, 428],
+          [188, 590],
+          [10, 590]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Slow turquoise ocean swells roll gently shoreward from the left, sliding the existing soft white surf line a few pixels up the wet sand and easing it back out into the sea. Keep the hand-painted layered turquoise and soft foam brushwork intact with no wire-like arcs or flat white strips. Hold the dry beach sand, seashells and palm foliage completely still.",
+      "retryOf": null,
+      "why": "Extends the western ocean surf continuously south below the shipped upper breaker."
+    },
+    {
+      "element": "northwest-ocean-surf",
+      "kind": "water",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 256,
+        "height": 144
+      },
+      "mask": [
+        [
+          [8, 8],
+          [214, 8],
+          [214, 118],
+          [8, 118]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "Gentle sea swells drift softly toward the upper-left beach, easing the painted turquoise water strokes and fine foamy shore edge a few pixels right and back out. Maintain the exact soft brushwork and coastal palette without adding bright streaks or hard outlines. Keep the sandy beach, shells and corner foliage completely motionless.",
+      "retryOf": null,
+      "why": "Completes the full north-to-south ocean movement along the western shoreline."
+    },
+    {
+      "element": "northeast-ocean-surf",
+      "kind": "water",
+      "crop": {
+        "x": 1526,
+        "y": 0,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [1650, 8],
+          [1838, 8],
+          [1838, 172],
+          [1615, 172],
+          [1628, 95]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Soft turquoise swells roll in from the right along the northeast shoreline, advancing the painted pale surf wash a few pixels onto the wet sand and drawing it smoothly back. Preserve the painterly teal water gradients with no rigid white lines or bright flashes. Keep the sandy beach, little boats and seashells completely still.",
+      "retryOf": null,
+      "why": "Connects the northeast ocean coast above the shipped eastern swell."
+    },
+    {
+      "element": "southeast-ocean-swell",
+      "kind": "water",
+      "crop": {
+        "x": 1526,
+        "y": 648,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [1690, 656],
+          [1838, 656],
+          [1838, 820],
+          [1668, 820],
+          [1675, 740]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A slow sea swell pushes the turquoise water and soft painted foam edge gently left toward the southeast beach and pulls it back out into the deeper teal. Keep the existing soft brushwork intact without forming crisp parallel white arcs or opaque ribbons. Hold the dry beach sand, cave rocks above and corner shells completely still.",
+      "retryOf": null,
+      "why": "Completes the eastern ocean shoreline south of the cave entrance."
+    },
+    {
+      "element": "southwest-palm-fronds",
+      "kind": "foliage",
+      "crop": {
+        "x": 160,
+        "y": 626,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [186, 634],
+          [286, 634],
+          [288, 696],
+          [190, 696]
+        ],
+        [
+          [364, 652],
+          [454, 652],
+          [454, 728],
+          [364, 728]
+        ],
+        [
+          [358, 742],
+          [450, 742],
+          [452, 814],
+          [358, 814]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A warm ocean breeze gently flexes the arching green palm fronds of the three coastal palm trees three to four pixels right and lets them dip and recover smoothly. Keep each painted frond intact with no new leaves or outline hardening. Hold the curved brown palm trunks, ground shadows, sandy beach, tide pools and road completely still.",
+      "retryOf": null,
+      "why": "Animates all three iconic tropical palm trees on the southwest beach."
+    },
+    {
+      "element": "lighthouse-beacon",
+      "kind": "other",
+      "crop": {
+        "x": 855,
+        "y": 276,
+        "width": 160,
+        "height": 90
+      },
+      "mask": [
+        [
+          [920, 294],
+          [948, 294],
+          [948, 322],
+          [920, 322]
+        ]
+      ],
+      "featherPx": 3,
+      "depth": 2,
+      "motion": "Inside the small glass lantern room at the top of the red-and-white lighthouse, the warm painted amber lamp light gently brightens a touch, holds briefly and softens back to its opening glow. Confine the change strictly inside the glass lantern panes without casting beams, halos or light onto the roof cap, tower stripes, sand or water.",
+      "retryOf": null,
+      "why": "Gives a subtle living beacon pulse to the central lagoon lighthouse."
+    }
+  ]
+}

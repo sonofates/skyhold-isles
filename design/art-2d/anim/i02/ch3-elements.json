@@ -1,0 +1,179 @@
+{
+  "island": "i02",
+  "elements": [
+    {
+      "element": "north-estuary-inflow",
+      "kind": "water",
+      "crop": {
+        "x": 720,
+        "y": 0,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [775, 8],
+          [1088, 8],
+          [1030, 88],
+          [985, 130],
+          [1018, 196],
+          [966, 196],
+          [952, 182],
+          [875, 148],
+          [802, 92]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A calm tidal current carries the existing painted blue-teal water strokes and soft pale shore ripples slowly southward down the wide northern inlet toward the upper bridge. Keep the water palette muted and textured with no flat white ribbons, concentric rings or new glare. Hold both stone embankments, sandy banks and the timber bridge completely still.",
+      "retryOf": null,
+      "why": "Animates the largest body of water on the island, the completely static northern estuary mouth."
+    },
+    {
+      "element": "south-harbour-shallows",
+      "kind": "water",
+      "crop": {
+        "x": 830,
+        "y": 618,
+        "width": 416,
+        "height": 234
+      },
+      "mask": [
+        [
+          [1030, 682],
+          [1152, 700],
+          [1152, 842],
+          [858, 842],
+          [866, 804],
+          [1028, 796]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Gentle harbour swells slide the existing turquoise-blue brushwork and faint pale water streaks slowly southeast across the lower harbour basin and ease them back. Keep the subtle submerged sandy sheen intact without bright flashes, hard rings or opaque white ribbons. Hold the stone seawall, castle foundation, wooden jetty and moored fishing boat completely fixed.",
+      "retryOf": null,
+      "why": "Connects the castle waterfront and fishing smack with continuous moving harbour water."
+    },
+    {
+      "element": "north-bank-willow",
+      "kind": "foliage",
+      "crop": {
+        "x": 1080,
+        "y": 35,
+        "width": 240,
+        "height": 135
+      },
+      "mask": [
+        [
+          [1142, 74],
+          [1226, 74],
+          [1232, 128],
+          [1200, 142],
+          [1162, 142],
+          [1138, 118]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A light sea breeze sways the drooping olive-green foliage clusters of the small coastal tree a few pixels right and lets them settle softly back. Preserve the rounded painted leaf tufts with no extra twigs or sharpened outlines. Keep the split brown trunk, cast shadow, grass and stone bank motionless.",
+      "retryOf": null,
+      "why": "Adds upper-central foliage motion overlooking the northern creek bend."
+    },
+    {
+      "element": "northeast-coastal-tree",
+      "kind": "foliage",
+      "crop": {
+        "x": 1606,
+        "y": 85,
+        "width": 240,
+        "height": 135
+      },
+      "mask": [
+        [
+          [1700, 112],
+          [1802, 112],
+          [1806, 174],
+          [1770, 188],
+          [1728, 188],
+          [1698, 162]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A gentle coastal breeze nods the overhanging olive-green leaf clusters of the northeast tree a few pixels right and smoothly back to their starting pose. Keep the hand-painted rounded foliage texture unchanged without adding new leaves or altering light. Hold the knotted trunk, shadow and golden turf completely fixed.",
+      "retryOf": null,
+      "why": "Brings life to the quiet northeast grassy headland."
+    },
+    {
+      "element": "southwest-creek-willow",
+      "kind": "foliage",
+      "crop": {
+        "x": 240,
+        "y": 625,
+        "width": 240,
+        "height": 135
+      },
+      "mask": [
+        [
+          [328, 646],
+          [420, 646],
+          [422, 704],
+          [385, 718],
+          [346, 716],
+          [322, 688]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A mild harbour breeze eases the soft green canopy clusters of the southwest coastal tree three pixels right and back to rest. Preserve the original painted leaf clumps with no sprouting twigs or outline hardening. Keep the trunk base, ground shadow, sandy turf and nearby gravel path completely still.",
+      "retryOf": null,
+      "why": "Animates the prominent willow standing beside the southwest road bend."
+    },
+    {
+      "element": "west-meadow-sea-thrift",
+      "kind": "grass",
+      "crop": {
+        "x": 0,
+        "y": 340,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [22, 360],
+          [342, 360],
+          [342, 535],
+          [22, 535]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A soft coastal breeze tips the small painted clumps of pink sea-thrift blossoms and olive grass tufts across the western meadow a few pixels right and smoothly back upright. Keep the painted ochre soil patches and pebbles underneath completely steady with no white wind streaks or new blossoms.",
+      "retryOf": null,
+      "why": "Gives subtle breezy life to the broad static golden-green western meadow."
+    },
+    {
+      "element": "east-meadow-sea-thrift",
+      "kind": "grass",
+      "crop": {
+        "x": 1462,
+        "y": 380,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [1526, 396],
+          [1828, 396],
+          [1828, 578],
+          [1526, 578]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A gentle sea breeze tilts the pink sea-thrift flower clusters and slender olive grass blades on the eastern hillside a few pixels left and eases them back to rest. Keep the warm yellow-ochre ground patches, small stones and gravel road edge completely still, with no pale wind streaks or colour changes.",
+      "retryOf": null,
+      "why": "Balances the broad static eastern coastal slope with matching breezy wildflower motion."
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+{
+  "island": "i01",
+  "elements": [
+    {
+      "element": "north-poppy-meadow",
+      "kind": "grass",
+      "crop": {
+        "x": 330,
+        "y": 0,
+        "width": 480,
+        "height": 270
+      },
+      "mask": [
+        [
+          [348, 8],
+          [726, 8],
+          [726, 138],
+          [560, 152],
+          [350, 148]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A slow breeze ripples across the northern wildflower bank, tilting the painted red poppy heads, white daisies and tall golden-green grass blades a few pixels right and smoothly back in place. Keep every stem rooted and preserve the painted meadow texture with no pale wind streaks, floating petals or brightness changes. Hold the wooden wattle fence, cave rockwork and open lawn below completely still.",
+      "retryOf": null,
+      "why": "Brings the signature northern poppy-and-daisy wildflower border to life across a wide central span."
+    },
+    {
+      "element": "north-central-wildflowers",
+      "kind": "grass",
+      "crop": {
+        "x": 880,
+        "y": 0,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [955, 8],
+          [1305, 8],
+          [1305, 128],
+          [1160, 145],
+          [955, 145]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A soft breeze gently leans the red poppies, white daisies and olive-gold meadow grass along the upper ridge a few pixels right, then eases them back upright. Move only the painted flower heads and grass tips without creating white wind ribbons, new blossoms or colour shifts. Keep the wooden fence on the left and the open meadow turf below completely still.",
+      "retryOf": null,
+      "why": "Extends the swaying northern wildflower ridge seamlessly across the upper-right center."
+    },
+    {
+      "element": "northeast-poppy-field",
+      "kind": "grass",
+      "crop": {
+        "x": 1398,
+        "y": 0,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [1495, 8],
+          [1838, 8],
+          [1838, 232],
+          [1565, 240],
+          [1480, 140]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A warm breeze travels down the sweeping northeast bank of red poppies, white daisies and long golden grass blades, bowing each painted tuft gently toward the lower left and letting it rise back. Keep the rooted grass bases and painted brushstrokes intact with no pale wind streaks or drifting petals. Hold the open green lawn and lower right edges completely still.",
+      "retryOf": null,
+      "why": "Animates the large diagonal poppy hillside dominating the upper-right quadrant."
+    },
+    {
+      "element": "west-wildflower-slope",
+      "kind": "grass",
+      "crop": {
+        "x": 0,
+        "y": 248,
+        "width": 400,
+        "height": 225
+      },
+      "mask": [
+        [
+          [10, 260],
+          [315, 265],
+          [315, 458],
+          [10, 462]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A gentle breeze combs the tall golden grass, scarlet poppies and white daisies on the western meadow slope, leaning the upper stalks a few pixels right and easing them smoothly back. Preserve the warm painted brushwork with no white wind lines, extra flowers or light flashes. Keep the dirt path, rockwork and grassy foreground margin completely still.",
+      "retryOf": null,
+      "why": "Makes the expansive wildflower hillside west of the honey cottage breathe in the wind."
+    },
+    {
+      "element": "south-poppy-border",
+      "kind": "grass",
+      "crop": {
+        "x": 160,
+        "y": 600,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [180, 668],
+          [595, 655],
+          [595, 842],
+          [180, 842]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A steady meadow breeze sways the red poppy clusters, white daisies and leaning golden grass stalks across the southern meadow border a few pixels right and back to rest. Keep every flower attached to its painted stem without pale streaks or floating specks. Hold the cottage foundation, wooden beehives and open grass patches completely fixed.",
+      "retryOf": null,
+      "why": "Animates the rich lower-left wildflower foreground stretching south of the honey cottage."
+    },
+    {
+      "element": "southeast-poppy-drift",
+      "kind": "grass",
+      "crop": {
+        "x": 920,
+        "y": 600,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [975, 704],
+          [1315, 692],
+          [1320, 842],
+          [945, 842]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A quiet breeze bends the painted orange-red poppies, white daisies and sunlit golden grass tufts along the lower-right border slightly right and lets them recover upright. Keep the painted texture and warm tones unchanged with no wind streaks or new blossoms. Hold the carved sun stone, dirt road edge and surrounding short turf completely still.",
+      "retryOf": null,
+      "why": "Completes the living wildflower frame across the bottom-right meadow."
+    },
+    {
+      "element": "southwest-hawthorn-tree",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 660,
+        "width": 240,
+        "height": 135
+      },
+      "mask": [
+        [
+          [12, 705],
+          [62, 678],
+          [132, 682],
+          [156, 722],
+          [138, 756],
+          [36, 758]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A soft breeze rocks the cream-blossomed olive-green crown of the southwest hawthorn tree a few pixels right and eases it smoothly back to rest. Keep every blossom attached to its soft painted foliage cluster with no stray sprays or new twigs. Hold the dark brown trunk, cast shadow and surrounding wildflowers motionless.",
+      "retryOf": null,
+      "why": "Animates the last untouched hawthorn tree anchoring the southwest corner."
+    }
+  ]
+}

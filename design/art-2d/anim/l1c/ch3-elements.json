@@ -1,0 +1,198 @@
+{
+  "island": "l1c",
+  "elements": [
+    {
+      "element": "southeast-oak-grove",
+      "kind": "foliage",
+      "crop": {
+        "x": 1398,
+        "y": 582,
+        "width": 448,
+        "height": 252
+      },
+      "mask": [
+        [
+          [1585, 695],
+          [1662, 658],
+          [1748, 694],
+          [1832, 718],
+          [1836, 796],
+          [1705, 804],
+          [1655, 810],
+          [1578, 790]
+        ],
+        [
+          [1405, 656],
+          [1468, 656],
+          [1496, 735],
+          [1492, 786],
+          [1414, 786],
+          [1405, 720]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A gentle meadow breeze nudges the rounded green canopy of the southeast oak and the nearby leafy hedgerow bushes a few pixels right and back together. Keep the soft rounded painted foliage clumps intact with no new twigs, pointed leaves or outline changes. Hold the brown tree trunk, grey boulders, grass lawn, castle walls and cast shadows completely still.",
+      "retryOf": null,
+      "why": "Animates the large untouched southeast oak tree and four surrounding bushes near the castle."
+    },
+    {
+      "element": "east-meadow-fir",
+      "kind": "foliage",
+      "crop": {
+        "x": 1566,
+        "y": 352,
+        "width": 256,
+        "height": 144
+      },
+      "mask": [
+        [
+          [1632, 358],
+          [1668, 396],
+          [1688, 448],
+          [1672, 474],
+          [1594, 474],
+          [1578, 446],
+          [1600, 396]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A light breeze tilts the pointed tip and layered dark-green boughs of the lone eastern fir tree three pixels right and eases them smoothly back to rest. Preserve the exact rounded painted fir silhouette without sharpening needles or sprouting extra branches. Keep the brown base trunk, ground shadow, surrounding grass and distant oak fixed.",
+      "retryOf": null,
+      "why": "Brings motion to the untouched central-east fir between the windmill and castle."
+    },
+    {
+      "element": "northeast-meadow-shrubs",
+      "kind": "foliage",
+      "crop": {
+        "x": 1414,
+        "y": 0,
+        "width": 224,
+        "height": 126
+      },
+      "mask": [
+        [
+          [1422, 16],
+          [1524, 16],
+          [1532, 82],
+          [1514, 118],
+          [1478, 118],
+          [1474, 90],
+          [1422, 82]
+        ],
+        [
+          [1554, 8],
+          [1630, 8],
+          [1630, 78],
+          [1554, 78]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A soft breeze rocks the two rounded olive-green bushes and the small white-and-yellow daisy clump beneath them gently to the right and back. Keep every painted leaf lobe soft and rounded with no brightening or new stems. Hold the meadow grass and ground shadows motionless.",
+      "retryOf": null,
+      "why": "Adds lively foliage movement along the upper-right meadow above the windmill."
+    },
+    {
+      "element": "northwest-shrubs",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 72,
+        "width": 288,
+        "height": 162
+      },
+      "mask": [
+        [
+          [16, 82],
+          [108, 82],
+          [134, 138],
+          [138, 162],
+          [158, 176],
+          [158, 224],
+          [56, 226],
+          [28, 174],
+          [14, 130]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A mild breeze sways the two rounded green bushes and the tiny white daisy blossoms between them by a few pixels right and back to rest. Maintain the exact soft painted bush silhouettes and warm daylight tones with no new foliage or colour shift. Keep the grey stones, cave rockwork and surrounding meadow still.",
+      "retryOf": null,
+      "why": "Animates the lush bush cluster framing the upper-left meadow beside Cave A."
+    },
+    {
+      "element": "southwest-meadow-bush",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 680,
+        "width": 304,
+        "height": 171
+      },
+      "mask": [
+        [
+          [158, 718],
+          [246, 722],
+          [292, 758],
+          [288, 810],
+          [158, 806],
+          [146, 756]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A calm breeze gently shifts the upper green foliage lobes of the lower-left meadow bush and nods the nearby cluster of white-and-yellow daisies a few pixels right and back. Preserve the original painted shapes and muted colours with no new leaves or sparkles. Keep the grey boulders, open lawn and shadows fixed.",
+      "retryOf": null,
+      "why": "Balances the bottom-left meadow below the orange tree with gentle wind motion."
+    },
+    {
+      "element": "mid-east-bush",
+      "kind": "foliage",
+      "crop": {
+        "x": 1118,
+        "y": 152,
+        "width": 224,
+        "height": 126
+      },
+      "mask": [
+        [
+          [1160, 168],
+          [1274, 168],
+          [1274, 236],
+          [1160, 236]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A light breeze nudges the rounded green crown of the central meadow bush two to three pixels right and eases it smoothly back. Keep the soft rounded brushwork and base shadow intact with no extra leaves or brightness change. Hold the surrounding green lawn and dirt road edges completely still.",
+      "retryOf": null,
+      "why": "Places subtle live foliage motion right inside the central playfield loop."
+    },
+    {
+      "element": "west-fir-boughs",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 280,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [58, 290],
+          [108, 342],
+          [124, 422],
+          [8, 422],
+          [18, 344]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A subtle breeze flexes only the upper pointed tip and outer green bough tips of the tall western fir tree two to three pixels right and smoothly back into their exact starting outline. Do not slide the tree body sideways or move or darken the shadow beneath it. Keep the brown lower trunk, ground shadow, rocks and stone cave entrance completely frozen.",
+      "retryOf": "west-fir",
+      "why": "Retries the prominent western fir with a tight bough-only mask that locks trunk, shadow and cave."
+    }
+  ]
+}

@@ -1,0 +1,169 @@
+{
+  "island": "i07",
+  "elements": [
+    {
+      "element": "keep-green-banner",
+      "kind": "cloth",
+      "crop": {
+        "x": 990,
+        "y": 0,
+        "width": 192,
+        "height": 108
+      },
+      "mask": [
+        [
+          [1058, 6],
+          [1110, 6],
+          [1110, 38],
+          [1058, 38]
+        ]
+      ],
+      "featherPx": 3,
+      "depth": 2,
+      "motion": "A steady canyon breeze ripples the small green-and-gold pennant flying atop the watchtower keep, sending a soft shallow wave from its mast edge out to its forked tail and settling back. Keep the vertical flagpole, stone battlements, dark roof and hillside completely fixed with no distortion of the masonry.",
+      "retryOf": null,
+      "why": "Adds crisp high-altitude wind life right atop the landmark stone watchtower keep."
+    },
+    {
+      "element": "east-heath-grass",
+      "kind": "grass",
+      "crop": {
+        "x": 1195,
+        "y": 0,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [1220, 12],
+          [1545, 12],
+          [1545, 118],
+          [1220, 118]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A steady highland breeze combs across the northeast heath plateau, tilting the scattered pale grass tufts and warm olive meadow strokes two to three pixels right and letting them settle back upright. Keep the flat dark rock, warm earth tones and daylight unchanged with no pale wind ribbons or floating specks. Hold the stone road below and watchtower keep to the left completely still.",
+      "retryOf": null,
+      "why": "Brings windswept moorland movement across the broad upper-right plateau above the road loop."
+    },
+    {
+      "element": "east-windswept-tree",
+      "kind": "foliage",
+      "crop": {
+        "x": 1638,
+        "y": 248,
+        "width": 208,
+        "height": 117
+      },
+      "mask": [
+        [
+          [1756, 274],
+          [1832, 274],
+          [1834, 326],
+          [1768, 328]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A brisk moorland wind nudges the wind-bent dark-green crown of the lone eastern ridge tree three pixels right in the direction of its lean and eases it back to rest. Preserve the painted sculpted foliage mass with no sharp new needles or extra twigs. Keep the twisted brown trunk, shadow, rocks and grass slope completely still.",
+      "retryOf": null,
+      "why": "Animates the iconic wind-sculpted tree standing on the eastern cliff."
+    },
+    {
+      "element": "southwest-blossom-boughs",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 618,
+        "width": 416,
+        "height": 234
+      },
+      "mask": [
+        [
+          [8, 688],
+          [140, 692],
+          [238, 760],
+          [236, 844],
+          [8, 844]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A gentle valley breeze sways the soft olive-green foliage and scattered pale pink blossom clusters along the lower-left hedgerow a few pixels right and smoothly back. Keep the diffuse painted brushwork and soft blossom dabs intact without turning them into sharply outlined foreground branches. Hold the grass meadow, hearth and castle walls completely still.",
+      "retryOf": null,
+      "why": "Animates the large flowering shrub cluster framing the southwest meadow."
+    },
+    {
+      "element": "southeast-blossom-boughs",
+      "kind": "foliage",
+      "crop": {
+        "x": 1430,
+        "y": 618,
+        "width": 416,
+        "height": 234
+      },
+      "mask": [
+        [
+          [1695, 668],
+          [1838, 668],
+          [1838, 844],
+          [1612, 844],
+          [1620, 745]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A light canyon breeze rocks the leafy boughs and soft pink blossom sprays in the lower-right corner three pixels left and eases them smoothly back to rest. Preserve the soft painted brushwork with no new sharp twigs or foreground outlines. Keep the rocky meadow, small dark stones and grass slope completely motionless.",
+      "retryOf": null,
+      "why": "Matches the southwest hedgerow with swaying blossom foliage on the southeast rim."
+    },
+    {
+      "element": "northeast-blossom-canopy",
+      "kind": "foliage",
+      "crop": {
+        "x": 1558,
+        "y": 0,
+        "width": 288,
+        "height": 162
+      },
+      "mask": [
+        [
+          [1610, 8],
+          [1838, 8],
+          [1838, 152],
+          [1695, 152],
+          [1610, 95]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A mild wind stirs the overhanging olive-green treetops and pale blossom clusters along the northeast corner a few pixels right and gently back. Keep the painterly soft foliage texture intact without inventing sharp dark branches or shifting the underlying meadow. Hold the open heath grass and pale grass tufts below completely fixed.",
+      "retryOf": null,
+      "why": "Animates the overhanging foliage canopy framing the upper-right plateau."
+    },
+    {
+      "element": "west-heath-grass",
+      "kind": "grass",
+      "crop": {
+        "x": 0,
+        "y": 212,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [12, 224],
+          [244, 224],
+          [244, 416],
+          [12, 416]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A quiet breeze brushes across the open western heath, gently nodding the scattered pale-silver grass tufts and olive meadow blades two to three pixels right and letting them settle back. Keep the mossy rocks, earth tones and daylight unchanged with no pale wind streaks or floating dust.",
+      "retryOf": null,
+      "why": "Adds subtle windswept heath motion across the wide quiet western plateau."
+    }
+  ]
+}

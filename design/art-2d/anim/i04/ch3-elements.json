@@ -1,0 +1,183 @@
+{
+  "island": "i04",
+  "elements": [
+    {
+      "element": "mid-stream-bend",
+      "kind": "water",
+      "crop": {
+        "x": 690,
+        "y": 135,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [802, 200],
+          [876, 198],
+          [912, 240],
+          [902, 250],
+          [866, 224],
+          [806, 232]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 0,
+      "motion": "Clear emerald-teal stream currents glide slowly westward along the winding channel between the wooden bridge and the stepping stones, shifting the existing painted teal brushstrokes and faint pale ripples a few pixels downstream. Keep the muted translucent texture intact with no flat cream ribbons, hard outlines or bright flashes. Hold the mossy banks, stepping stones and wooden bridge completely still.",
+      "retryOf": null,
+      "why": "Animates the central static stretch of the emerald stream between the two bridges."
+    },
+    {
+      "element": "crystal-tree-shards",
+      "kind": "crystal",
+      "crop": {
+        "x": 638,
+        "y": 564,
+        "width": 256,
+        "height": 144
+      },
+      "mask": [
+        [
+          [746, 574],
+          [788, 574],
+          [804, 608],
+          [812, 658],
+          [768, 678],
+          [708, 658],
+          [718, 604]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 1,
+      "motion": "A soft mint-emerald glint breathes gently upward inside the tall painted green crystal shards nestled in the tree roots, then dims smoothly back to the opening luminance. Keep every crystal silhouette, bevel and tip rigid, with no new crystals growing and no light spilling onto the gnarled brown roots, grass or stepping stones.",
+      "retryOf": null,
+      "why": "Brings the island's signature glowing emerald crystal cluster beneath the ancient tree to life."
+    },
+    {
+      "element": "goal-brazier-flame",
+      "kind": "fire",
+      "crop": {
+        "x": 1550,
+        "y": 528,
+        "width": 176,
+        "height": 99
+      },
+      "mask": [
+        [
+          [1584, 548],
+          [1620, 548],
+          [1620, 588],
+          [1584, 588]
+        ]
+      ],
+      "featherPx": 4,
+      "depth": 1,
+      "motion": "The painted amber-and-gold tongues of flame inside the stone beacon brazier flicker softly upward and lean slightly right, settling smoothly back to their opening pose. Keep the flame compact at its painted size and warm palette with no bright flash or glow spilling onto the dark iron bowl, stone pedestal, grass or castle wall.",
+      "retryOf": null,
+      "why": "Ignites the live fire brazier standing right beside the goal castle."
+    },
+    {
+      "element": "shrine-sapling-foliage",
+      "kind": "foliage",
+      "crop": {
+        "x": 1475,
+        "y": 220,
+        "width": 256,
+        "height": 144
+      },
+      "mask": [
+        [
+          [1574, 246],
+          [1652, 246],
+          [1650, 318],
+          [1578, 316]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A gentle woodland breeze rocks the airy sunlit green leaves of the slender sapling growing from the mossy stone shrine three pixels right and eases them softly back. Keep the painted leaf clusters intact with no new twigs or outlines. Hold the mossy stone shrine, steps, crystal apex and surrounding grass completely still.",
+      "retryOf": null,
+      "why": "Animates the charming woodland shrine landmark on the eastern hillside."
+    },
+    {
+      "element": "northwest-fern-bank",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [8, 8],
+          [118, 8],
+          [122, 132],
+          [8, 136]
+        ],
+        [
+          [295, 14],
+          [364, 14],
+          [364, 130],
+          [295, 130]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A light forest breeze flexes the long arching green fern fronds in the upper-left corner and softly ripples the sunlit meadow grass beside the mossy blocks by a few pixels right and back. Preserve the exact hand-painted frond shapes without adding sharp outlines or pale wind streaks. Keep every mossy stone slab and shadow completely motionless.",
+      "retryOf": null,
+      "why": "Adds lush woodland fern and meadow motion to the northwest ruins corner."
+    },
+    {
+      "element": "northeast-fern-bank",
+      "kind": "foliage",
+      "crop": {
+        "x": 1462,
+        "y": 0,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [1485, 8],
+          [1665, 8],
+          [1665, 92],
+          [1690, 122],
+          [1834, 122],
+          [1836, 204],
+          [1485, 204]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A quiet forest breeze sways the overarching green fern fronds below the northeast stone blocks and gently stirs the sunlit grass meadow beside them a few pixels left and back. Keep all painted fern tips soft and intact with no new stems or colour shifts. Hold the carved mossy stone blocks and cast shadows completely fixed.",
+      "retryOf": null,
+      "why": "Animates the large lush woodland ferns and meadow framing the upper-right hillside."
+    },
+    {
+      "element": "southwest-fern-fronds",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 636,
+        "width": 384,
+        "height": 216
+      },
+      "mask": [
+        [
+          [10, 646],
+          [138, 646],
+          [326, 725],
+          [322, 842],
+          [118, 842],
+          [104, 738],
+          [10, 725]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A soft breeze gently waves the large green fern fronds and surrounding sunlit grass tufts along the lower-left woodland floor a few pixels right and smoothly back. Keep the hand-painted leafy brushwork and warm daylight unchanged with no pale streaks or new blades. Hold the mossy stone ruin corner and ground shadows completely still.",
+      "retryOf": null,
+      "why": "Balances the southern woodland foreground with large swaying fern fronds."
+    }
+  ]
+}

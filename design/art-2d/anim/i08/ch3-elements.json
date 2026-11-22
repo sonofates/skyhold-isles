@@ -1,0 +1,174 @@
+{
+  "island": "i08",
+  "elements": [
+    {
+      "element": "east-moat-lilypond",
+      "kind": "water",
+      "crop": {
+        "x": 838,
+        "y": 148,
+        "width": 256,
+        "height": 144
+      },
+      "mask": [
+        [
+          [906, 176],
+          [1004, 176],
+          [1004, 226],
+          [906, 226]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 0,
+      "motion": "Quiet pond ripples drift two to three pixels horizontally across the muted blue-teal water of the central moat pool and settle smoothly back. Keep the green lily pads, grassy banks, stone road above and wooden bridge planks below completely still, with no bright rings, outlines or colour changes.",
+      "retryOf": null,
+      "why": "Animates the untouched central-east moat lily pond right beside the drawbridge."
+    },
+    {
+      "element": "south-bastion-moat",
+      "kind": "water",
+      "crop": {
+        "x": 555,
+        "y": 314,
+        "width": 240,
+        "height": 135
+      },
+      "mask": [
+        [
+          [598, 338],
+          [744, 338],
+          [744, 386],
+          [712, 392],
+          [682, 412],
+          [608, 416]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 0,
+      "motion": "A slow subtle drift shifts the muted teal-green water strokes between the lily pads in the lower bastion moat two to three pixels left and smoothly back. Keep the floating green lily leaves, ruined stone masonry above, reed bank and castle wall completely motionless, with no concentric rings or bright highlights.",
+      "retryOf": null,
+      "why": "Completes the central bastion moat directly below the shipped upper moat tile."
+    },
+    {
+      "element": "southwest-lantern-flame",
+      "kind": "fire",
+      "crop": {
+        "x": 440,
+        "y": 642,
+        "width": 176,
+        "height": 99
+      },
+      "mask": [
+        [
+          [516, 662],
+          [552, 662],
+          [552, 704],
+          [516, 704]
+        ]
+      ],
+      "featherPx": 3,
+      "depth": 1,
+      "motion": "Inside the standing iron lantern, the small painted amber-orange candle flame breathes gently upward and leans slightly left, then settles back to its opening shape. Keep the dark iron bars, cap, stone plinth and surrounding grass completely fixed, and confine the warm flame motion strictly inside the glass panes with no light spilling onto the meadow.",
+      "retryOf": null,
+      "why": "Brings warm focal-point life to the freestanding stone lantern in the southwest meadow."
+    },
+    {
+      "element": "west-lake-bay",
+      "kind": "water",
+      "crop": {
+        "x": 0,
+        "y": 220,
+        "width": 416,
+        "height": 234
+      },
+      "mask": [
+        [
+          [8, 228],
+          [268, 228],
+          [238, 315],
+          [145, 385],
+          [102, 438],
+          [8, 438]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Calm lake water drifts gently across the western bay, sliding the existing muted blue-teal surface brushstrokes two to three pixels rightward and easing them smoothly back. Preserve the exact subdued painted water values without creating bright rings, gold bands, new glare or hard outlines. Keep all lily pads, shoreline reeds and grassy banks completely still.",
+      "retryOf": null,
+      "why": "Animates the large untried western lake cove between the ruined arch and cave."
+    },
+    {
+      "element": "northeast-lake-bay",
+      "kind": "water",
+      "crop": {
+        "x": 1430,
+        "y": 0,
+        "width": 416,
+        "height": 234
+      },
+      "mask": [
+        [
+          [1560, 10],
+          [1836, 10],
+          [1836, 224],
+          [1615, 224],
+          [1562, 115]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A slow calm drift shifts the existing muted teal-blue water strokes across the northeast lake bay two to three pixels leftward and smoothly back to rest. Do not brighten the water, widen pale streaks or form concentric rings or outlines. Hold every green lily pad, shore reed cluster and grassy bank completely fixed.",
+      "retryOf": null,
+      "why": "Brings calm lake movement to the untried northeast shoreline."
+    },
+    {
+      "element": "west-arch-waters",
+      "kind": "water",
+      "crop": {
+        "x": 0,
+        "y": 12,
+        "width": 352,
+        "height": 198
+      },
+      "mask": [
+        [
+          [8, 20],
+          [174, 20],
+          [174, 166],
+          [336, 166],
+          [336, 200],
+          [8, 200]
+        ]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "In the open muted teal lake water beside the drowned stone arch, ease the existing painted horizontal water strokes two to three pixels right and softly back in place. Keep the subdued tones and loose brushwork identical with zero concentric rings, zero bright gold bands and zero outlines. Hold the stone arch, footings, lily pads and grassy bank completely still.",
+      "retryOf": "ruined-arch-reflection",
+      "why": "Retries the iconic drowned-arch water with an arch-excluding mask and subdued anti-gold-ring prompt."
+    },
+    {
+      "element": "southeast-lake-waters",
+      "kind": "water",
+      "crop": {
+        "x": 1446,
+        "y": 627,
+        "width": 400,
+        "height": 225
+      },
+      "mask": [
+        [
+          [1632, 650],
+          [1836, 650],
+          [1836, 842],
+          [1508, 842],
+          [1535, 735]
+        ]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "Calm muted teal lake water in the southeast corner shifts gently two to three pixels left and eases back along the existing painted surface brushwork. Keep the original muted palette and soft reflections unchanged with no concentric gold bands, bright outlines or expanding streaks. Hold the lily pads, shoreline reeds and grassy shore completely still.",
+      "retryOf": "southern-reflection",
+      "why": "Retries the large southeast lake corner with a subdued teal drift prompt avoiding concentric gold rings."
+    }
+  ]
+}

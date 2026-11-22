@@ -1,0 +1,177 @@
+{
+  "island": "i03",
+  "elements": [
+    {
+      "element": "upper-east-ice-head",
+      "kind": "water",
+      "crop": {
+        "x": 1558,
+        "y": 0,
+        "width": 288,
+        "height": 162
+      },
+      "mask": [
+        [
+          [1652, 6],
+          [1728, 6],
+          [1702, 124],
+          [1632, 124]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "The narrow glacial blue stream at the upper gorge glides steadily downward and slightly left, carrying its existing pale ice-blue current lines past the snowy banks. Keep the muted icy palette and painted brushwork unchanged with no flat opaque white ribbons or bright glare. Hold the snowy ledges, dark rocks and pine trees on both sides completely still.",
+      "retryOf": null,
+      "why": "Connects the top edge of the eastern glacial channel seamlessly into the shipped mid-channel."
+    },
+    {
+      "element": "mid-east-ice-rapids",
+      "kind": "waterfall",
+      "crop": {
+        "x": 1558,
+        "y": 382,
+        "width": 288,
+        "height": 162
+      },
+      "mask": [
+        [
+          [1700, 390],
+          [1802, 390],
+          [1814, 536],
+          [1732, 536]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "Thin textured pale-white and turquoise-blue streaks stream smoothly downward through the narrow mid-gorge rapids along the painted channel curve. Keep the foam soft and integrated with the blue water, avoiding flat opaque ribbons or hard outlines. Hold the pink-lit snow shelves, icicles and rocky gorge walls completely still.",
+      "retryOf": null,
+      "why": "Animates the frozen middle section of the rushing eastern ice gorge."
+    },
+    {
+      "element": "south-east-ice-gorge",
+      "kind": "waterfall",
+      "crop": {
+        "x": 1526,
+        "y": 552,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [1728, 558],
+          [1814, 558],
+          [1822, 724],
+          [1734, 724]
+        ]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "Soft glacial blue current lines and fine pale spray threads flow continuously downward along the lower eastern ice gorge without widening the stream or forming flat white bands. Keep the snowy cliff ribs, icicles, rocks and winter hillside completely still.",
+      "retryOf": null,
+      "why": "Completes the full top-to-bottom flow of the island's signature eastern glacial river."
+    },
+    {
+      "element": "southeast-ice-crystals",
+      "kind": "crystal",
+      "crop": {
+        "x": 1460,
+        "y": 699,
+        "width": 272,
+        "height": 153
+      },
+      "mask": [
+        [
+          [1528, 790],
+          [1615, 730],
+          [1676, 732],
+          [1686, 842],
+          [1518, 842]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 1,
+      "motion": "A subtle pale ice-blue sheen breathes slowly upward along the painted inner facets of the translucent glacial crystal spires, then settles back to its original value. Keep all crystal outlines, sharp tips and internal bevels completely rigid with no new light spilling onto the snow or rocks around the base.",
+      "retryOf": null,
+      "why": "Gives the large translucent ice crystal formation in the southeast corner a crisp wintry shimmer."
+    },
+    {
+      "element": "northwest-spruce-ridge",
+      "kind": "foliage",
+      "crop": {
+        "x": 0,
+        "y": 0,
+        "width": 352,
+        "height": 198
+      },
+      "mask": [
+        [
+          [8, 8],
+          [218, 8],
+          [198, 96],
+          [122, 92],
+          [50, 128],
+          [8, 122]
+        ],
+        [
+          [278, 106],
+          [312, 158],
+          [306, 178],
+          [248, 178],
+          [246, 152]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A cold mountain breeze nudges the snow-dusted dark-green boughs of the northwest spruce stand and the lone snowy spruce beside them two to three pixels right and smoothly back. Keep the soft painted snow caps and blurred pine brushwork identical without resolving sharp individual needles or opening holes. Hold the blue ice crystals, rocks and snow slope completely still.",
+      "retryOf": null,
+      "why": "Animates the prominent snow-laden spruce grove framing the northwest ridge."
+    },
+    {
+      "element": "northeast-spruce-stand",
+      "kind": "foliage",
+      "crop": {
+        "x": 1320,
+        "y": 0,
+        "width": 320,
+        "height": 180
+      },
+      "mask": [
+        [
+          [1422, 8],
+          [1622, 8],
+          [1614, 118],
+          [1416, 116]
+        ]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "A brisk alpine breeze rocks the upper snow-dusted pine boughs of the northeast spruce cluster two to three pixels right and eases them back to rest. Preserve the exact soft painted brushwork and snow clusters without sharpening needles or growing branches. Keep the snowy slope, rocks and ice ridge completely still.",
+      "retryOf": null,
+      "why": "Adds wintry wind movement across the upper-right spruce stand beside the gorge head."
+    },
+    {
+      "element": "upper-arch-stream",
+      "kind": "water",
+      "crop": {
+        "x": 0,
+        "y": 318,
+        "width": 240,
+        "height": 135
+      },
+      "mask": [
+        [
+          [8, 354],
+          [124, 366],
+          [142, 398],
+          [120, 412],
+          [8, 392]
+        ]
+      ],
+      "featherPx": 4,
+      "depth": 0,
+      "motion": "The muted slate-blue water above the little stone arch glides gently rightward toward the bridge shadow, shifting only the existing fine painted surface strokes a few pixels downstream without creating flat opaque white crescents, bright ribbons or level changes. Keep the snow banks, mossy stones, stone arch and cave entrance completely motionless.",
+      "retryOf": "upper-cascade",
+      "why": "Retries the upper western feed stream with a wider crop and textured anti-ribbon water prompt."
+    }
+  ]
+}
