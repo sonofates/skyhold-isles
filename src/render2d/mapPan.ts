@@ -45,6 +45,18 @@ export class MapPan {
     this.stop();
   }
 
+  /** Syncs a new range and offset during pinch-zoom (cancels glides/inertia). */
+  setView(range: PanRange, x: number, y: number): void {
+    this.range = range;
+    const c = clampPan(range, x, y);
+    this.x = c.x;
+    this.y = c.y;
+    this.vx = 0;
+    this.vy = 0;
+    this.target = null;
+    this.samples.length = 0;
+  }
+
   /** Stops every glide (and a drag). */
   stop(): void {
     this.vx = 0;
