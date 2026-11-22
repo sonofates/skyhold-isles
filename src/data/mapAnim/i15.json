@@ -5,11 +5,11 @@
     "file": "ambient/i15/loops-1x.mp4",
     "mask": "ambient/i15/mask-1x.webp",
     "width": 416,
-    "height": 88,
+    "height": 152,
     "fps": 12
   },
   "width": 832,
-  "height": 176,
+  "height": 304,
   "fps": 24,
   "elements": [
     {
@@ -22,8 +22,8 @@
       ],
       "depth": 0,
       "cell": [
-        348,
         4,
+        168,
         318,
         119
       ]
@@ -42,6 +42,22 @@
         4,
         335,
         155
+      ]
+    },
+    {
+      "id": "north-lantern-reeds-v2a",
+      "rect": [
+        1015.9,
+        14.625,
+        129.8375,
+        62.2375
+      ],
+      "depth": 2,
+      "cell": [
+        348,
+        4,
+        260,
+        125
       ]
     }
   ]

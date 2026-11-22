@@ -5,11 +5,11 @@
     "file": "ambient/i14/loops-1x.mp4",
     "mask": "ambient/i14/mask-1x.webp",
     "width": 416,
-    "height": 248,
+    "height": 304,
     "fps": 12
   },
   "width": 832,
-  "height": 496,
+  "height": 608,
   "fps": 24,
   "elements": [
     {
@@ -23,7 +23,7 @@
       "depth": 1,
       "cell": [
         4,
-        356,
+        476,
         709,
         121
       ]
@@ -38,8 +38,8 @@
       ],
       "depth": 2,
       "cell": [
-        308,
         4,
+        324,
         356,
         143
       ]
@@ -54,7 +54,7 @@
       ],
       "depth": 2,
       "cell": [
-        4,
+        420,
         4,
         294,
         212
@@ -70,10 +70,26 @@
       ],
       "depth": 2,
       "cell": [
-        4,
-        224,
+        368,
+        324,
         227,
         124
+      ]
+    },
+    {
+      "id": "southwest-canyon-agaves-v2b",
+      "rect": [
+        13.05,
+        642.05,
+        202.5,
+        155.025
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        405,
+        311
       ]
     }
   ]

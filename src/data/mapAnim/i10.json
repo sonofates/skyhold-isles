@@ -5,11 +5,11 @@
     "file": "ambient/i10/loops-1x.mp4",
     "mask": "ambient/i10/mask-1x.webp",
     "width": 416,
-    "height": 152,
+    "height": 200,
     "fps": 12
   },
   "width": 832,
-  "height": 304,
+  "height": 400,
   "fps": 24,
   "elements": [
     {
@@ -22,7 +22,7 @@
       ],
       "depth": 0,
       "cell": [
-        4,
+        192,
         4,
         596,
         192
@@ -39,9 +39,25 @@
       "depth": 0,
       "cell": [
         4,
-        204,
+        300,
         315,
         87
+      ]
+    },
+    {
+      "id": "northwest-willow-grove-v2a",
+      "rect": [
+        42.75,
+        112.575,
+        88.2,
+        142.875
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        177,
+        286
       ]
     }
   ]
