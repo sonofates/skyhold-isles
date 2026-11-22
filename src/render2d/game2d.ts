@@ -19,7 +19,16 @@ import type { HeroInitConfig, HeroRuntimeState } from '../sim/heroSystem.ts';
 import { computeSellRefund, SimWorld, type AbilityRuntimeState } from '../sim/world.ts';
 import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
 import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan, type BackgroundLifecycleHandle2D } from './audio2d.ts';
-import { AdaptiveQuality, isDesktopClient, isSoftwareRenderer, qualityOverride, renderResolution, type QualityTier } from './renderResolution.ts';
+import {
+  AdaptiveQuality,
+  isDesktopClient,
+  isSoftwareRenderer,
+  MOBILE_BOOT_GRACE_MS,
+  MOBILE_RESUME_GRACE_MS,
+  qualityOverride,
+  renderResolution,
+  type QualityTier,
+} from './renderResolution.ts';
 import { BuildRing, type RingAction } from './buildRing.ts';
 import { DamageNumbers2D } from './damageNumbers2d.ts';
 import { EndPanel, endStars } from './endPanel.ts';
@@ -293,7 +302,13 @@ export class Game2D {
     art = withBarracksArt(art);
     this.app = app;
     const query = new URLSearchParams(location.search);
-    this.quality = new AdaptiveQuality(qualityOverride(query.get('quality')), hooks.initialUnlockedTier ?? 'high', isDesktopClient(query));
+    const gl = (app.renderer as unknown as { gl?: WebGL2RenderingContext }).gl;
+    this.quality = new AdaptiveQuality(
+      qualityOverride(query.get('quality')),
+      hooks.initialUnlockedTier ?? 'high',
+      isDesktopClient(query),
+      isSoftwareRenderer(gl),
+    );
     this.dprOverride = Number(query.get('dpr')) || undefined;
     this.benchWave = hooks.endless && Number(query.get('bench')) > 0 ? Number(query.get('wave')) : 0;
     this.art = art;
@@ -555,6 +570,7 @@ export class Game2D {
     this.boltActive = 0;
     this.hudGoldDirty = true;
     this.hudGoldTimer = 0;
+    this.quality.resetForLevel();
     if (audio) {
       audio.sound.setMusicContext(LEVELS[this.level.index]?.id ?? this.level.id, 'build');
       this.unbindAudio = bindAudio2D(this.events, audio.sound,
@@ -843,9 +859,11 @@ export class Game2D {
         this.applyResolution(this.app.screen.width, this.app.screen.height);
       }
       if (resized) {
+        this.goldPops.enabled = this.quality.tier !== 'low';
         this.app.render();
         flushGpu(gl);
       }
+      this.quality.beginGrace(MOBILE_BOOT_GRACE_MS);
       this.quality.observe(0, false);
     } else {
       this.app.render();
@@ -979,8 +997,10 @@ export class Game2D {
   }
 
   resize(w: number, h: number): void {
+    const changed = this.viewW > 0 && (w !== this.viewW || h !== this.viewH);
     this.viewW = w;
     this.viewH = h;
+    if (changed) this.quality.beginGrace(MOBILE_RESUME_GRACE_MS);
     this.applyResolution(w, h);
     this.insets = readSafeInsets();
     this.ring.insets = this.insets;
@@ -1010,9 +1030,20 @@ export class Game2D {
     return this.quality.tier;
   }
 
+  /** Arms or extends mobile quality grace around async uploads (map swaps, video/sway init). */
+  notifyQualityGrace(ms?: number): void {
+    this.quality.beginGrace(ms);
+  }
+
+  /** Tracks whether async boot texture warmup is still uploading to the GPU (mobile hardware). */
+  setQualityWarmupPending(pending: boolean): void {
+    this.quality.setWarmupPending(pending);
+  }
+
   /** One rendered frame. */
   frame(dtSec: number): void {
-    if (this.quality.observe(this.app.ticker.elapsedMS, !document.hidden)) {
+    const activeForQuality = !document.hidden && (this.quality.isDesktop || this.quality.isSoftware || !this.stepper.paused);
+    if (this.quality.observe(this.app.ticker.elapsedMS, activeForQuality)) {
       this.fx.setQuality(this.quality.tier);
       this.map.setQuality(this.quality.tier);
       this.goldPops.enabled = this.quality.tier !== 'low';
@@ -1845,6 +1876,7 @@ export class Game2D {
       },
       onForeground: () => {
         this.refreshSettings();
+        this.quality.beginGrace(MOBILE_RESUME_GRACE_MS);
         // Deliberately keep `this.stepper.paused === true` and `'Paused'` banner on resume.
         this.hooks.onBackgroundChange?.(false);
       },
