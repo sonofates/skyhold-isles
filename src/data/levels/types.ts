@@ -6,6 +6,8 @@ export interface WaveGroupDef {
   readonly count: number;
   readonly spawnInterval: number;
   readonly startDelay: number;
+  /** HP multiplier for members of this formation. Cloud Hauler cargo retains the wave HP scale. */
+  readonly hpScale?: number;
   /** Spawn the group as Empowered elites (more HP/armor/reward, gold aura). */
   readonly elite?: boolean;
   /** Ground lane to spawn on: 0 = `pathWaypoints` (default), n = `extraGroundPaths[n - 1]`. */

@@ -83,7 +83,7 @@ export class EnemySystem {
   speedMul = 1;
   armorBonus = 0;
 
-  spawnEnemy(type: EnemyType, hpScale = 1, elite = false, lane = 0): EnemyEntity | null {
+  spawnEnemy(type: EnemyType, hpScale = 1, elite = false, lane = 0, groupHpScale = 1): EnemyEntity | null {
     const def = ENEMY_DEFS[type];
     const hpMul = elite ? ELITE_MODIFIERS.hpMul : 1;
     const validLane =
@@ -92,13 +92,16 @@ export class EnemySystem {
       type,
       validLane,
       0,
-      Math.round(def.maxHp * hpScale * hpMul),
+      Math.round(def.maxHp * (hpScale * groupHpScale) * hpMul),
       def.speed,
       elite ? Math.round(def.reward * ELITE_MODIFIERS.rewardMul) : def.reward,
       def.livesCost,
       elite ? ELITE_MODIFIERS.scaleMul : 1,
       false,
     );
+    if (entity && type === 'carrier') {
+      entity.cargoHpScale = Math.round(def.maxHp * hpScale * hpMul) / def.maxHp;
+    }
     if (entity && elite) {
       entity.elite = true;
       entity.armor += ELITE_MODIFIERS.armorBonus;
@@ -435,7 +438,7 @@ export class EnemySystem {
           _wreck.x = e.x;
           _wreck.y = e.y;
           _wreck.z = e.z;
-          _wreck.hpScale = this.hpScaleOf(e);
+          _wreck.hpScale = e.cargoHpScale;
           this.pool.releaseAtActivePos(pos);
           this.spawnDroppedRaiders(_wreck);
           continue;

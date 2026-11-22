@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, groundLaneCount } from '../../src/data/levels/index.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { parseLevel2D, type Level2DJson } from '../../src/data/levels2d/loader.ts';
@@ -28,6 +29,23 @@ const hasPil = (() => {
 const art = parseManifest(manifestJson);
 const ids = Array.from({ length: 16 }, (_, n) => 'i' + String(n + 1).padStart(2, '0'));
 
+const formations = [
+  { id: 'i04', wave: 'Terrace Siege', slot: 3, from: 'flyer', patch: { count: 16 } },
+  { id: 'i05', wave: 'Whirlwind', slot: 1, from: 'flyer', patch: { count: 9 } },
+  { id: 'i10', wave: 'Skitter Flood', slot: 0, from: 'flyer', patch: { count: 9 } },
+  { id: 'i13', wave: 'Downpour', slot: 2, from: 'flyer', patch: { count: 18 } },
+  { id: 'i13', wave: 'North Road', slot: 1, from: 'mite', patch: { enemyType: 'bellrunner', count: 4, startDelay: 3.6, spawnInterval: 1 } },
+  { id: 'i14', wave: 'Salt Wind', slot: 1, from: 'healer', patch: { enemyType: 'reedpiper', lane: 2, startDelay: 5.6, spawnInterval: 2.4 } },
+  { id: 'i15', wave: 'Veil of Mist', slot: 2, from: 'flyer', patch: { enemyType: 'draftwing' } },
+  { id: 'i16', wave: 'Gatecrash', slot: 2, from: 'brute', patch: { enemyType: 'kilnback' } },
+] as const;
+
+const air: Partial<Record<string, { hp?: number; count?: number; interval?: number }>> = {
+  i03: { hp: 0.75 }, i06: { count: 0.65, interval: 1.2 }, i07: { hp: 0.65 },
+  i08: { hp: 0.4, interval: 1.5 }, i11: { hp: 0.15 }, i13: { hp: 0.35 },
+  i14: { hp: 0.55, interval: 1.2 }, i15: { hp: 0.8, interval: 1.75 }, i16: { hp: 0.5, interval: 1.5 },
+};
+
 describe.each(ids)('%s campaign plot map', (id) => {
   const index = ids.indexOf(id);
   const file = `src/data/levels2d/${id}.json`;
@@ -39,18 +57,24 @@ describe.each(ids)('%s campaign plot map', (id) => {
     const level = getLevelById(id)!;
     expect(level).toBe(LEVELS_2D[index + 1]);
     expect(level.layout2d).toEqual(layout);
-    const formations = {
-      i13: { wave: 1, slot: 1, from: 'mite', replacement: { enemyType: 'bellrunner', count: 4, startDelay: 3.6, spawnInterval: 1 } },
-      i14: { wave: 9, slot: 1, from: 'healer', replacement: { enemyType: 'reedpiper', lane: 2, startDelay: 5.6, spawnInterval: 2.4 } },
-      i15: { wave: 3, slot: 2, from: 'flyer', replacement: { enemyType: 'draftwing' } },
-      i16: { wave: 2, slot: 2, from: 'brute', replacement: { enemyType: 'kilnback' } },
-    } as const;
-    if (id === 'i13' || id === 'i14' || id === 'i15' || id === 'i16') {
+    const overrides = formations.filter(formation => formation.id === id);
+    const tuning = air[id];
+    if (overrides.length || tuning) {
       const expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
-      const { wave, slot, from, replacement } = formations[id];
-      const group = expected[wave].groups[slot];
-      expect(group.enemyType).toBe(from);
-      expected[wave].groups[slot] = { ...group, ...replacement };
+      for (const { wave, slot, from, patch } of overrides) {
+        const group = expected.find(w => w.name === wave)!.groups[slot];
+        expect(group.enemyType).toBe(from);
+        Object.assign(group, patch);
+      }
+      if (tuning) {
+        for (const wave of expected) {
+          for (const group of wave.groups.filter(g => ENEMY_DEFS[g.enemyType].flying)) {
+            if (tuning.hp !== undefined) group.hpScale = tuning.hp;
+            if (tuning.count !== undefined) group.count = Math.round(group.count * tuning.count);
+            if (tuning.interval !== undefined) group.spawnInterval *= tuning.interval;
+          }
+        }
+      }
       expect(level.waves).toEqual(expected);
     } else {
       expect(level.waves).toBe(source.waves);

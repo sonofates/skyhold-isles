@@ -17,7 +17,7 @@ export const I19 = {
   flightPath: [],
   decorationSeed: 1019,
   startingGold: 365,
-  enemyHpScale: 1.82,
+  enemyHpScale: 1.7346,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'A Torn Basket', clearBonus: 24, groups: [
@@ -41,7 +41,7 @@ export const I19 = {
     ] },
     { name: 'The High Bough', clearBonus: 31, groups: [
       group('runner', 15, 0.35, 0, 1),
-      group('draftwing', 8, 0.54, 1.8),
+      group('draftwing', 10, 0.54, 1.8),
       group('blinker', 5, 0.7, 4),
     ] },
     { name: 'The Low Bough', clearBonus: 34, groups: [
@@ -84,11 +84,11 @@ export const I19 = {
   ],
   scriptedBuildOrder: [
     build(0, 9, 'tesla'), build(0, 15, 'barracks'), build(0, 17, 'frost'),
-    build(1, 16, 'cannon'), build(1, 0, 'frost'), upgrade(2, 9),
-    build(2, 11, 'archer'), build(3, 7, 'ballista', 'strongest'), upgrade(3, 16),
+    build(1, 5, 'cannon'), build(1, 0, 'frost'), upgrade(2, 9),
+    build(2, 11, 'archer'), build(3, 7, 'ballista', 'strongest'), upgrade(3, 5),
     build(4, 10, 'mortar'), upgrade(4, 17), build(5, 6, 'tesla'),
     upgrade(5, 7), upgrade(6, 9), build(6, 14, 'ballista'),
-    upgrade(7, 0), upgrade(7, 15), upgrade(8, 16), upgrade(8, 6),
+    upgrade(7, 0), upgrade(7, 15), upgrade(8, 5), upgrade(8, 6),
     upgrade(9, 14), upgrade(9, 7), upgrade(10, 11), upgrade(10, 10), upgrade(10, 17), upgrade(10, 6),
   ],
   weakBuildOrder: [

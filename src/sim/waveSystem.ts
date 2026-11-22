@@ -36,6 +36,7 @@ export interface WavePreview {
 export interface QueuedSpawn {
   readonly enemyType: EnemyType;
   readonly spawnTime: number;
+  readonly hpScale: number;
   readonly groupOrder: number;
   readonly seqInGroup: number;
   readonly elite: boolean;
@@ -270,6 +271,7 @@ function buildWaveQueueFromDef(wave: WaveDef): QueuedSpawn[] {
         elite: group.elite === true,
         lane: group.lane ?? 0,
         spawnTime: group.startDelay + i * group.spawnInterval,
+        hpScale: group.hpScale ?? 1,
         groupOrder: g,
         seqInGroup: i,
       });
@@ -617,7 +619,7 @@ export class WaveSystem {
   update(
     dt: number,
     getActiveEnemiesCount: () => number,
-    onSpawn: (type: EnemyType, hpScale: number, elite: boolean, lane: number) => void,
+    onSpawn: (type: EnemyType, hpScale: number, elite: boolean, lane: number, groupHpScale: number) => void,
     onAwardGold: (amount: number, clearedWaves?: number) => void,
     onAllClearedWin: () => void,
     onWaveCleared?: (clearedWaves: number) => void,
@@ -639,7 +641,7 @@ export class WaveSystem {
         this.spawnQueue[this.spawnCursor].spawnTime <= this.waveElapsed
       ) {
         const queued = this.spawnQueue[this.spawnCursor++];
-        onSpawn(queued.enemyType, hpScale, queued.elite, queued.lane);
+        onSpawn(queued.enemyType, hpScale, queued.elite, queued.lane, queued.hpScale);
       }
 
       if (this.skipGen !== gen) return;

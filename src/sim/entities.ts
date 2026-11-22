@@ -51,6 +51,8 @@ export interface EnemyEntity {
   baseArmor: number;
   /** Empowered elite variant (more HP/armor/reward, gold aura). */
   elite: boolean;
+  /** Wave and elite scaling inherited by raiders dropped by a Cloud Hauler. */
+  cargoHpScale: number;
   /** Raider dropped by a Cloud Hauler. */
   isDropped: boolean;
   /** Ground lane index (0 = main path, 1.. = level.extraGroundPaths). Flyers are always 0. */
@@ -129,6 +131,7 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     armorBreakTimer: 0,
     baseArmor: 0,
     elite: false,
+    cargoHpScale: 1,
     isDropped: false,
     lane: 0,
     laneProgressOffset: 0,

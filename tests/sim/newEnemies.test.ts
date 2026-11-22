@@ -205,9 +205,10 @@ describe('Loam Burrower', () => {
 });
 
 describe('Cloud Hauler', () => {
-  it('drops raiders onto the nearest ground point (never ahead of the goal margin) on death', () => {
+  it.each([1, 0.5])('drops full-strength raiders onto the nearest ground point at formation HP ×%s', groupHpScale => {
     const { world, events } = makeWorld();
-    const c = world.enemySystem.spawnEnemy('carrier', 1.5)!;
+    const c = world.enemySystem.spawnEnemy('carrier', 1.5, false, 0, groupHpScale)!;
+    expect(c.maxHp).toBe(Math.round(ENEMY_DEFS.carrier.maxHp * 1.5 * groupHpScale));
     tick(world, 2.0);
     const drops: Array<{ count: number }> = [];
     events.on('carrierDrop', (e) => drops.push({ count: e.count }));

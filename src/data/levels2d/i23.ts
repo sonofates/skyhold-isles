@@ -17,8 +17,8 @@ export const I23 = {
   flightPath: [],
   decorationSeed: 1229,
   startingGold: 400,
-  enemyHpScale: 2.678,
-  waveHpGrowth: 0.12,
+  enemyHpScale: 2.4832,
+  waveHpGrowth: 0.1,
   waves: [
     { name: 'First Pickings', clearBonus: 25, groups: [
       group('bellrunner', 5, 0.74),
@@ -97,14 +97,14 @@ export const I23 = {
     ] },
   ],
   scriptedBuildOrder: [
-    build(0, 17, 'tesla'), build(0, 19, 'barracks'), build(0, 4, 'archer'),
+    build(0, 17, 'tesla'), build(0, 16, 'barracks'), build(0, 4, 'archer'),
     build(1, 15, 'cannon'), build(1, 7, 'frost'), upgrade(2, 17),
     build(2, 1, 'archer'), build(3, 8, 'ballista', 'strongest'), upgrade(3, 15),
     build(4, 5, 'mortar'), upgrade(4, 4), build(5, 18, 'tesla'),
-    upgrade(5, 8), upgrade(6, 17), build(6, 16, 'ballista'),
-    upgrade(7, 7), upgrade(7, 19), upgrade(8, 15), upgrade(8, 18),
-    upgrade(9, 16), upgrade(9, 8), upgrade(10, 1), upgrade(10, 5), upgrade(10, 4),
-    upgrade(11, 18), upgrade(11, 7), upgrade(12, 16), upgrade(12, 5), upgrade(12, 19),
+    upgrade(5, 8), upgrade(6, 17), build(6, 19, 'ballista'),
+    upgrade(7, 7), upgrade(7, 16), upgrade(8, 15), upgrade(8, 18),
+    upgrade(9, 19), upgrade(9, 8), upgrade(10, 1), upgrade(10, 5), upgrade(10, 4),
+    upgrade(11, 18), upgrade(11, 7), upgrade(12, 19), upgrade(12, 5), upgrade(12, 16),
   ],
   weakBuildOrder: [
     build(0, 17, 'tesla'), build(0, 15, 'cannon'), build(0, 18, 'barracks'),

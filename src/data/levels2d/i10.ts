@@ -1,11 +1,12 @@
 import { LEVEL_10 } from '../levels/level10.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
 import layout from './i10.json';
 
 export const I10 = campaignIsland(LEVEL_10, layout, {
+  waves: replaceWaveEnemy(LEVEL_10, 'Skitter Flood', 'flyer', 'flyer', { count: 9 }),
   startingGold: 360,
-  enemyHpScale: 1.159,
-  waveHpGrowth: 0.16,
+  enemyHpScale: 1.0533,
+  waveHpGrowth: 0.2,
   sites: {
     '9,8': 13,
     '5,8': 10,

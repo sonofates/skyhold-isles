@@ -6,8 +6,9 @@ import layout from './i15.json';
 const moonwell = campaignIsland(LEVEL_15, layout, {
   waves: replaceWaveEnemy(LEVEL_15, 'Veil of Mist', 'flyer', 'draftwing'),
   startingGold: 360,
-  enemyHpScale: 4.12,
+  enemyHpScale: 4.22,
   waveHpGrowth: 0.0545,
+  flyingGroups: { hpScale: 0.8, intervalScale: 1.75 },
   sites: {
     '6,3': 14,
     '5,4': 24,

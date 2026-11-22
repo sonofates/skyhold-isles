@@ -1,10 +1,11 @@
 import { LEVEL_4 } from '../levels/level4.ts';
-import { campaignIsland } from './campaignIsland.ts';
+import { campaignIsland, replaceWaveEnemy } from './campaignIsland.ts';
 import layout from './i04.json';
 
 export const I04 = campaignIsland(LEVEL_4, layout, {
+  waves: replaceWaveEnemy(LEVEL_4, 'Terrace Siege', 'flyer', 'flyer', { count: 16 }),
   startingGold: 265,
-  enemyHpScale: 1.34,
+  enemyHpScale: 1.167,
   waveHpGrowth: 0.18,
   sites: {
     '2,3': 2,

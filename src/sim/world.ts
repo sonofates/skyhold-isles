@@ -961,6 +961,7 @@ export class SimWorld {
     hpScale: number,
     elite: boolean,
     lane: number,
+    groupHpScale: number,
   ): void => {
     const fx = this.waveSystem.getEndlessMutatorEffects();
     const spawned = this.enemySystem.spawnEnemy(
@@ -968,6 +969,7 @@ export class SimWorld {
       hpScale * this.mods.enemyHpMul * fx.hpMul,
       elite,
       lane,
+      groupHpScale,
     );
     if (spawned) {
       spawned.reward = Math.max(
