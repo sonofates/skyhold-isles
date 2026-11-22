@@ -5,11 +5,11 @@
     "file": "ambient/i06/loops-1x.mp4",
     "mask": "ambient/i06/mask-1x.webp",
     "width": 416,
-    "height": 520,
+    "height": 616,
     "fps": 12
   },
   "width": 832,
-  "height": 1040,
+  "height": 1232,
   "fps": 24,
   "elements": [
     {
@@ -55,7 +55,7 @@
       "depth": 0,
       "cell": [
         4,
-        876,
+        1068,
         567,
         145
       ]
@@ -74,6 +74,86 @@
         4,
         318,
         576
+      ]
+    },
+    {
+      "id": "east-lagoon-basin",
+      "rect": [
+        1085.0,
+        261.8,
+        231.3,
+        186.3
+      ],
+      "depth": 0,
+      "cell": [
+        500,
+        588,
+        232,
+        187
+      ]
+    },
+    {
+      "id": "northwest-ocean-surf",
+      "rect": [
+        8.0,
+        8.0,
+        206.2,
+        110.2
+      ],
+      "depth": 0,
+      "cell": [
+        580,
+        1068,
+        207,
+        111
+      ]
+    },
+    {
+      "id": "southeast-ocean-swell",
+      "rect": [
+        1668.0,
+        656.0,
+        170.25,
+        164.25
+      ],
+      "depth": 0,
+      "cell": [
+        284,
+        876,
+        171,
+        165
+      ]
+    },
+    {
+      "id": "southwest-ocean-surf",
+      "rect": [
+        10.0,
+        428.0,
+        178.25,
+        162.25
+      ],
+      "depth": 0,
+      "cell": [
+        464,
+        876,
+        179,
+        163
+      ]
+    },
+    {
+      "id": "southwest-palm-fronds",
+      "rect": [
+        185.8,
+        633.8,
+        268.5,
+        180.3
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        876,
+        269,
+        181
       ]
     }
   ]

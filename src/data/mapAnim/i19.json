@@ -5,11 +5,11 @@
     "file": "ambient/i19/loops-1x.mp4",
     "mask": "ambient/i19/mask-1x.webp",
     "width": 416,
-    "height": 408,
+    "height": 744,
     "fps": 12
   },
   "width": 832,
-  "height": 816,
+  "height": 1488,
   "fps": 24,
   "elements": [
     {
@@ -23,25 +23,9 @@
       "depth": 1,
       "cell": [
         4,
-        300,
+        812,
         625,
         282
-      ]
-    },
-    {
-      "id": "foreground-fig-leaves",
-      "rect": [
-        98.4,
-        708.0,
-        217.8,
-        144.0
-      ],
-      "depth": 1,
-      "cell": [
-        4,
-        4,
-        436,
-        288
       ]
     },
     {
@@ -55,9 +39,73 @@
       "depth": 1,
       "cell": [
         4,
-        592,
+        1104,
         370,
         206
+      ]
+    },
+    {
+      "id": "foreground-fig-leaves",
+      "rect": [
+        98.4,
+        708.0,
+        217.8,
+        144.0
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        516,
+        436,
+        288
+      ]
+    },
+    {
+      "id": "southeast-foreground-foliage",
+      "rect": [
+        1511.9,
+        649.85,
+        324.35,
+        194.35
+      ],
+      "depth": 1,
+      "cell": [
+        384,
+        1104,
+        325,
+        195
+      ]
+    },
+    {
+      "id": "hoist-seed-basket",
+      "rect": [
+        383.9625,
+        356.0125,
+        70.0375,
+        81.9
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        1320,
+        141,
+        164
+      ]
+    },
+    {
+      "id": "northeast-hanging-baskets",
+      "rect": [
+        1539.4,
+        25.4,
+        243.25,
+        250.6
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        487,
+        502
       ]
     }
   ]

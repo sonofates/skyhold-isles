@@ -5,13 +5,29 @@
     "file": "ambient/i24/loops-1x.mp4",
     "mask": "ambient/i24/mask-1x.webp",
     "width": 416,
-    "height": 136,
+    "height": 216,
     "fps": 12
   },
   "width": 832,
-  "height": 272,
+  "height": 432,
   "fps": 24,
   "elements": [
+    {
+      "id": "west-cleft-surge",
+      "rect": [
+        2.975,
+        111.975,
+        117.25,
+        105.7
+      ],
+      "depth": 0,
+      "cell": [
+        232,
+        4,
+        212,
+        191
+      ]
+    },
     {
       "id": "east-cove-breaker",
       "rect": [
@@ -29,19 +45,67 @@
       ]
     },
     {
-      "id": "west-cleft-surge",
+      "id": "southeast-reef-swell",
       "rect": [
-        2.975,
-        111.975,
-        117.25,
-        105.7
+        1748.0,
+        470.0,
+        90.25,
+        162.25
       ],
       "depth": 0,
       "cell": [
-        232,
+        552,
         4,
-        212,
-        191
+        91,
+        163
+      ]
+    },
+    {
+      "id": "west-mid-cliff-surf",
+      "rect": [
+        5.775,
+        243.975,
+        88.275,
+        180.125
+      ],
+      "depth": 0,
+      "cell": [
+        452,
+        4,
+        89,
+        181
+      ]
+    },
+    {
+      "id": "southwest-slope-grass",
+      "rect": [
+        159.9,
+        696.0,
+        308.4,
+        142.2
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        276,
+        309,
+        143
+      ]
+    },
+    {
+      "id": "coastal-fog-bell",
+      "rect": [
+        1428.6125,
+        492.6125,
+        38.775,
+        54.725
+      ],
+      "depth": 2,
+      "cell": [
+        324,
+        276,
+        78,
+        110
       ]
     }
   ]

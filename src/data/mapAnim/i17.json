@@ -5,11 +5,11 @@
     "file": "ambient/i17/loops-1x.mp4",
     "mask": "ambient/i17/mask-1x.webp",
     "width": 416,
-    "height": 80,
+    "height": 232,
     "fps": 12
   },
   "width": 832,
-  "height": 160,
+  "height": 464,
   "fps": 24,
   "elements": [
     {
@@ -22,10 +22,74 @@
       ],
       "depth": 0,
       "cell": [
-        4,
-        4,
+        508,
+        272,
         194,
         143
+      ]
+    },
+    {
+      "id": "southeast-sky-clouds",
+      "rect": [
+        1692.25,
+        588.25,
+        143.75,
+        153.75
+      ],
+      "depth": 0,
+      "cell": [
+        356,
+        272,
+        144,
+        154
+      ]
+    },
+    {
+      "id": "northeast-aqueduct-ivy",
+      "rect": [
+        1414.9,
+        9.9,
+        340.2,
+        182.4
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        272,
+        341,
+        183
+      ]
+    },
+    {
+      "id": "cloister-east-banner",
+      "rect": [
+        379.2375,
+        587.3,
+        87.3375,
+        129.625
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        175,
+        260
+      ]
+    },
+    {
+      "id": "cloister-hanging-bells",
+      "rect": [
+        90.125,
+        532.3,
+        233.7,
+        109.4875
+      ],
+      "depth": 2,
+      "cell": [
+        188,
+        4,
+        468,
+        219
       ]
     }
   ]

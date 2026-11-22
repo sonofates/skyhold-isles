@@ -5,11 +5,11 @@
     "file": "ambient/i07/loops-1x.mp4",
     "mask": "ambient/i07/mask-1x.webp",
     "width": 416,
-    "height": 192,
+    "height": 280,
     "fps": 12
   },
   "width": 832,
-  "height": 384,
+  "height": 560,
   "fps": 24,
   "elements": [
     {
@@ -58,6 +58,54 @@
         4,
         229,
         369
+      ]
+    },
+    {
+      "id": "east-windswept-tree",
+      "rect": [
+        1754.5125,
+        271.4,
+        82.0625,
+        59.15
+      ],
+      "depth": 1,
+      "cell": [
+        244,
+        384,
+        165,
+        119
+      ]
+    },
+    {
+      "id": "southwest-blossom-boughs",
+      "rect": [
+        7.8,
+        687.875,
+        230.425,
+        156.325
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        384,
+        231,
+        157
+      ]
+    },
+    {
+      "id": "keep-green-banner",
+      "rect": [
+        1054.35,
+        2.4,
+        59.4,
+        39.3
+      ],
+      "depth": 2,
+      "cell": [
+        420,
+        384,
+        119,
+        79
       ]
     }
   ]

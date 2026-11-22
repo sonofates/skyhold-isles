@@ -5,13 +5,29 @@
     "file": "ambient/i09/loops-1x.mp4",
     "mask": "ambient/i09/mask-1x.webp",
     "width": 416,
-    "height": 80,
+    "height": 136,
     "fps": 12
   },
   "width": 832,
-  "height": 160,
+  "height": 272,
   "fps": 24,
   "elements": [
+    {
+      "id": "west-cypress-grove",
+      "rect": [
+        13.875,
+        122.0,
+        230.25,
+        258.375
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        231,
+        259
+      ]
+    },
     {
       "id": "northwest-border-crown",
       "rect": [
@@ -22,7 +38,7 @@
       ],
       "depth": 2,
       "cell": [
-        4,
+        244,
         4,
         480,
         143

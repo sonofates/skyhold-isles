@@ -5,11 +5,11 @@
     "file": "ambient/i21/loops-1x.mp4",
     "mask": "ambient/i21/mask-1x.webp",
     "width": 416,
-    "height": 80,
+    "height": 160,
     "fps": 12
   },
   "width": 832,
-  "height": 160,
+  "height": 320,
   "fps": 24,
   "elements": [
     {
@@ -22,10 +22,58 @@
       ],
       "depth": 1,
       "cell": [
-        4,
+        332,
         4,
         391,
         141
+      ]
+    },
+    {
+      "id": "northeast-golden-grass",
+      "rect": [
+        1123.8375,
+        9.775,
+        328.325,
+        118.45
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        184,
+        329,
+        119
+      ]
+    },
+    {
+      "id": "west-downland-grass",
+      "rect": [
+        111.95,
+        333.75,
+        318.175,
+        170.5
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        319,
+        171
+      ]
+    },
+    {
+      "id": "kite-rack-canvas",
+      "rect": [
+        198.0,
+        213.9,
+        82.05,
+        50.25
+      ],
+      "depth": 2,
+      "cell": [
+        344,
+        184,
+        165,
+        101
       ]
     }
   ]

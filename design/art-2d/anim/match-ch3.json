@@ -1,0 +1,4859 @@
+{
+  "method": "Each decoded opening frame compared to all 166 prepared starts using mean per-channel local SSIM at 96x54 (area resampling, Gaussian 7x7, sigma 1.5, range 255). runnerUpSsim is the second-best prep for this take; nextTakeSsim is the next-best take for this prep. Automatic acceptance requires SSIM > 0.90 and lead > 0.10.",
+  "crfByIsland": {
+    "l1c": 16,
+    "i01": 18,
+    "i02": 16,
+    "i03": 16,
+    "i04": 19,
+    "i05": 20,
+    "i06": 19,
+    "i07": 16,
+    "i08": 16,
+    "i09": 16,
+    "i10": 16,
+    "i11": 16,
+    "i12": 16,
+    "i13": 16,
+    "i14": 16,
+    "i15": 16,
+    "i16": 16,
+    "i17": 16,
+    "i18": 16,
+    "i19": 19,
+    "i20": 17,
+    "i21": 16,
+    "i22": 16,
+    "i23": 16,
+    "i24": 16
+  },
+  "elements": [
+    {
+      "id": "l1c-east-meadow-fir",
+      "island": "l1c",
+      "element": "east-meadow-fir",
+      "file": "Breeze_blowing_fir_tree_branches_a5477ee3.mp4",
+      "ssim": 0.990258,
+      "runnerUpSsim": 0.501631,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.50857,
+      "status": "static",
+      "finding": "The tip bends through the rest-pose outline, leaving a second detached contour above the crown.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.25,
+          0.33
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          0
+        ],
+        "rawWrapMae": 0.87,
+        "adjacentP95Mae": 4.24,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "l1c-mid-east-bush",
+      "island": "l1c",
+      "element": "mid-east-bush",
+      "file": "Creating_seamless_looping_video_…_040e5245.mp4",
+      "ssim": 0.977594,
+      "runnerUpSsim": 0.64047,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.654611,
+      "status": "static",
+      "finding": "Two pairs of outlined yellow leaves sprout above the rounded crown and persist at the join.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.18
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.52,
+        "adjacentP95Mae": 2.23,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "l1c-northeast-meadow-shrubs",
+      "island": "l1c",
+      "element": "northeast-meadow-shrubs",
+      "file": "Breeze_rocking_bushes_and_daisies_78ff6ba5.mp4",
+      "ssim": 0.933278,
+      "runnerUpSsim": 0.550668,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.568263,
+      "status": "static",
+      "finding": "The camera shifts and the left shrub lifts away from its painted shadow.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          60.14,
+          162.12
+        ],
+        "maxAbsColorShiftBGR": [
+          6,
+          4,
+          4
+        ],
+        "rawWrapMae": 2.45,
+        "adjacentP95Mae": 10.32,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "l1c-northwest-shrubs",
+      "island": "l1c",
+      "element": "northwest-shrubs",
+      "file": "Breeze_swaying_bushes_and_daisies_9297a7cd.mp4",
+      "ssim": 0.991592,
+      "runnerUpSsim": 0.433053,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.440231,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The two rounded crowns shift around the daisies with their bases anchored in the grass.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          0
+        ],
+        "rawWrapMae": 0.85,
+        "adjacentP95Mae": 1.6,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "l1c-southeast-oak-grove",
+      "island": "l1c",
+      "element": "southeast-oak-grove",
+      "file": "Meado_breeze_moves_oak_canopy_ae245ebf.mp4",
+      "ssim": 0.991326,
+      "runnerUpSsim": 0.434471,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.438887,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The central oak crown stirs above its trunk while the nearby boulder holds its position.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.35,
+          0.18
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.13,
+        "adjacentP95Mae": 1.04,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "l1c-southwest-meadow-bush",
+      "island": "l1c",
+      "element": "southwest-meadow-bush",
+      "file": "Breeze_moving_foliage_and_daisies_5d22f5d5.mp4",
+      "ssim": 0.98926,
+      "runnerUpSsim": 0.632689,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.634278,
+      "status": "static",
+      "finding": "Detached dark leaves fly off the bush and across the grass.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.07,
+          0.05
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.98,
+        "adjacentP95Mae": 2.31,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "l1c-west-fir-boughs",
+      "island": "l1c",
+      "element": "west-fir-boughs",
+      "file": "Tree_boughs_moving_in_breeze_84c80ccd.mp4",
+      "ssim": 0.992193,
+      "runnerUpSsim": 0.343397,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.349391,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "paddingStartPx": 16
+      },
+      "finding": "The fir leans and recovers with a continuous dark contour around its boughs.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.2
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.2,
+        "adjacentP95Mae": 2.0,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-north-central-wildflowers",
+      "island": "i01",
+      "element": "north-central-wildflowers",
+      "file": "flow_e932f572.mp4",
+      "ssim": 0.98323,
+      "runnerUpSsim": 0.472523,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.477234,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The daisy and poppy heads sway along the edge of the bed.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.34,
+          0.27
+        ],
+        "maxAbsColorShiftBGR": [
+          7,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.19,
+        "adjacentP95Mae": 0.88,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-north-poppy-meadow",
+      "island": "i01",
+      "element": "north-poppy-meadow",
+      "file": "Breeze_ripples_painted_meadow_fl…_6a0063e9.mp4",
+      "ssim": 0.984911,
+      "runnerUpSsim": 0.394769,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.397884,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The red flower heads and intervening stems move together across the slope.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.32,
+          0.28
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          0,
+          1
+        ],
+        "rawWrapMae": 1.37,
+        "adjacentP95Mae": 2.33,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-northeast-poppy-field",
+      "island": "i01",
+      "element": "northeast-poppy-field",
+      "file": "Breeze_blowing_through_flower_me…_c1c5f215.mp4",
+      "ssim": 0.987016,
+      "runnerUpSsim": 0.380459,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.386921,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The taller seed heads bend above the poppies and settle back into the painted field.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.17,
+          0.11
+        ],
+        "maxAbsColorShiftBGR": [
+          6,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.23,
+        "adjacentP95Mae": 1.46,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-south-poppy-border",
+      "island": "i01",
+      "element": "south-poppy-border",
+      "file": "Create_seamless_meadow_loop_anim…_dc054a2f.mp4",
+      "ssim": 0.984483,
+      "runnerUpSsim": 0.390863,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.394875,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The sloping band of flowers bends along its length while the bare lawn holds.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.16,
+          0.81
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.23,
+        "adjacentP95Mae": 2.23,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-southeast-poppy-drift",
+      "island": "i01",
+      "element": "southeast-poppy-drift",
+      "file": "Breeze_moving_painted_flowers_bcc87390.mp4",
+      "ssim": 0.98471,
+      "runnerUpSsim": 0.446186,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.441901,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "A small wave of motion passes through the painted poppy heads and adjacent grain.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.32,
+          0.24
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.22,
+        "adjacentP95Mae": 1.7,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-southwest-hawthorn-tree",
+      "island": "i01",
+      "element": "southwest-hawthorn-tree",
+      "file": "Breeze_rocking_hawthorn_tree_crown_63f83e26.mp4",
+      "ssim": 0.99107,
+      "runnerUpSsim": 0.303729,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.312463,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The flowering crown sways around the fork of the trunk and keeps its painted blossom clusters.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.13,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.66,
+        "adjacentP95Mae": 2.77,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i01-west-wildflower-slope",
+      "island": "i01",
+      "element": "west-wildflower-slope",
+      "file": "Breeze_moving_meadow_grass_2ee6c036.mp4",
+      "ssim": 0.98616,
+      "runnerUpSsim": 0.394093,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.40741,
+      "status": "static",
+      "finding": "The registered flower bed jumps against the fixed lower grass around 3.04 seconds as the landmark correction shifts by about 11 start-frame pixels.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          5.19,
+          10.93
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.22,
+        "adjacentP95Mae": 2.1,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i02-east-meadow-sea-thrift",
+      "island": "i02",
+      "element": "east-meadow-sea-thrift",
+      "file": "Breeze_moves_hillside_plants_4176421f.mp4",
+      "ssim": 0.987357,
+      "runnerUpSsim": 0.544906,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.551248,
+      "status": "static",
+      "finding": "A pale veil sweeps across the bare ground and washes out the flower bed.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.32,
+          0.09
+        ],
+        "maxAbsColorShiftBGR": [
+          7,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.06,
+        "adjacentP95Mae": 1.91,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i02-north-bank-willow",
+      "island": "i02",
+      "element": "north-bank-willow",
+      "file": "Sea_breeze_sways_tree_foliage_7df5140f.mp4",
+      "ssim": 0.987741,
+      "runnerUpSsim": 0.493658,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.492964,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "paddingStartPx": 16
+      },
+      "finding": "The hanging foliage shifts around the fixed base of the forked willow.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.58,
+        "adjacentP95Mae": 2.58,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i02-north-estuary-inflow",
+      "island": "i02",
+      "element": "north-estuary-inflow",
+      "file": "Creating_seamless_water_loop_ani…_e919f87f.mp4",
+      "ssim": 0.988695,
+      "runnerUpSsim": 0.344223,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.351467,
+      "status": "static",
+      "finding": "Two hard white strokes converge into an arrow across the mouth of the estuary.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.44,
+          0.33
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.67,
+        "adjacentP95Mae": 1.03,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i02-northeast-coastal-tree",
+      "island": "i02",
+      "element": "northeast-coastal-tree",
+      "file": "Coastal_breeze_moving_tree_leaves_b63150d1.mp4",
+      "ssim": 0.986271,
+      "runnerUpSsim": 0.54097,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.541076,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "paddingStartPx": 16
+      },
+      "finding": "The pendant leaves sweep sideways and the crown returns to its opening silhouette.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.51,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.63,
+        "adjacentP95Mae": 4.23,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i02-south-harbour-shallows",
+      "island": "i02",
+      "element": "south-harbour-shallows",
+      "file": "Create_seamless_loop_video_9794a958.mp4",
+      "ssim": 0.991332,
+      "runnerUpSsim": 0.256348,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.26084,
+      "status": "static",
+      "finding": "Bright forked white wakes travel across the sheltered harbour beside the building.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.16,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.19,
+        "adjacentP95Mae": 2.06,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i02-southwest-creek-willow",
+      "island": "i02",
+      "element": "southwest-creek-willow",
+      "file": "Breeze_moving_coastal_tree_foliage_912c400a.mp4",
+      "ssim": 0.986761,
+      "runnerUpSsim": 0.509494,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.509798,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "paddingStartPx": 16
+      },
+      "finding": "The long leaves lean with their branches above the stationary root.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.17,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.78,
+        "adjacentP95Mae": 4.17,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i02-west-meadow-sea-thrift",
+      "island": "i02",
+      "element": "west-meadow-sea-thrift",
+      "file": "Breeze_moving_painted_coastal_me…_e60b839b.mp4",
+      "ssim": 0.986403,
+      "runnerUpSsim": 0.5729,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.570198,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The two pink flower patches stir subtly beside the bare sandy path.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.35,
+          0.29
+        ],
+        "maxAbsColorShiftBGR": [
+          6,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.94,
+        "adjacentP95Mae": 0.66,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i03-mid-east-ice-rapids",
+      "island": "i03",
+      "element": "mid-east-ice-rapids",
+      "file": "Water_streaming_through_painted_…_61742c29.mp4",
+      "ssim": 0.993206,
+      "runnerUpSsim": 0.322935,
+      "runnerUpElement": "i09-northeast-cypress-garden",
+      "nextTakeSsim": 0.321185,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The pale brush marks flow down the narrow fall between the fixed ice walls.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.31
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.13,
+        "adjacentP95Mae": 1.45,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i03-northeast-spruce-stand",
+      "island": "i03",
+      "element": "northeast-spruce-stand",
+      "file": "flow_312c8dd8.mp4",
+      "ssim": 0.994686,
+      "runnerUpSsim": 0.240247,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.240958,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The snowy boughs sway against the stationary ledge and keep their layered shape.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.17,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          3,
+          1
+        ],
+        "rawWrapMae": 1.33,
+        "adjacentP95Mae": 1.6,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i03-northwest-spruce-ridge",
+      "island": "i03",
+      "element": "northwest-spruce-ridge",
+      "file": "Mountain_breeze_moving_snow_trees_10055d84.mp4",
+      "ssim": 0.99519,
+      "runnerUpSsim": 0.202393,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.208223,
+      "status": "static",
+      "finding": "A patch of white haze blooms in front of the central spruce and erases its lower branches.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          3,
+          1
+        ],
+        "rawWrapMae": 1.48,
+        "adjacentP95Mae": 2.61,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i03-south-east-ice-gorge",
+      "island": "i03",
+      "element": "south-east-ice-gorge",
+      "file": "flow_665077bf.mp4",
+      "ssim": 0.993715,
+      "runnerUpSsim": 0.275641,
+      "runnerUpElement": "i15-east-moonlit-reeds",
+      "nextTakeSsim": 0.276815,
+      "status": "static",
+      "finding": "A thin curling white line and a broad mist patch appear over the straight painted fall.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.26,
+          0.22
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.41,
+        "adjacentP95Mae": 1.28,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i03-southeast-ice-crystals",
+      "island": "i03",
+      "element": "southeast-ice-crystals",
+      "file": "Ice-blue_sheen_animates_crystal_…_6bb68176.mp4",
+      "ssim": 0.993141,
+      "runnerUpSsim": 0.350932,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.35502,
+      "status": "static",
+      "finding": "Wide luminous bands climb across the individual crystal faces.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.15,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          3,
+          2
+        ],
+        "rawWrapMae": 0.91,
+        "adjacentP95Mae": 2.05,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i03-upper-arch-stream",
+      "island": "i03",
+      "element": "upper-arch-stream",
+      "file": "Water_gliding_past_stone_arch_0f6e9c09.mp4",
+      "ssim": 0.996992,
+      "runnerUpSsim": 0.118208,
+      "runnerUpElement": "i15-southwest-lantern-ferns",
+      "nextTakeSsim": 0.122162,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 2,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "A low ripple passes around the painted stones within the stream bed.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.06
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.14,
+        "adjacentP95Mae": 0.9,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i03-upper-east-ice-head",
+      "island": "i03",
+      "element": "upper-east-ice-head",
+      "file": "Glacial_stream_flowing_through_g…_85981c63.mp4",
+      "ssim": 0.995229,
+      "runnerUpSsim": 0.231857,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.238099,
+      "status": "static",
+      "finding": "Several white ornamental curls twist across the blue headwater.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.74,
+          0.26
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.16,
+        "adjacentP95Mae": 1.27,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i04-crystal-tree-shards",
+      "island": "i04",
+      "element": "crystal-tree-shards",
+      "file": "Mint_glint_in_crystal_shards_8a18eaeb.mp4",
+      "ssim": 0.986058,
+      "runnerUpSsim": 0.222321,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.226728,
+      "status": "static",
+      "finding": "A turquoise flare blooms in the centre of the green crystal and spills into the surrounding facets.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.06,
+          0.06
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.88,
+        "adjacentP95Mae": 1.03,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i04-goal-brazier-flame",
+      "island": "i04",
+      "element": "goal-brazier-flame",
+      "file": "Flames_flickering_in_stone_beacon_a18b6e12.mp4",
+      "ssim": 0.990375,
+      "runnerUpSsim": 0.347143,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.342581,
+      "status": "static",
+      "finding": "Large detached orange tongues rise well beyond the height of the painted flame.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.13,
+          0.04
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.62,
+        "adjacentP95Mae": 9.28,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i04-mid-stream-bend",
+      "island": "i04",
+      "element": "mid-stream-bend",
+      "file": "flow_af7ba71e.mp4",
+      "ssim": 0.989175,
+      "runnerUpSsim": 0.184192,
+      "runnerUpElement": "i02-east-meadow-sea-thrift",
+      "nextTakeSsim": 0.193463,
+      "status": "static",
+      "finding": "Broad pale stripes replace the broken brush strokes around the bend.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.12,
+          0.02
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.73,
+        "adjacentP95Mae": 3.01,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i04-northeast-fern-bank",
+      "island": "i04",
+      "element": "northeast-fern-bank",
+      "file": "flow_5aa7c962.mp4",
+      "ssim": 0.986294,
+      "runnerUpSsim": 0.315815,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.330038,
+      "status": "static",
+      "finding": "Long yellow blades appear across the previously open lawn below the fern bank.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.16,
+          0.09
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.13,
+        "adjacentP95Mae": 1.25,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i04-northwest-fern-bank",
+      "island": "i04",
+      "element": "northwest-fern-bank",
+      "file": "Breeze_moving_fern_and_grass_f8701b2b.mp4",
+      "ssim": 0.986002,
+      "runnerUpSsim": 0.25323,
+      "runnerUpElement": "i21-west-downland-grass",
+      "nextTakeSsim": 0.261017,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The fern leaflets bend beside the mossy stone steps.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.27,
+          0.36
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.26,
+        "adjacentP95Mae": 2.42,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i04-shrine-sapling-foliage",
+      "island": "i04",
+      "element": "shrine-sapling-foliage",
+      "file": "Breeze_moving_leaves_on_shrine_86344b35.mp4",
+      "ssim": 0.986967,
+      "runnerUpSsim": 0.313018,
+      "runnerUpElement": "i21-west-downland-grass",
+      "nextTakeSsim": 0.309298,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The sapling crown and tied cloth stir together above the rooted trunk.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 2.64,
+        "adjacentP95Mae": 3.4,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i04-southwest-fern-fronds",
+      "island": "i04",
+      "element": "southwest-fern-fronds",
+      "file": "flow_87e73af5.mp4",
+      "ssim": 0.984447,
+      "runnerUpSsim": 0.302085,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.324417,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The fronds shift over the stone ledge and return to their painted spread.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.12,
+          0.13
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.5,
+        "adjacentP95Mae": 1.16,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i05-mill-south-wheat",
+      "island": "i05",
+      "element": "mill-south-wheat",
+      "file": "Wind_sways_wheat_stalks_30e85dac.mp4",
+      "ssim": 0.988981,
+      "runnerUpSsim": 0.367942,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.369186,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The wheat heads nod together above the edge of the mill.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.29,
+          0.09
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          3,
+          2
+        ],
+        "rawWrapMae": 1.04,
+        "adjacentP95Mae": 2.74,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i05-north-ridge-wheat",
+      "island": "i05",
+      "element": "north-ridge-wheat",
+      "file": "Breeze_blowing_golden_wheat_loop_b33d1d32.mp4",
+      "ssim": 0.98455,
+      "runnerUpSsim": 0.408289,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.425709,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "A shallow wave travels along the existing rows on the ridge.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.13,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.53,
+        "adjacentP95Mae": 1.99,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i05-northeast-orchard-trees",
+      "island": "i05",
+      "element": "northeast-orchard-trees",
+      "file": "Autumn_breeze_rocks_apple_trees_55dfa7ae.mp4",
+      "ssim": 0.986265,
+      "runnerUpSsim": 0.491072,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.49388,
+      "status": "static",
+      "finding": "Detached red fruit appears on the ground between the orchard trees.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.31,
+          0.11
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          3,
+          2
+        ],
+        "rawWrapMae": 2.25,
+        "adjacentP95Mae": 2.94,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i05-northeast-wheat-patch",
+      "island": "i05",
+      "element": "northeast-wheat-patch",
+      "file": "Wheat_stalks_bending_in_breeze_8b90a3ea.mp4",
+      "ssim": 0.986441,
+      "runnerUpSsim": 0.405636,
+      "runnerUpElement": "l1c-southwest-meadow-bush",
+      "nextTakeSsim": 0.416172,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The two bands of ripe wheat bend while the track between them stays clear.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.51,
+          0.86
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.2,
+        "adjacentP95Mae": 3.05,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i05-scarecrow-lower-wheat",
+      "island": "i05",
+      "element": "scarecrow-lower-wheat",
+      "file": "Breeze_blowing_wheat_field_loop_ebeb50fc.mp4",
+      "ssim": 0.987034,
+      "runnerUpSsim": 0.329941,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.334966,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The wheat moves across the lower field beside the stationary scarecrow.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.94,
+          0.54
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          3
+        ],
+        "rawWrapMae": 1.41,
+        "adjacentP95Mae": 2.71,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i05-southeast-wheat-rows",
+      "island": "i05",
+      "element": "southeast-wheat-rows",
+      "file": "flow_26667de4.mp4",
+      "ssim": 0.986083,
+      "runnerUpSsim": 0.354025,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.373712,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The painted heads ripple along the diagonal rows.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.57,
+          0.27
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.43,
+        "adjacentP95Mae": 1.53,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i06-east-lagoon-basin",
+      "island": "i06",
+      "element": "east-lagoon-basin",
+      "file": "Lagoon_water_gently_laps_shore_d2cc2893.mp4",
+      "ssim": 0.989887,
+      "runnerUpSsim": 0.440606,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.445275,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The broken foam edge follows the curve of the sheltered shore.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.14,
+        "adjacentP95Mae": 1.1,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i06-lighthouse-beacon",
+      "island": "i06",
+      "element": "lighthouse-beacon",
+      "file": "Lighthouse_lamp_brightening_seam…_dfd3fff1.mp4",
+      "ssim": 0.989226,
+      "runnerUpSsim": 0.445003,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.44929,
+      "status": "static",
+      "finding": "The lantern flares over the railing and roof and jumps in brightness at the wrap.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.02
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          0,
+          1
+        ],
+        "rawWrapMae": 6.64,
+        "adjacentP95Mae": 1.62,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i06-northeast-ocean-surf",
+      "island": "i06",
+      "element": "northeast-ocean-surf",
+      "file": "Creating_seamless_video_loop_29536494.mp4",
+      "ssim": 0.929314,
+      "runnerUpSsim": 0.496504,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.467739,
+      "status": "static",
+      "finding": "A solid white crescent appears offshore and the beach is still bright with foam at the seam.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.15,
+          0.25
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 3.99,
+        "adjacentP95Mae": 3.42,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i06-northwest-ocean-surf",
+      "island": "i06",
+      "element": "northwest-ocean-surf",
+      "file": "flow_2284d1a0.mp4",
+      "ssim": 0.990666,
+      "runnerUpSsim": 0.468184,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.474326,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "Short crests roll through the shallow water beside the fixed boat and rocks.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.3,
+          0.33
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.76,
+        "adjacentP95Mae": 1.67,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i06-southeast-ocean-swell",
+      "island": "i06",
+      "element": "southeast-ocean-swell",
+      "file": "Sea_swell_moving_on_beach_91210625.mp4",
+      "ssim": 0.988404,
+      "runnerUpSsim": 0.462418,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.472018,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The swell gathers into textured foam along the existing shore break.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.59,
+          0.34
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          3,
+          2
+        ],
+        "rawWrapMae": 1.29,
+        "adjacentP95Mae": 1.35,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i06-southwest-ocean-surf",
+      "island": "i06",
+      "element": "southwest-ocean-surf",
+      "file": "flow_4f47d2b3.mp4",
+      "ssim": 0.987581,
+      "runnerUpSsim": 0.564564,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.573113,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "A broken foam front advances and thins out over the open water.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.69,
+          0.61
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.2,
+        "adjacentP95Mae": 2.1,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i06-southwest-palm-fronds",
+      "island": "i06",
+      "element": "southwest-palm-fronds",
+      "file": "Palm_fronds_swaying_in_breeze_28a834df.mp4",
+      "ssim": 0.968818,
+      "runnerUpSsim": 0.386167,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.39768,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The three crowns bend above fixed trunks and keep their tapered fronds.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.03,
+          0.32
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.68,
+        "adjacentP95Mae": 7.09,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i07-east-heath-grass",
+      "island": "i07",
+      "element": "east-heath-grass",
+      "file": "Breeze_moving_grass_loop_d2fe9cf7.mp4",
+      "ssim": 0.986292,
+      "runnerUpSsim": 0.563651,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.575511,
+      "status": "static",
+      "finding": "A wave of new pale grass blades crosses the gaps between the painted tufts.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.24,
+          0.13
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          2
+        ],
+        "rawWrapMae": 0.91,
+        "adjacentP95Mae": 0.7,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i07-east-windswept-tree",
+      "island": "i07",
+      "element": "east-windswept-tree",
+      "file": "Wind_moving_ridge_tree_a1d64920.mp4",
+      "ssim": 0.99008,
+      "runnerUpSsim": 0.51982,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.52652,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2,
+        "paddingStartPx": 16
+      },
+      "finding": "The pointed boughs lean together above the fixed trunk.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.14,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.29,
+        "adjacentP95Mae": 1.93,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i07-keep-green-banner",
+      "island": "i07",
+      "element": "keep-green-banner",
+      "file": "Breeze_ripples_pennant_on_watcht…_ff645838.mp4",
+      "ssim": 0.989668,
+      "runnerUpSsim": 0.332679,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.339043,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The split fly of the green banner folds while the hoist stays attached to the pole.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.08,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.37,
+        "adjacentP95Mae": 1.53,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i07-northeast-blossom-canopy",
+      "island": "i07",
+      "element": "northeast-blossom-canopy",
+      "file": "Wind_stirring_olive-green_treetops_30e54916.mp4",
+      "ssim": 0.991417,
+      "runnerUpSsim": 0.45946,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.470533,
+      "status": "static",
+      "finding": "The soft background canopy resolves into a new sharply drawn foreground sprig.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.1
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.89,
+        "adjacentP95Mae": 1.53,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i07-southeast-blossom-boughs",
+      "island": "i07",
+      "element": "southeast-blossom-boughs",
+      "file": "Breeze_moving_canyon_tree_boughs_dffa37e2.mp4",
+      "ssim": 0.989937,
+      "runnerUpSsim": 0.435328,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.447424,
+      "status": "static",
+      "finding": "A sharply outlined pink flowering branch emerges over the softer painted boughs.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.08,
+          0.04
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.07,
+        "adjacentP95Mae": 6.26,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i07-southwest-blossom-boughs",
+      "island": "i07",
+      "element": "southwest-blossom-boughs",
+      "file": "Breeze_swaying_foliage_in_valley_f3397371.mp4",
+      "ssim": 0.99042,
+      "runnerUpSsim": 0.402749,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.411394,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The pink clusters move with their leafy boughs and keep the soft painted edge.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          2.24,
+          0.66
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.42,
+        "adjacentP95Mae": 2.48,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i07-west-heath-grass",
+      "island": "i07",
+      "element": "west-heath-grass",
+      "file": "Breeze_blowing_grass_on_heath_79d79605.mp4",
+      "ssim": 0.987819,
+      "runnerUpSsim": 0.58031,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.588605,
+      "status": "static",
+      "finding": "New pale tufts appear at intervals across the open heath.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.13
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.86,
+        "adjacentP95Mae": 0.46,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i08-east-moat-lilypond",
+      "island": "i08",
+      "element": "east-moat-lilypond",
+      "file": "Creating_seamless_pond_ripple_loop_190ab879.mp4",
+      "ssim": 0.990795,
+      "runnerUpSsim": 0.308657,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.313462,
+      "status": "static",
+      "finding": "Concentric white rings sweep across the surfaces of the lily pads.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.08,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.0,
+        "adjacentP95Mae": 1.22,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i08-northeast-lake-bay",
+      "island": "i08",
+      "element": "northeast-lake-bay",
+      "file": "Water_drifting_in_lake_bay_4957c345.mp4",
+      "ssim": 0.987891,
+      "runnerUpSsim": 0.493732,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.50056,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The horizontal gold reflections shift subtly over the blue water.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.1
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.95,
+        "adjacentP95Mae": 0.5,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i08-south-bastion-moat",
+      "island": "i08",
+      "element": "south-bastion-moat",
+      "file": "Creating_seamless_water_animatio…_2580501d.mp4",
+      "ssim": 0.990943,
+      "runnerUpSsim": 0.239508,
+      "runnerUpElement": "i09-north-meadow-standards",
+      "nextTakeSsim": 0.246998,
+      "status": "static",
+      "finding": "A new white ring circles the central lily pad and a pale contour runs along the bank.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.06,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.93,
+        "adjacentP95Mae": 0.53,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i08-southeast-lake-waters",
+      "island": "i08",
+      "element": "southeast-lake-waters",
+      "file": "Creating_seamless_lake_loop_anim…_4f1f832b.mp4",
+      "ssim": 0.988314,
+      "runnerUpSsim": 0.479205,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.490574,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The reflection shimmers within the lake beside the stationary bank.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.14,
+          0.12
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.91,
+        "adjacentP95Mae": 0.58,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i08-southwest-lantern-flame",
+      "island": "i08",
+      "element": "southwest-lantern-flame",
+      "file": "Candle_flame_looping_in_lantern_24bc9794.mp4",
+      "ssim": 0.991104,
+      "runnerUpSsim": 0.3691,
+      "runnerUpElement": "l1c-mid-east-bush",
+      "nextTakeSsim": 0.366176,
+      "status": "static",
+      "finding": "A bright tongue of flame curls out through the left side of the lantern frame.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.44,
+          0.44
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.66,
+        "adjacentP95Mae": 3.11,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i08-west-arch-waters",
+      "island": "i08",
+      "element": "west-arch-waters",
+      "file": "Creating_seamless_lake_water_loop_c2020dc6.mp4",
+      "ssim": 0.988585,
+      "runnerUpSsim": 0.437301,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.436739,
+      "status": "static",
+      "finding": "A new fine bright ring travels around the arch footing while the surrounding water stays almost still.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.46,
+          0.25
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          0,
+          2
+        ],
+        "rawWrapMae": 0.9,
+        "adjacentP95Mae": 0.42,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i08-west-lake-bay",
+      "island": "i08",
+      "element": "west-lake-bay",
+      "file": "Creating_animated_loop_of_lake_a048155f.mp4",
+      "ssim": 0.98853,
+      "runnerUpSsim": 0.448883,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.460642,
+      "status": "static",
+      "finding": "A white current ribbon runs through the lily pads along the bank.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.01,
+        "adjacentP95Mae": 1.94,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i09-west-cypress-grove",
+      "island": "i09",
+      "element": "west-cypress-grove",
+      "file": "Breeze_moving_garden_cypress_trees_0bdf6d3e.mp4",
+      "ssim": 0.986313,
+      "runnerUpSsim": 0.666884,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.66946,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The tapered crowns sway by a few pixels while the stone balustrade stays fixed.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.42,
+          1.98
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.06,
+        "adjacentP95Mae": 1.22,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i09-north-meadow-standards",
+      "island": "i09",
+      "element": "north-meadow-standards",
+      "file": "Breeze_ripples_garden_lawn_4009ec36.mp4",
+      "ssim": 0.987597,
+      "runnerUpSsim": 0.654327,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.658011,
+      "status": "static",
+      "finding": "A long orange streamer grows from the small standard beside the shrub.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.3,
+          0.28
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          0
+        ],
+        "rawWrapMae": 0.95,
+        "adjacentP95Mae": 0.54,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i09-north-balustrade-lawns",
+      "island": "i09",
+      "element": "north-balustrade-lawns",
+      "file": "Breeze_moving_painted_garden_ele…_7ed95db9.mp4",
+      "ssim": 0.991181,
+      "runnerUpSsim": 0.42449,
+      "runnerUpElement": "i09-north-meadow-standards",
+      "nextTakeSsim": 0.428995,
+      "status": "static",
+      "finding": "A sweeping pale gust draws dark detached leaves across the open lawn.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.15,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.97,
+        "adjacentP95Mae": 2.89,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i09-east-cypress-terrace",
+      "island": "i09",
+      "element": "east-cypress-terrace",
+      "file": "Breeze_moving_cypresses_and_shrubs_34354647.mp4",
+      "ssim": 0.988864,
+      "runnerUpSsim": 0.543286,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.545468,
+      "status": "static",
+      "finding": "Two extra shrubs appear on the open lawn to the right of the central cypress.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.38,
+          0.27
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 0.98,
+        "adjacentP95Mae": 1.01,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i09-south-west-meadow-tufts",
+      "island": "i09",
+      "element": "south-west-meadow-tufts",
+      "file": "Breeze_moving_grass_and_cloth_3adbfa16.mp4",
+      "ssim": 0.985241,
+      "runnerUpSsim": 0.674258,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.666884,
+      "status": "static",
+      "finding": "White wind streamers cross the grass and the registered crop shifts across the standard.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          7.92,
+          1.94
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 0.68,
+        "adjacentP95Mae": 1.08,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i09-northeast-cypress-garden",
+      "island": "i09",
+      "element": "northeast-cypress-garden",
+      "file": "Create_seamless_video_loop_anima…_acbfa7ce.mp4",
+      "ssim": 0.936313,
+      "runnerUpSsim": 0.59914,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.621552,
+      "status": "static",
+      "finding": "A dark green blotch remains in the right-hand border foliage at the join.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          2.48,
+          3.07
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 3.41,
+        "adjacentP95Mae": 1.35,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-northwest-river-chute",
+      "island": "i10",
+      "element": "northwest-river-chute",
+      "file": "Animating_stream_in_storybook_art_4b503735.mp4",
+      "ssim": 0.987724,
+      "runnerUpSsim": 0.552518,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.560817,
+      "status": "static",
+      "finding": "Large pale brush-shaped bands travel down the chute and replace the painted water texture.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.38,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.18,
+        "adjacentP95Mae": 2.2,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-central-bridge-river",
+      "island": "i10",
+      "element": "central-bridge-river",
+      "file": "Water_streaks_drifting_in_river_4a7c8083.mp4",
+      "ssim": 0.988109,
+      "runnerUpSsim": 0.539627,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.544467,
+      "status": "static",
+      "finding": "The muted current becomes a set of broad flat mint strokes.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.04,
+        "adjacentP95Mae": 1.95,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-south-weir-waterfall",
+      "island": "i10",
+      "element": "south-weir-waterfall",
+      "file": "flow_11533233.mp4",
+      "ssim": 0.987816,
+      "runnerUpSsim": 0.551368,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.558128,
+      "status": "static",
+      "finding": "Hard white arcs spread across the lower basin and cut off at the edge of the moving patch.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.13,
+          0.09
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          0
+        ],
+        "rawWrapMae": 2.29,
+        "adjacentP95Mae": 4.11,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-northwest-willow-grove",
+      "island": "i10",
+      "element": "northwest-willow-grove",
+      "file": "Creating_seamless_animated_loop_art_62478b57.mp4",
+      "ssim": 0.988441,
+      "runnerUpSsim": 0.552935,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.558603,
+      "status": "static",
+      "finding": "Broad oval shadows appear beneath both trees and a fern grows out of the upper crown.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.22,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.16,
+        "adjacentP95Mae": 0.65,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-north-terrace-willow",
+      "island": "i10",
+      "element": "north-terrace-willow",
+      "file": "Breeze_sways_willow_leaves_1686abda.mp4",
+      "ssim": 0.988328,
+      "runnerUpSsim": 0.52752,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.53503,
+      "status": "static",
+      "finding": "New dark spiky plants emerge on both sides of the terrace wall.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.16,
+          0.3
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.29,
+        "adjacentP95Mae": 0.75,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-southeast-willows-and-crystal",
+      "island": "i10",
+      "element": "southeast-willows-and-crystal",
+      "file": "Create_seamless_looping_animation_3ddf7c51.mp4",
+      "ssim": 0.988286,
+      "runnerUpSsim": 0.569681,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.574153,
+      "status": "static",
+      "finding": "The crystal flashes nearly white while the willow foliage moves.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.14,
+          0.1
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.17,
+        "adjacentP95Mae": 0.7,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i10-southwest-meadow-ferns",
+      "island": "i10",
+      "element": "southwest-meadow-ferns",
+      "file": "Breeze_ripples_hillside_fern_clumps_0d758997.mp4",
+      "ssim": 0.988719,
+      "runnerUpSsim": 0.486193,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.499306,
+      "status": "static",
+      "finding": "Pale wind ribbons sweep across the ferns and stone terrace.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.19,
+          0.48
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.01,
+        "adjacentP95Mae": 1.24,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i11-east-spire-cloudsea",
+      "island": "i11",
+      "element": "east-spire-cloudsea",
+      "file": "Clouds_drifting_over_chasm_floor_cbce2d25.mp4",
+      "ssim": 0.991672,
+      "runnerUpSsim": 0.293952,
+      "runnerUpElement": "i15-east-moonlit-reeds",
+      "nextTakeSsim": 0.297054,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The central cloud bank billows between the spires with soft edges.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.04
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.01,
+        "adjacentP95Mae": 1.56,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i11-north-spire-pennant",
+      "island": "i11",
+      "element": "north-spire-pennant",
+      "file": "flow_e3feb2ad.mp4",
+      "ssim": 0.990476,
+      "runnerUpSsim": 0.362113,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.359338,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The two pennant tails fold around the fixed hoist and retain the painted motif.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.06,
+          0.05
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.83,
+        "adjacentP95Mae": 1.74,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i11-west-dyed-banner-rack",
+      "island": "i11",
+      "element": "west-dyed-banner-rack",
+      "file": "Breeze_ripples_hanging_cloth_panels_f0051035.mp4",
+      "ssim": 0.987663,
+      "runnerUpSsim": 0.469524,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.465763,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The coloured cloths billow independently from the fixed horizontal rail.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.34,
+          0.21
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          0
+        ],
+        "rawWrapMae": 2.55,
+        "adjacentP95Mae": 3.82,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i11-southeast-beacon-tower",
+      "island": "i11",
+      "element": "southeast-beacon-tower",
+      "file": null,
+      "ssim": null,
+      "runnerUpSsim": null,
+      "runnerUpElement": null,
+      "nextTakeSsim": null,
+      "status": "unmatched",
+      "finding": "No take in the chapter 3 inbox matched this prep image."
+    },
+    {
+      "id": "i11-northwest-highland-grass",
+      "island": "i11",
+      "element": "northwest-highland-grass",
+      "file": "Breeze_sweeping_grass_plateau_8272e703.mp4",
+      "ssim": 0.990004,
+      "runnerUpSsim": 0.314473,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.314013,
+      "status": "static",
+      "finding": "A travelling row of pale blades emerges from the bare grass above the carved stone.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.09
+        ],
+        "maxAbsColorShiftBGR": [
+          0,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.12,
+        "adjacentP95Mae": 0.74,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i11-southwest-windswept-meadow",
+      "island": "i11",
+      "element": "southwest-windswept-meadow",
+      "file": "flow_b4b32081.mp4",
+      "ssim": 0.988162,
+      "runnerUpSsim": 0.422813,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.420259,
+      "status": "static",
+      "finding": "A small dark tree appears on the open grass at the left of the meadow.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.3,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          0,
+          1
+        ],
+        "rawWrapMae": 1.04,
+        "adjacentP95Mae": 0.44,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i11-southeast-highland-slope",
+      "island": "i11",
+      "element": "southeast-highland-slope",
+      "file": "Mountain_breeze_moving_grass_slope_3acc515f.mp4",
+      "ssim": 0.98687,
+      "runnerUpSsim": 0.497917,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.49102,
+      "status": "static",
+      "finding": "Clusters of white grass tufts materialise across the empty hillside.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.22,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.94,
+        "adjacentP95Mae": 0.91,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i12-northeast-lantern-grove",
+      "island": "i12",
+      "element": "northeast-lantern-grove",
+      "file": "Breeze_sways_tree_and_lanterns_9f33eba8.mp4",
+      "ssim": 0.959439,
+      "runnerUpSsim": 0.464661,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.476597,
+      "status": "static",
+      "finding": "A dark blue patch remains above the hedge at the final frame.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.41,
+          0.8
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          4
+        ],
+        "rawWrapMae": 2.45,
+        "adjacentP95Mae": 1.02,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i12-east-lantern-hedges",
+      "island": "i12",
+      "element": "east-lantern-hedges",
+      "file": "Breeze_rustling_hedges_and_lampp…_6e10d9c8.mp4",
+      "ssim": 0.987257,
+      "runnerUpSsim": 0.536203,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.537068,
+      "status": "static",
+      "finding": "Dark and pink leaves detach from the hedges and travel across the open ground.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.87,
+          0.91
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.21,
+        "adjacentP95Mae": 0.87,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i12-west-twilight-glade",
+      "island": "i12",
+      "element": "west-twilight-glade",
+      "file": "flow_ace902dc.mp4",
+      "ssim": 0.988741,
+      "runnerUpSsim": 0.444482,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.44268,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The blue-green crown stirs while the amber light flickers within its lamp.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.2,
+          0.1
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.43,
+        "adjacentP95Mae": 0.9,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i12-southwest-lantern-row",
+      "island": "i12",
+      "element": "southwest-lantern-row",
+      "file": "Creating_seamless_animated_video…_eb07330e.mp4",
+      "ssim": 0.981978,
+      "runnerUpSsim": 0.497277,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.502564,
+      "status": "static",
+      "finding": "New dark flecks pass across the empty space beside the lanterns.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.62,
+          0.12
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.27,
+        "adjacentP95Mae": 0.63,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i12-central-shrine-lantern",
+      "island": "i12",
+      "element": "central-shrine-lantern",
+      "file": "Flame_flickering_in_stone_lantern_5d639218.mp4",
+      "ssim": 0.971667,
+      "runnerUpSsim": 0.504809,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.509159,
+      "status": "static",
+      "finding": "The opening amber window becomes bright yellow and holds that brighter state through the last frame.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          3
+        ],
+        "rawWrapMae": 6.68,
+        "adjacentP95Mae": 1.09,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i12-southeast-hollow-dapple",
+      "island": "i12",
+      "element": "southeast-hollow-dapple",
+      "file": "Grass_and_shadows_swaying_in_45234156.mp4",
+      "ssim": 0.988517,
+      "runnerUpSsim": 0.48254,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.487348,
+      "status": "static",
+      "finding": "Distinct dark leaf silhouettes spread across the painted floor between the stumps.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.26,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          3
+        ],
+        "rawWrapMae": 1.06,
+        "adjacentP95Mae": 0.65,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i12-north-edge-tree-lantern",
+      "island": "i12",
+      "element": "north-edge-tree-lantern",
+      "file": "Tree_and_lantern_moving_in_07b75c45.mp4",
+      "ssim": 0.989977,
+      "runnerUpSsim": 0.477241,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.481045,
+      "status": "static",
+      "finding": "White drifting specks and a halo develop in the gap between the crown and the lamp.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.24,
+          0.21
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.11,
+        "adjacentP95Mae": 0.83,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i13-watch-beacon-pennant",
+      "island": "i13",
+      "element": "watch-beacon-pennant",
+      "file": "Wind_ripples_banner_and_grass_5e234450.mp4",
+      "ssim": 0.991095,
+      "runnerUpSsim": 0.443712,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.445461,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The yellow pennant flutters at the mast beside the stationary beacon.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.43,
+          0.41
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.89,
+        "adjacentP95Mae": 1.09,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i13-west-windswept-pines",
+      "island": "i13",
+      "element": "west-windswept-pines",
+      "file": "Wind_blowing_through_coastal_pine_ed05f047.mp4",
+      "ssim": 0.987106,
+      "runnerUpSsim": 0.558868,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.559651,
+      "status": "static",
+      "finding": "A dark brown clump appears to the right of the base of the moving tree.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.49,
+          0.25
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.37,
+        "adjacentP95Mae": 0.88,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i13-northwest-slate-terrace",
+      "island": "i13",
+      "element": "northwest-slate-terrace",
+      "file": "Creating_animated_storybook_game…_3c6e0667.mp4",
+      "ssim": 0.991517,
+      "runnerUpSsim": 0.394325,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.404297,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "A diffuse wisp passes low along the slate while the stepped rock edges hold.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.41,
+          0.19
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.07,
+        "adjacentP95Mae": 1.08,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i13-northeast-storm-grass",
+      "island": "i13",
+      "element": "northeast-storm-grass",
+      "file": "Wind_blowing_across_slate_terrace_6a3379bf.mp4",
+      "ssim": 0.98988,
+      "runnerUpSsim": 0.508095,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.521552,
+      "status": "static",
+      "finding": "New isolated pale grass clumps spread across the bare slate beneath the ledge.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.14,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          10,
+          7,
+          9
+        ],
+        "rawWrapMae": 0.99,
+        "adjacentP95Mae": 1.02,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i13-east-silver-grass-slope",
+      "island": "i13",
+      "element": "east-silver-grass-slope",
+      "file": "Grass_blowing_in_coastal_wind_da3ddabf.mp4",
+      "ssim": 0.971683,
+      "runnerUpSsim": 0.557179,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.572968,
+      "status": "static",
+      "finding": "The pale grass leaves a dark blue tuft at the end of the loop.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.32,
+          0.32
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.52,
+        "adjacentP95Mae": 0.58,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i13-southwest-cliff-heather",
+      "island": "i13",
+      "element": "southwest-cliff-heather",
+      "file": "Breeze_rustles_grass_on_ridge_7f60874e.mp4",
+      "ssim": 0.990054,
+      "runnerUpSsim": 0.528217,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.537668,
+      "status": "static",
+      "finding": "A new brown tuft emerges above the dead trunk as the surrounding heather moves.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.32,
+          0.19
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          0,
+          2
+        ],
+        "rawWrapMae": 0.87,
+        "adjacentP95Mae": 0.56,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i14-west-oasis-scrub",
+      "island": "i14",
+      "element": "west-oasis-scrub",
+      "file": "flow_ea2b0ece.mp4",
+      "ssim": 0.989319,
+      "runnerUpSsim": 0.32043,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.329336,
+      "status": "static",
+      "finding": "New bright green leaf flecks cross the bare rock below the bushes.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.48,
+          0.33
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          3
+        ],
+        "rawWrapMae": 1.2,
+        "adjacentP95Mae": 0.97,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i14-north-canyon-scrub-drift",
+      "island": "i14",
+      "element": "north-canyon-scrub-drift",
+      "file": "Breeze_sways_desert_shrubs_eaec1d99.mp4",
+      "ssim": 0.986509,
+      "runnerUpSsim": 0.463821,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.468353,
+      "status": "static",
+      "finding": "Long flat peach ribbons spiral over the canyon floor.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.21,
+          0.18
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          3,
+          5
+        ],
+        "rawWrapMae": 1.03,
+        "adjacentP95Mae": 1.99,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i14-northeast-sandstone-scrub",
+      "island": "i14",
+      "element": "northeast-sandstone-scrub",
+      "file": "Desert_breeze_stirring_plants_e40a49c0.mp4",
+      "ssim": 0.970227,
+      "runnerUpSsim": 0.464908,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.465766,
+      "status": "static",
+      "finding": "A saturated red smear remains in the upper-right scrub at the join.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.37,
+          0.2
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          4
+        ],
+        "rawWrapMae": 2.13,
+        "adjacentP95Mae": 0.83,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i14-bazaar-courtyard-dust",
+      "island": "i14",
+      "element": "bazaar-courtyard-dust",
+      "file": "Dust_drifts_across_market_floor_98677781.mp4",
+      "ssim": 0.990324,
+      "runnerUpSsim": 0.365036,
+      "runnerUpElement": "i21-west-downland-grass",
+      "nextTakeSsim": 0.362598,
+      "status": "static",
+      "finding": "Opaque cream scrolls sweep across the courtyard paving.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          3,
+          5
+        ],
+        "rawWrapMae": 1.21,
+        "adjacentP95Mae": 2.8,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i14-southwest-canyon-agaves",
+      "island": "i14",
+      "element": "southwest-canyon-agaves",
+      "file": "Breeze_rustling_desert_plants_58f1034d.mp4",
+      "ssim": 0.840735,
+      "runnerUpSsim": 0.457761,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.495234,
+      "status": "static",
+      "finding": "The final pose leaves a broad red patch and doubled plant outlines across the canyon floor.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.56,
+          0.27
+        ],
+        "maxAbsColorShiftBGR": [
+          6,
+          3,
+          17
+        ],
+        "rawWrapMae": 14.98,
+        "adjacentP95Mae": 1.69,
+        "extraEndBlend": true,
+        "trialOnly": true
+      },
+      "matchConfirmation": {
+        "method": "Evaluate the same SSIM on whole Gaussian windows outside the prepared mask. The independent last frame also matches the full prep.",
+        "stationaryFirstSsim": 0.97511,
+        "stationaryRunnerUpSsim": 0.57934,
+        "stationaryRunnerUpElement": "i16-northwest-ember-ridge",
+        "fullFinalSsim": 0.987881
+      }
+    },
+    {
+      "id": "i14-southeast-wash-scrub",
+      "island": "i14",
+      "element": "southeast-wash-scrub",
+      "file": "Breeze_sways_desert_shrubs_aed4c861.mp4",
+      "ssim": 0.987139,
+      "runnerUpSsim": 0.498206,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.501366,
+      "status": "static",
+      "finding": "Parallel orange wind ribbons cross the empty wash.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.41,
+          0.15
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          4
+        ],
+        "rawWrapMae": 0.82,
+        "adjacentP95Mae": 1.23,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-northwest-moonlit-cove",
+      "island": "i15",
+      "element": "northwest-moonlit-cove",
+      "file": "flow_cffdf0ae.mp4",
+      "ssim": 0.991301,
+      "runnerUpSsim": 0.407312,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.415897,
+      "status": "static",
+      "finding": "Hard white rings circle the upright stone at the waterline.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.45,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.95,
+        "adjacentP95Mae": 0.85,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-west-lily-pond-ripples",
+      "island": "i15",
+      "element": "west-lily-pond-ripples",
+      "file": "Creating_seamless_loop_video_ani…_d5d8d966.mp4",
+      "ssim": 0.990128,
+      "runnerUpSsim": 0.482612,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.487345,
+      "status": "static",
+      "finding": "Wide flat silver ribbons cross the plants and standing stones.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.26,
+          0.21
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.92,
+        "adjacentP95Mae": 2.71,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-north-lantern-reeds",
+      "island": "i15",
+      "element": "north-lantern-reeds",
+      "file": "flow_8ee93c04.mp4",
+      "ssim": 0.987456,
+      "runnerUpSsim": 0.666038,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.674258,
+      "status": "static",
+      "finding": "New pale reed strokes appear in the bare ground on both sides of the lantern.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.14,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.98,
+        "adjacentP95Mae": 0.42,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-central-lily-pond-east",
+      "island": "i15",
+      "element": "central-lily-pond-east",
+      "file": "Create_seamless_moonlit_water_loop_9b390865.mp4",
+      "ssim": 0.983824,
+      "runnerUpSsim": 0.43513,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.445042,
+      "status": "static",
+      "finding": "Dark parallel slashes replace the smooth painted surface.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.15,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          2
+        ],
+        "rawWrapMae": 0.77,
+        "adjacentP95Mae": 3.92,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-east-moonlit-reeds",
+      "island": "i15",
+      "element": "east-moonlit-reeds",
+      "file": "flow_fe27ad76.mp4",
+      "ssim": 0.934236,
+      "runnerUpSsim": 0.582976,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.617385,
+      "status": "static",
+      "finding": "A saturated blue duplicate of the carved stone appears at the wrap.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.59,
+          0.8
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 2.84,
+        "adjacentP95Mae": 0.58,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-southeast-moonlit-foliage",
+      "island": "i15",
+      "element": "southeast-moonlit-foliage",
+      "file": "Breeze_swaying_moonlit_ferns_e27f29c5.mp4",
+      "ssim": 0.990244,
+      "runnerUpSsim": 0.4573,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.46599,
+      "status": "static",
+      "finding": "A new sharply drawn silver fern grows across the existing ground cover.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.25,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.0,
+        "adjacentP95Mae": 1.18,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i15-southwest-lantern-ferns",
+      "island": "i15",
+      "element": "southwest-lantern-ferns",
+      "file": "flow_7ed7fad1.mp4",
+      "ssim": 0.989978,
+      "runnerUpSsim": 0.436369,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.444544,
+      "status": "static",
+      "finding": "Bright blue fern fronds emerge over the soft leaves beneath the lamp.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.41,
+          0.23
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.96,
+        "adjacentP95Mae": 0.46,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i16-northwest-ember-ridge",
+      "island": "i16",
+      "element": "northwest-ember-ridge",
+      "file": "flow_b274f540.mp4",
+      "ssim": 0.988003,
+      "runnerUpSsim": 0.515143,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.518153,
+      "status": "static",
+      "finding": "The small crystal flares orange and casts a bright halo over the ridge.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.53,
+          0.38
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          0,
+          4
+        ],
+        "rawWrapMae": 0.99,
+        "adjacentP95Mae": 0.74,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i16-west-ember-crystals-vents",
+      "island": "i16",
+      "element": "west-ember-crystals-vents",
+      "file": "Crystals_and_lava_pulse_gently_3a2576a5.mp4",
+      "ssim": 0.984539,
+      "runnerUpSsim": 0.680035,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.678249,
+      "status": "static",
+      "finding": "Several orange crystals brighten together and throw new light onto the ground.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.25
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          4
+        ],
+        "rawWrapMae": 1.17,
+        "adjacentP95Mae": 0.55,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i16-southwest-basalt-fissures",
+      "island": "i16",
+      "element": "southwest-basalt-fissures",
+      "file": "flow_ed556938.mp4",
+      "ssim": 0.986528,
+      "runnerUpSsim": 0.568497,
+      "runnerUpElement": "i16-west-ember-crystals-vents",
+      "nextTakeSsim": 0.580716,
+      "status": "static",
+      "finding": "A large ornamental smoke curl rises from the rock and crosses the foreground.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.23,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          4
+        ],
+        "rawWrapMae": 0.84,
+        "adjacentP95Mae": 1.06,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i16-northeast-forge-vents",
+      "island": "i16",
+      "element": "northeast-forge-vents",
+      "file": "Ember_seams_pulsing_on_rock_579224e2.mp4",
+      "ssim": 0.987919,
+      "runnerUpSsim": 0.636081,
+      "runnerUpElement": "i16-west-ember-crystals-vents",
+      "nextTakeSsim": 0.644113,
+      "status": "static",
+      "finding": "Large curling smoke plumes grow from the two low vents.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.24,
+          0.12
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          4
+        ],
+        "rawWrapMae": 0.93,
+        "adjacentP95Mae": 0.93,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i16-east-braziers-and-vents",
+      "island": "i16",
+      "element": "east-braziers-and-vents",
+      "file": "Create_seamless_loop_animation_fb812d13.mp4",
+      "ssim": 0.984963,
+      "runnerUpSsim": 0.678249,
+      "runnerUpElement": "i16-west-ember-crystals-vents",
+      "nextTakeSsim": 0.680035,
+      "status": "static",
+      "finding": "New glowing sparks rise beside the foreground crystal while the brazier itself flickers.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.18
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          4
+        ],
+        "rawWrapMae": 0.88,
+        "adjacentP95Mae": 0.57,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i16-southeast-magma-ridge",
+      "island": "i16",
+      "element": "southeast-magma-ridge",
+      "file": "Creating_an_animated_loop_a5264c08.mp4",
+      "ssim": 0.985546,
+      "runnerUpSsim": 0.60867,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.614477,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The thin fissures pulse along the existing rock seams.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.31,
+          0.86
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          5
+        ],
+        "rawWrapMae": 1.39,
+        "adjacentP95Mae": 0.52,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i17-cloister-east-banner",
+      "island": "i17",
+      "element": "cloister-east-banner",
+      "file": "Breeze_ripples_hanging_banner_2b378a03.mp4",
+      "ssim": 0.993055,
+      "runnerUpSsim": 0.234107,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.235073,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The split blue cloth rises and settles at its attachment to the column.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.05
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.4,
+        "adjacentP95Mae": 4.46,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i17-cloister-hanging-bells",
+      "island": "i17",
+      "element": "cloister-hanging-bells",
+      "file": "Bells_rocking_in_limestone_colon…_e24347f8.mp4",
+      "ssim": 0.993888,
+      "runnerUpSsim": 0.211456,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.213452,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The three bells rock on their hangers beneath the fixed stone arch.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.04
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.55,
+        "adjacentP95Mae": 3.16,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i17-east-plateau-meadow",
+      "island": "i17",
+      "element": "east-plateau-meadow",
+      "file": "Grass_and_wildflowers_blowing_in…_b51288d1.mp4",
+      "ssim": 0.991642,
+      "runnerUpSsim": 0.309903,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.314796,
+      "status": "static",
+      "finding": "A square stone post with its own shadow appears in the open meadow.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.31,
+          0.24
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.02,
+        "adjacentP95Mae": 1.39,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i17-north-meadow-grass",
+      "island": "i17",
+      "element": "north-meadow-grass",
+      "file": "Breeze_sweeping_meadow_grass_loop_ae6001db.mp4",
+      "ssim": 0.989213,
+      "runnerUpSsim": 0.417143,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.428371,
+      "status": "static",
+      "finding": "A pale wind trail travels across the stone paving and grass.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.12,
+          0.05
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.98,
+        "adjacentP95Mae": 0.7,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i17-northeast-aqueduct-ivy",
+      "island": "i17",
+      "element": "northeast-aqueduct-ivy",
+      "file": "Breeze_stirring_ruined_limestone…_4f7c51bb.mp4",
+      "ssim": 0.994153,
+      "runnerUpSsim": 0.200363,
+      "runnerUpElement": "i02-west-meadow-sea-thrift",
+      "nextTakeSsim": 0.207846,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The foliage moves along the arches while the pillars and masonry blocks stay registered.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.35,
+          0.24
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.1,
+        "adjacentP95Mae": 0.61,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i17-southeast-sky-clouds",
+      "island": "i17",
+      "element": "southeast-sky-clouds",
+      "file": "Clouds_drifting_over_limestone_c…_1b0589d6.mp4",
+      "ssim": 0.993068,
+      "runnerUpSsim": 0.275237,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.279285,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "The cloud edge drifts very slightly beside the fixed cliff and floating islet.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.48,
+          0.45
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.94,
+        "adjacentP95Mae": 0.44,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i17-west-terrace-meadow",
+      "island": "i17",
+      "element": "west-terrace-meadow",
+      "file": "Wildflowers_moving_in_a_breeze_95fa84d8.mp4",
+      "ssim": 0.990816,
+      "runnerUpSsim": 0.360634,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.365625,
+      "status": "static",
+      "finding": "Individual upright plants sprout on the open lawn beside the paving.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.2,
+          0.06
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.97,
+        "adjacentP95Mae": 0.52,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i18-alchemist-bench-flasks",
+      "island": "i18",
+      "element": "alchemist-bench-flasks",
+      "file": "Liquids_shimmering_in_alchemy_fl…_5ef64200.mp4",
+      "ssim": 0.990562,
+      "runnerUpSsim": 0.446463,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.452833,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1
+      },
+      "finding": "Reflections turn inside the coloured glass while the rail and flask necks stay anchored.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.94,
+        "adjacentP95Mae": 1.42,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i18-lower-kiln-furnace",
+      "island": "i18",
+      "element": "lower-kiln-furnace",
+      "file": "Hearth_embers_shimmer_in_kiln_d2fa3f0a.mp4",
+      "ssim": 0.993402,
+      "runnerUpSsim": 0.227828,
+      "runnerUpElement": "l1c-southwest-meadow-bush",
+      "nextTakeSsim": 0.232159,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1
+      },
+      "finding": "Fire shifts behind the dark grate and keeps the outline of the kiln opening.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.08,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.79,
+        "adjacentP95Mae": 3.81,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i18-north-central-crystals",
+      "island": "i18",
+      "element": "north-central-crystals",
+      "file": "Crystals_glowing_in_cavern_7256d600.mp4",
+      "ssim": 0.989486,
+      "runnerUpSsim": 0.382464,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.398379,
+      "status": "static",
+      "finding": "The mint and violet clusters flare nearly white in succession.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.12,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          0,
+          4
+        ],
+        "rawWrapMae": 1.55,
+        "adjacentP95Mae": 2.75,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i18-northeast-vault-crystals",
+      "island": "i18",
+      "element": "northeast-vault-crystals",
+      "file": "Crystals_shimmering_in_cave_loop_a4d2badd.mp4",
+      "ssim": 0.990768,
+      "runnerUpSsim": 0.38624,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.38381,
+      "status": "static",
+      "finding": "A bright zigzag runs between the upright crystals and across their separate facets.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.51,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.3,
+        "adjacentP95Mae": 1.3,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i18-southeast-crystal-seam",
+      "island": "i18",
+      "element": "southeast-crystal-seam",
+      "file": "Crystal_highlights_pulsing_in_cave_d613d2f3.mp4",
+      "ssim": 0.990395,
+      "runnerUpSsim": 0.403631,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.414389,
+      "status": "static",
+      "finding": "The centre of the seam pulses with bright new white facet outlines.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.13,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          0,
+          3
+        ],
+        "rawWrapMae": 0.93,
+        "adjacentP95Mae": 0.66,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i18-upper-kiln-furnace",
+      "island": "i18",
+      "element": "upper-kiln-furnace",
+      "file": "Furnace_glows_in_stone_kiln_db91fab7.mp4",
+      "ssim": 0.99268,
+      "runnerUpSsim": 0.225642,
+      "runnerUpElement": "i20-west-headland-grass",
+      "nextTakeSsim": 0.23088,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1
+      },
+      "finding": "The warm flame moves behind the fixed bars of the upper furnace.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.01
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          3
+        ],
+        "rawWrapMae": 2.06,
+        "adjacentP95Mae": 2.75,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i18-west-ledge-crystals",
+      "island": "i18",
+      "element": "west-ledge-crystals",
+      "file": "Create_seamless_crystal_animatio…_20d5f1d2.mp4",
+      "ssim": 0.992038,
+      "runnerUpSsim": 0.333783,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.340717,
+      "status": "static",
+      "finding": "An opaque white band travels across the tall crystal and the small cluster beside it.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.02
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.29,
+        "adjacentP95Mae": 3.06,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i19-hoist-seed-basket",
+      "island": "i19",
+      "element": "hoist-seed-basket",
+      "file": "Woven_basket_rocks_on_branch_41f22566.mp4",
+      "ssim": 0.989487,
+      "runnerUpSsim": 0.268604,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.266308,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The seed basket swings from its tied ropes and keeps its woven silhouette.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.17,
+          0.13
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.41,
+        "adjacentP95Mae": 4.43,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i19-north-glade-meadow",
+      "island": "i19",
+      "element": "north-glade-meadow",
+      "file": "Breeze_rippling_through_painted_…_9053d74d.mp4",
+      "ssim": 0.981696,
+      "runnerUpSsim": 0.348624,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.348969,
+      "status": "static",
+      "finding": "Detached leaf shapes drift over the empty strip beneath the canopy.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.23,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.1,
+        "adjacentP95Mae": 0.96,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i19-northeast-hanging-baskets",
+      "island": "i19",
+      "element": "northeast-hanging-baskets",
+      "file": "Woven_baskets_swaying_on_branch_6893cfc4.mp4",
+      "ssim": 0.988748,
+      "runnerUpSsim": 0.160805,
+      "runnerUpElement": "i01-north-central-wildflowers",
+      "nextTakeSsim": 0.163916,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The suspended baskets swing under the branch with continuous rims and ropes.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.09,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          2
+        ],
+        "rawWrapMae": 2.17,
+        "adjacentP95Mae": 5.51,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i19-northwest-hanging-baskets",
+      "island": "i19",
+      "element": "northwest-hanging-baskets",
+      "file": "Baskets_swinging_on_tree_branch_6d81adbc.mp4",
+      "ssim": 0.990694,
+      "runnerUpSsim": 0.14995,
+      "runnerUpElement": "i16-northeast-forge-vents",
+      "nextTakeSsim": 0.152813,
+      "status": "static",
+      "finding": "The larger basket swings into a straight mask edge that slices off its right side.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.03
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.58,
+        "adjacentP95Mae": 10.22,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i19-southeast-foreground-foliage",
+      "island": "i19",
+      "element": "southeast-foreground-foliage",
+      "file": "Jungle_breeze_ripples_painted_le…_c98712ef.mp4",
+      "ssim": 0.988045,
+      "runnerUpSsim": 0.196556,
+      "runnerUpElement": "i05-southeast-wheat-rows",
+      "nextTakeSsim": 0.193674,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "Broad leaves and flower spikes move together across the foreground.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.15,
+          0.04
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.43,
+        "adjacentP95Mae": 3.13,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i19-west-cliff-foliage",
+      "island": "i19",
+      "element": "west-cliff-foliage",
+      "file": "Leaves_swaying_in_jungle_canopy_0cfb5d17.mp4",
+      "ssim": 0.992468,
+      "runnerUpSsim": 0.180607,
+      "runnerUpElement": "l1c-southwest-meadow-bush",
+      "nextTakeSsim": 0.185963,
+      "status": "static",
+      "finding": "A new hanging bough grows down the trunk below the broad foreground leaf.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.22,
+          0.53
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.24,
+        "adjacentP95Mae": 7.04,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i20-east-headland-grass",
+      "island": "i20",
+      "element": "east-headland-grass",
+      "file": "Breeze_rippling_coastal_grass_pa…_7e4a1efb.mp4",
+      "ssim": 0.988035,
+      "runnerUpSsim": 0.547518,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.56278,
+      "status": "static",
+      "finding": "Broad pale wind trails sweep behind the stone and across the open grass.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.05
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          0,
+          2
+        ],
+        "rawWrapMae": 0.99,
+        "adjacentP95Mae": 1.65,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i20-east-red-pennant",
+      "island": "i20",
+      "element": "east-red-pennant",
+      "file": "Flag_rippling_in_sea_breeze_ac93ea5f.mp4",
+      "ssim": 0.991397,
+      "runnerUpSsim": 0.362361,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.374167,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The striped cloth folds around the pole and returns to its opening pose.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.11,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.73,
+        "adjacentP95Mae": 3.89,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i20-northwest-reef-surf",
+      "island": "i20",
+      "element": "northwest-reef-surf",
+      "file": "Ocean_swells_near_jagged_rocks_7ae0f02c.mp4",
+      "ssim": 0.992248,
+      "runnerUpSsim": 0.305196,
+      "runnerUpElement": "i20-west-headland-grass",
+      "nextTakeSsim": 0.31435,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "Broken white foam moves between the fixed dark reef rocks.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.37,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          0,
+          3
+        ],
+        "rawWrapMae": 1.24,
+        "adjacentP95Mae": 4.51,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i20-southwest-dune-grass",
+      "island": "i20",
+      "element": "southwest-dune-grass",
+      "file": "Grass_bending_in_coastal_gust_aac6f5bf.mp4",
+      "ssim": 0.98949,
+      "runnerUpSsim": 0.38165,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.397807,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The long painted blades bend over the rocks and settle back.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.22,
+          0.41
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.21,
+        "adjacentP95Mae": 1.54,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i20-west-headland-grass",
+      "island": "i20",
+      "element": "west-headland-grass",
+      "file": "Grass_blowing_in_sea_squall_2800105b.mp4",
+      "ssim": 0.989258,
+      "runnerUpSsim": 0.601077,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.609372,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "A subtle change of direction travels through the existing grass strokes.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.59
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.68,
+        "adjacentP95Mae": 1.08,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i21-east-downland-grass",
+      "island": "i21",
+      "element": "east-downland-grass",
+      "file": "flow_8bb4dc13.mp4",
+      "ssim": 0.988139,
+      "runnerUpSsim": 0.485265,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.487352,
+      "status": "static",
+      "finding": "Large pale seed heads spring up in previously empty grass by the cliff.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          1.71,
+          1.65
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.99,
+        "adjacentP95Mae": 1.95,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i21-kite-rack-canvas",
+      "island": "i21",
+      "element": "kite-rack-canvas",
+      "file": "Breeze_moves_cloth_on_rack_f253ffcb.mp4",
+      "ssim": 0.988734,
+      "runnerUpSsim": 0.465484,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.462154,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1
+      },
+      "finding": "The panel bows within the laced wooden frame and keeps its stitched seam.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.16,
+          0.12
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 1.39,
+        "adjacentP95Mae": 2.03,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i21-kite-ribbon-tails",
+      "island": "i21",
+      "element": "kite-ribbon-tails",
+      "file": "Ribbon_fluttering_on_grounded_kite_394453bc.mp4",
+      "ssim": 0.989464,
+      "runnerUpSsim": 0.404651,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.407414,
+      "status": "static",
+      "finding": "The lifted red ribbon breaks into separate pieces along a straight mask boundary.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.09
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.12,
+        "adjacentP95Mae": 8.63,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i21-north-center-meadow",
+      "island": "i21",
+      "element": "north-center-meadow",
+      "file": "Breeze_blowing_through_meadow_turf_158835a8.mp4",
+      "ssim": 0.988559,
+      "runnerUpSsim": 0.434247,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.436167,
+      "status": "static",
+      "finding": "Several isolated yellow grass clumps appear around the low brown shrub.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.2,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.89,
+        "adjacentP95Mae": 0.57,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i21-northeast-golden-grass",
+      "island": "i21",
+      "element": "northeast-golden-grass",
+      "file": "Grass_and_heather_sway_in_ffff8864.mp4",
+      "ssim": 0.987123,
+      "runnerUpSsim": 0.463679,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.46662,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The seed heads move together on the existing golden clump.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.17,
+          0.08
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          2,
+          1
+        ],
+        "rawWrapMae": 0.82,
+        "adjacentP95Mae": 0.63,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i21-south-heather-rim",
+      "island": "i21",
+      "element": "south-heather-rim",
+      "file": "Create_seamless_heather_loop_ani…_5bd72292.mp4",
+      "ssim": 0.988234,
+      "runnerUpSsim": 0.462493,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.467147,
+      "status": "static",
+      "finding": "Tall purple flower spikes emerge from the low painted heather at the cliff edge.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 0.78,
+        "adjacentP95Mae": 0.54,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i21-west-downland-grass",
+      "island": "i21",
+      "element": "west-downland-grass",
+      "file": "Grass_rippling_in_breeze_51306fc1.mp4",
+      "ssim": 0.986964,
+      "runnerUpSsim": 0.594438,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.592828,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "Two low grass patches sway gently across the edge of the meadow.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.49
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          1
+        ],
+        "rawWrapMae": 0.87,
+        "adjacentP95Mae": 0.55,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i22-brine-ferry-bob",
+      "island": "i22",
+      "element": "brine-ferry-bob",
+      "file": "Wooden_cargo_ferry_bobs_0ca53a88.mp4",
+      "ssim": 0.992147,
+      "runnerUpSsim": 0.269378,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.282827,
+      "status": "static",
+      "finding": "Hard concentric mint rings radiate from the ferry and extend across the quiet pool.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.19,
+          0.07
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          2
+        ],
+        "rawWrapMae": 1.19,
+        "adjacentP95Mae": 1.49,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i22-lantern-gantry-sway",
+      "island": "i22",
+      "element": "lantern-gantry-sway",
+      "file": "Create_seamless_lantern_loop_ani…_6c61f7b8.mp4",
+      "ssim": 0.993348,
+      "runnerUpSsim": 0.352247,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.360764,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1
+      },
+      "finding": "The lamp and hanging rope shift below the fixed timber and pulley.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.11
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.59,
+        "adjacentP95Mae": 4.18,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i22-northeast-stalactite-glint",
+      "island": "i22",
+      "element": "northeast-stalactite-glint",
+      "file": "Creating_seamless_looping_animation_db0da0a0.mp4",
+      "ssim": 0.991145,
+      "runnerUpSsim": 0.519207,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.526367,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "Pale highlights move along the existing narrow mineral tips.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.52,
+          0.33
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 0.85,
+        "adjacentP95Mae": 0.43,
+        "extraEndBlend": true
+      }
+    },
+    {
+      "id": "i22-northwest-stalactite-glint",
+      "island": "i22",
+      "element": "northwest-stalactite-glint",
+      "file": "Stalactites_brightening_in_caver…_9b3cc331.mp4",
+      "ssim": 0.993527,
+      "runnerUpSsim": 0.273961,
+      "runnerUpElement": "i15-north-lantern-reeds",
+      "nextTakeSsim": 0.285463,
+      "status": "static",
+      "finding": "The whole cluster changes to a bright turquoise glow against the rock.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.07,
+          0.02
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          0,
+          4
+        ],
+        "rawWrapMae": 0.88,
+        "adjacentP95Mae": 0.4,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i22-salt-terrace-shimmer",
+      "island": "i22",
+      "element": "salt-terrace-shimmer",
+      "file": "Create_crystal_salt_loop_animation_f0abbede.mp4",
+      "ssim": 0.993283,
+      "runnerUpSsim": 0.353914,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.367946,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "A soft highlight crosses the faces of the salt crystals without changing their shape.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.02
+        ],
+        "maxAbsColorShiftBGR": [
+          3,
+          1,
+          3
+        ],
+        "rawWrapMae": 0.78,
+        "adjacentP95Mae": 0.48,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i22-sinkhole-north-water",
+      "island": "i22",
+      "element": "sinkhole-north-water",
+      "file": "Water_shimmers_in_sinkhole_cave_204db30f.mp4",
+      "ssim": 0.991777,
+      "runnerUpSsim": 0.258395,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.27408,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "A small surface ripple travels across the water to the right of the piling.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.25,
+          0.36
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 0.79,
+        "adjacentP95Mae": 0.5,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i23-north-orchard-grass",
+      "island": "i23",
+      "element": "north-orchard-grass",
+      "file": "Breeze_waving_grass_in_orchard_596abf01.mp4",
+      "ssim": 0.979678,
+      "runnerUpSsim": 0.481139,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.469117,
+      "status": "static",
+      "finding": "New pale grain heads sweep across the gap between the existing tufts.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.1
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.12,
+        "adjacentP95Mae": 2.11,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i23-northeast-berry-bough",
+      "island": "i23",
+      "element": "northeast-berry-bough",
+      "file": "Breeze_stirs_autumn_leaves_dcfadc19.mp4",
+      "ssim": 0.987968,
+      "runnerUpSsim": 0.374469,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.362075,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The berry cluster and its leaves move together at the end of the branch.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.2,
+          0.18
+        ],
+        "maxAbsColorShiftBGR": [
+          5,
+          2,
+          1
+        ],
+        "rawWrapMae": 1.18,
+        "adjacentP95Mae": 3.58,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i23-northwest-apple-canopy",
+      "island": "i23",
+      "element": "northwest-apple-canopy",
+      "file": null,
+      "ssim": null,
+      "runnerUpSsim": null,
+      "runnerUpElement": null,
+      "nextTakeSsim": null,
+      "status": "unmatched",
+      "finding": "No take in the chapter 3 inbox matched this prep image."
+    },
+    {
+      "id": "i23-south-orchard-grass",
+      "island": "i23",
+      "element": "south-orchard-grass",
+      "file": "Breeze_brushes_orchard_grass_880ad766.mp4",
+      "ssim": 0.938934,
+      "runnerUpSsim": 0.554219,
+      "runnerUpElement": "i09-south-west-meadow-tufts",
+      "nextTakeSsim": 0.557356,
+      "status": "static",
+      "finding": "A yellow plant flashes at the upper left as the loop closes.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.53,
+          0.31
+        ],
+        "maxAbsColorShiftBGR": [
+          7,
+          2,
+          1
+        ],
+        "rawWrapMae": 2.84,
+        "adjacentP95Mae": 1.24,
+        "extraEndBlend": true,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i23-southeast-orchard-bough",
+      "island": "i23",
+      "element": "southeast-orchard-bough",
+      "file": "Orchard_breeze_moves_autumn_leaves_4e92938d.mp4",
+      "ssim": 0.985903,
+      "runnerUpSsim": 0.398534,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.383071,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The fruit stays attached as the outer leaves sway over the grass.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.36,
+          0.19
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.18,
+        "adjacentP95Mae": 1.92,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i23-southwest-apple-bough",
+      "island": "i23",
+      "element": "southwest-apple-bough",
+      "file": null,
+      "ssim": null,
+      "runnerUpSsim": null,
+      "runnerUpElement": null,
+      "nextTakeSsim": null,
+      "status": "unmatched",
+      "finding": "No take in the chapter 3 inbox matched this prep image."
+    },
+    {
+      "id": "i23-west-berry-canopy",
+      "island": "i23",
+      "element": "west-berry-canopy",
+      "file": "Breeze_ripples_orchard_leaf_sprays_c74cca22.mp4",
+      "ssim": 0.986163,
+      "runnerUpSsim": 0.389812,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.38749,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1.25,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "Several sprays of leaves and berries shift along the painted canopy edge.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.86,
+          0.69
+        ],
+        "maxAbsColorShiftBGR": [
+          4,
+          2,
+          2
+        ],
+        "rawWrapMae": 1.62,
+        "adjacentP95Mae": 1.48,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i24-coastal-fog-bell",
+      "island": "i24",
+      "element": "coastal-fog-bell",
+      "file": "Fog_bell_rocking_in_wind_0daac08f.mp4",
+      "ssim": 0.988235,
+      "runnerUpSsim": 0.498803,
+      "runnerUpElement": "i16-west-ember-crystals-vents",
+      "nextTakeSsim": 0.523122,
+      "status": "integrated",
+      "pack": {
+        "depth": 2,
+        "scale": 2,
+        "opacity": 1,
+        "feather": 1,
+        "paddingStartPx": 24
+      },
+      "finding": "The bell and clapper swing inside the fixed timber frame.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.1,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.62,
+        "adjacentP95Mae": 4.22,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i24-lighthouse-beacon-glow",
+      "island": "i24",
+      "element": "lighthouse-beacon-glow",
+      "file": "Lamp_glowing_in_lighthouse_tower_9b953211.mp4",
+      "ssim": 0.988454,
+      "runnerUpSsim": 0.477452,
+      "runnerUpElement": "i24-coastal-fog-bell",
+      "nextTakeSsim": 0.481254,
+      "status": "static",
+      "finding": "A flat bright rectangle fills the lantern and obscures its painted shutters.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.27,
+          0.25
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          2,
+          3
+        ],
+        "rawWrapMae": 1.35,
+        "adjacentP95Mae": 3.1,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i24-north-headland-grass",
+      "island": "i24",
+      "element": "north-headland-grass",
+      "file": "flow_b31f84cd.mp4",
+      "ssim": 0.986222,
+      "runnerUpSsim": 0.422502,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.429359,
+      "status": "static",
+      "finding": "Pale translucent wind streaks pass over the bare headland.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.07,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.11,
+        "adjacentP95Mae": 1.36,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i24-northeast-pasture-grass",
+      "island": "i24",
+      "element": "northeast-pasture-grass",
+      "file": "Breeze_rippling_painted_grass_bl…_61ef4744.mp4",
+      "ssim": 0.98574,
+      "runnerUpSsim": 0.512849,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.536133,
+      "status": "static",
+      "finding": "A row of pale seed heads appears in the empty pasture beneath the rocks.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.25,
+          0.17
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          4
+        ],
+        "rawWrapMae": 1.01,
+        "adjacentP95Mae": 1.91,
+        "extraEndBlend": false,
+        "trialOnly": true
+      }
+    },
+    {
+      "id": "i24-southeast-reef-swell",
+      "island": "i24",
+      "element": "southeast-reef-swell",
+      "file": "flow_9fbfd452.mp4",
+      "ssim": 0.988408,
+      "runnerUpSsim": 0.390808,
+      "runnerUpElement": "i16-east-braziers-and-vents",
+      "nextTakeSsim": 0.412976,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "Foam swells and recedes in the cleft beneath the dark cliff.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.12,
+          0.14
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.49,
+        "adjacentP95Mae": 2.17,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i24-southwest-slope-grass",
+      "island": "i24",
+      "element": "southwest-slope-grass",
+      "file": "Grass_swaying_in_coastal_wind_56a54db0.mp4",
+      "ssim": 0.986094,
+      "runnerUpSsim": 0.45032,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.442176,
+      "status": "integrated",
+      "pack": {
+        "depth": 1,
+        "scale": 1,
+        "opacity": 1,
+        "feather": 2
+      },
+      "finding": "The golden blades bend along the slope and retain their painted tips.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.18,
+          0.19
+        ],
+        "maxAbsColorShiftBGR": [
+          1,
+          1,
+          2
+        ],
+        "rawWrapMae": 0.99,
+        "adjacentP95Mae": 1.29,
+        "extraEndBlend": false
+      }
+    },
+    {
+      "id": "i24-west-mid-cliff-surf",
+      "island": "i24",
+      "element": "west-mid-cliff-surf",
+      "file": "Sea_swells_against_cliff_rocks_8228b850.mp4",
+      "ssim": 0.989283,
+      "runnerUpSsim": 0.304202,
+      "runnerUpElement": "i23-south-orchard-grass",
+      "nextTakeSsim": 0.307724,
+      "status": "integrated",
+      "pack": {
+        "depth": 0,
+        "scale": 1,
+        "opacity": 0.78,
+        "feather": 5
+      },
+      "finding": "Broken spray washes up against the cliff and recedes around the rocks.",
+      "registrationAndSeam": {
+        "maxAbsOffsetStartPxXY": [
+          0.28,
+          0.16
+        ],
+        "maxAbsColorShiftBGR": [
+          2,
+          1,
+          3
+        ],
+        "rawWrapMae": 1.94,
+        "adjacentP95Mae": 6.67,
+        "extraEndBlend": false
+      }
+    }
+  ],
+  "protectClearanceAndPlots": true,
+  "matchAudit": {
+    "preparedElements": 166,
+    "inboxTakes": 163,
+    "comparisons": 27058,
+    "matchedTakes": 163,
+    "integrated": 70,
+    "static": 93,
+    "missingElements": [
+      "i11-southeast-beacon-tower",
+      "i23-northwest-apple-canopy",
+      "i23-southwest-apple-bough"
+    ],
+    "unmatchedFiles": [],
+    "duplicateFilesForElement": [],
+    "ambiguousMatches": []
+  },
+  "registrationMethod": "All 192 frames. Packer measurements use the shipping style for retained takes. Static trials use scale 1 and a 2-layout-pixel inward feather; extraEndBlend on these rows describes the packer decision in the discarded trial."
+}

@@ -5,11 +5,11 @@
     "file": "ambient/i16/loops-1x.mp4",
     "mask": "ambient/i16/mask-1x.webp",
     "width": 416,
-    "height": 88,
+    "height": 144,
     "fps": 12
   },
   "width": 832,
-  "height": 176,
+  "height": 288,
   "fps": 24,
   "elements": [
     {
@@ -22,10 +22,26 @@
       ],
       "depth": 0,
       "cell": [
-        268,
         4,
+        236,
         421,
         48
+      ]
+    },
+    {
+      "id": "southeast-magma-ridge",
+      "rect": [
+        1435.75,
+        601.875,
+        386.625,
+        220.5
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        387,
+        221
       ]
     },
     {
@@ -38,7 +54,7 @@
       ],
       "depth": 1,
       "cell": [
-        4,
+        400,
         4,
         253,
         162

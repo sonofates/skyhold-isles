@@ -5,13 +5,29 @@
     "file": "ambient/i18/loops-1x.mp4",
     "mask": "ambient/i18/mask-1x.webp",
     "width": 416,
-    "height": 256,
+    "height": 304,
     "fps": 12
   },
   "width": 832,
-  "height": 512,
+  "height": 608,
   "fps": 24,
   "elements": [
+    {
+      "id": "north-vault-crystals",
+      "rect": [
+        44.0,
+        3.85,
+        194.25,
+        90.3
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        348,
+        331,
+        154
+      ]
+    },
     {
       "id": "amethyst-geode",
       "rect": [
@@ -61,19 +77,51 @@
       ]
     },
     {
-      "id": "north-vault-crystals",
+      "id": "alchemist-bench-flasks",
       "rect": [
-        44.0,
-        3.85,
-        194.25,
-        90.3
+        472.0,
+        581.9375,
+        74.0625,
+        40.125
       ],
-      "depth": 0,
+      "depth": 2,
       "cell": [
         4,
+        512,
+        149,
+        81
+      ]
+    },
+    {
+      "id": "lower-kiln-furnace",
+      "rect": [
+        173.9375,
+        679.9375,
+        80.25,
+        76.125
+      ],
+      "depth": 2,
+      "cell": [
+        344,
         348,
-        331,
-        154
+        161,
+        153
+      ]
+    },
+    {
+      "id": "upper-kiln-furnace",
+      "rect": [
+        45.9375,
+        501.9375,
+        76.3125,
+        66.1875
+      ],
+      "depth": 2,
+      "cell": [
+        516,
+        348,
+        153,
+        133
       ]
     }
   ]

@@ -5,11 +5,11 @@
     "file": "ambient/i23/loops-1x.mp4",
     "mask": "ambient/i23/mask-1x.webp",
     "width": 416,
-    "height": 136,
+    "height": 248,
     "fps": 12
   },
   "width": 832,
-  "height": 272,
+  "height": 496,
   "fps": 24,
   "elements": [
     {
@@ -42,6 +42,54 @@
         4,
         403,
         252
+      ]
+    },
+    {
+      "id": "northeast-berry-bough",
+      "rect": [
+        1648.0,
+        178.0,
+        190.25,
+        162.25
+      ],
+      "depth": 1,
+      "cell": [
+        200,
+        264,
+        238,
+        203
+      ]
+    },
+    {
+      "id": "southeast-orchard-bough",
+      "rect": [
+        1553.8,
+        657.9,
+        284.4,
+        186.3
+      ],
+      "depth": 1,
+      "cell": [
+        448,
+        264,
+        285,
+        187
+      ]
+    },
+    {
+      "id": "west-berry-canopy",
+      "rect": [
+        5.75,
+        205.775,
+        148.35,
+        180.2625
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        264,
+        186,
+        226
       ]
     }
   ]

@@ -12,7 +12,7 @@ from tempfile import TemporaryDirectory
 
 import cv2
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 from road_mask import animation_clearance, clip_atlas
 
@@ -46,6 +46,20 @@ def extract(folder, scratch, frames, style, movie):
         distance = radius - np.hypot(xx - cx, yy - cy)
         rim = style.get("sweepFeatherStartPx", place["featherInwardStartPx"])
         mask = np.rint(255 * np.clip(distance / rim, 0, 1)).astype(np.uint8)
+    elif "expandedMask" in style:
+        # Chapter 2 moving silhouettes use a softer core than the chapter 1 padding.
+        envelope = style["expandedMask"]
+        core = mask >= 150
+        xs = np.arange(mask.shape[1])
+        if "coreXExclusive" in envelope:
+            left, right = envelope["coreXExclusive"]
+            core &= (xs > left) & (xs < right)
+        distance = cv2.distanceTransform((~core).astype(np.uint8), cv2.DIST_L2, cv2.DIST_MASK_PRECISE)
+        added = np.clip((envelope["radiusStartPx"] - distance) / envelope["outerFeatherStartPx"], 0, 1)
+        if "leftRampX" in envelope:
+            left, right = envelope["leftRampX"]
+            added *= np.clip((xs - left) / (right - left), 0, 1)
+        mask = np.maximum(mask, np.rint(255 * added).astype(np.uint8))
     elif "paddingStartPx" in style:
         # Give a bending crown or cloth enough clearance to uncover its original silhouette.
         distance = cv2.distanceTransform((mask < 255).astype(np.uint8), cv2.DIST_L2, 5)
@@ -272,6 +286,19 @@ def main():
             check=True,
         )
         clearance = animation_clearance(name)
+        if args.matches and table.get("protectClearanceAndPlots"):
+            # Reserve even the outer road feather. Leave room for interpolation in
+            # both the world-to-atlas projection and the compact playback sampler.
+            layout = json.loads((Path("src/data/levels2d") / (name + ".json")).read_text())
+            clearance = clearance.point(lambda v: 255 if v == 255 else 0)
+            draw = ImageDraw.Draw(clearance)
+            radius = layout.get("plotRadiusPx", 48)
+            for x, y in layout["plots"]:
+                draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=0)
+            texel = max(max(t["rect"][2+i] / t["cell"][2+i] for i in (0, 1)) for t in tiles) * 2
+            margin = math.ceil(2 * texel + 1)
+            clearance = clearance.filter(ImageFilter.MinFilter(2 * margin + 1))
+            clearance = ImageChops.darker(clearance, clearance.filter(ImageFilter.GaussianBlur(2)))
         for image, w, h in [
             ("mask.webp", width, height),
             ("mask-1x.webp", width // 2, height // 2),

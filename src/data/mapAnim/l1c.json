@@ -5,13 +5,61 @@
     "file": "ambient/l1c/loops-1x.mp4",
     "mask": "ambient/l1c/mask-1x.webp",
     "width": 416,
-    "height": 168,
+    "height": 360,
     "fps": 12
   },
   "width": 832,
-  "height": 336,
+  "height": 720,
   "fps": 24,
   "elements": [
+    {
+      "id": "northwest-shrubs",
+      "rect": [
+        13.95,
+        81.9,
+        144.225,
+        144.225
+      ],
+      "depth": 1,
+      "cell": [
+        272,
+        340,
+        181,
+        181
+      ]
+    },
+    {
+      "id": "southeast-oak-grove",
+      "rect": [
+        1405.0,
+        655.85,
+        431.2,
+        154.35
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        560,
+        432,
+        155
+      ]
+    },
+    {
+      "id": "west-fir-boughs",
+      "rect": [
+        4.75,
+        288.75,
+        122.25,
+        137.5
+      ],
+      "depth": 1,
+      "cell": [
+        340,
+        4,
+        245,
+        275
+      ]
+    },
     {
       "id": "windmill-sails",
       "rect": [
@@ -38,8 +86,8 @@
       ],
       "depth": 2,
       "cell": [
-        340,
         4,
+        340,
         259,
         212
       ]

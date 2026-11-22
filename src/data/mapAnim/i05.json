@@ -5,13 +5,93 @@
     "file": "ambient/i05/loops-1x.mp4",
     "mask": "ambient/i05/mask-1x.webp",
     "width": 416,
-    "height": 296,
+    "height": 472,
     "fps": 12
   },
   "width": 832,
-  "height": 592,
+  "height": 944,
   "fps": 24,
   "elements": [
+    {
+      "id": "mill-south-wheat",
+      "rect": [
+        562.0,
+        568.0,
+        176.2,
+        108.2
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        804,
+        221,
+        136
+      ]
+    },
+    {
+      "id": "north-ridge-wheat",
+      "rect": [
+        544.8,
+        7.7,
+        383.25,
+        88.55
+      ],
+      "depth": 1,
+      "cell": [
+        236,
+        804,
+        384,
+        89
+      ]
+    },
+    {
+      "id": "northeast-wheat-patch",
+      "rect": [
+        1225.8,
+        7.8,
+        229.5,
+        130.5
+      ],
+      "depth": 1,
+      "cell": [
+        420,
+        592,
+        287,
+        164
+      ]
+    },
+    {
+      "id": "scarecrow-lower-wheat",
+      "rect": [
+        10.0,
+        274.0,
+        312.1875,
+        204.0625
+      ],
+      "depth": 1,
+      "cell": [
+        404,
+        344,
+        313,
+        205
+      ]
+    },
+    {
+      "id": "southeast-wheat-rows",
+      "rect": [
+        1268.0,
+        623.8,
+        407.05,
+        201.25
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        592,
+        408,
+        202
+      ]
+    },
     {
       "id": "windmill-sails",
       "rect": [

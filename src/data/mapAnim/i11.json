@@ -5,11 +5,11 @@
     "file": "ambient/i11/loops-1x.mp4",
     "mask": "ambient/i11/mask-1x.webp",
     "width": 416,
-    "height": 280,
+    "height": 344,
     "fps": 12
   },
   "width": 832,
-  "height": 560,
+  "height": 688,
   "fps": 24,
   "elements": [
     {
@@ -45,6 +45,22 @@
       ]
     },
     {
+      "id": "east-spire-cloudsea",
+      "rect": [
+        1463.95,
+        265.9125,
+        368.2125,
+        112.3875
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        564,
+        369,
+        113
+      ]
+    },
+    {
       "id": "blue-ravine-wisps",
       "rect": [
         1404.4,
@@ -58,6 +74,38 @@
         428,
         374,
         128
+      ]
+    },
+    {
+      "id": "north-spire-pennant",
+      "rect": [
+        1166.525,
+        4.5,
+        117.0,
+        56.925
+      ],
+      "depth": 2,
+      "cell": [
+        388,
+        428,
+        234,
+        114
+      ]
+    },
+    {
+      "id": "west-dyed-banner-rack",
+      "rect": [
+        247.2,
+        463.2,
+        93.8,
+        51.8
+      ],
+      "depth": 2,
+      "cell": [
+        384,
+        564,
+        188,
+        104
       ]
     }
   ]

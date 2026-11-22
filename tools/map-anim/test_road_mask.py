@@ -1,10 +1,29 @@
 """Run with python3 -B tools/map-anim/test_road_mask.py."""
 import json
+import math
 import unittest
 
 from PIL import Image, ImageChops, ImageDraw
 
-from road_mask import ROOT, animation_clearance, clip_atlas
+from road_mask import ROOT, animation_clearance, catmull, clip_atlas
+
+
+def layout_support(mask, data, size):
+    """Union of positive mask coverage sampled at layout pixel centres."""
+    support = Image.new('L', size)
+    sx, sy = mask.width / data['width'], mask.height / data['height']
+    for element in data['elements']:
+        x, y, w, h = element['rect']
+        cx, cy, cw, ch = element['cell']
+        left, top = math.ceil(x - .5), math.ceil(y - .5)
+        right, bottom = math.ceil(x + w - .5), math.ceil(y + h - .5)
+        dx, dy = cw * sx / w, ch * sy / h
+        projected = mask.transform((right-left, bottom-top), Image.Transform.AFFINE,
+            (dx, 0, cx*sx + (left-x)*dx, 0, dy, cy*sy + (top-y)*dy),
+            Image.Resampling.BILINEAR)
+        box = left, top, right, bottom
+        support.paste(ImageChops.lighter(support.crop(box), projected), box)
+    return support.point(lambda v: 255 if v else 0)
 
 
 class RoadMaskTests(unittest.TestCase):
@@ -37,6 +56,24 @@ class RoadMaskTests(unittest.TestCase):
                     mask = image.getchannel('R')  # mapAnimLayer's shader reads red
                     allowed = clip_atlas(Image.new('L', mask.size, 255), world, data['elements'], master)
                     self.assertIsNone(ImageChops.subtract(mask, allowed).getbbox())
+
+    def test_shipped_masks_stay_off_protected_layout_pixels(self):
+        for path in sorted((ROOT / 'src/data/mapAnim').glob('*.json')):
+            data = json.loads(path.read_text())
+            layout = json.loads((ROOT / 'src/data/levels2d' / path.name).read_text())
+            forbidden = animation_clearance(path.stem).point(lambda v: 255 if v < 255 else 0)
+            draw = ImageDraw.Draw(forbidden)
+            radius = layout.get('plotRadiusPx', 48)
+            for x, y in layout['plots']:
+                draw.ellipse((x-radius, y-radius, x+radius, y+radius), fill=255)
+            for lane in layout['paths']:
+                points = list(map(tuple, lane))
+                draw.line(points, fill=255)
+                draw.line(catmull(points), fill=255)
+            for track in (data, data['compact']):
+                with self.subTest(mask=track['mask']), Image.open(ROOT / 'public/art2d' / track['mask']) as image:
+                    painted = layout_support(image.getchannel('R'), data, forbidden.size)
+                    self.assertIsNone(ImageChops.multiply(painted, forbidden).getbbox())
 
 
 if __name__ == '__main__':

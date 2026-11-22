@@ -5,13 +5,29 @@
     "file": "ambient/i13/loops-1x.mp4",
     "mask": "ambient/i13/mask-1x.webp",
     "width": 416,
-    "height": 64,
+    "height": 184,
     "fps": 12
   },
   "width": 832,
-  "height": 128,
+  "height": 368,
   "fps": 24,
   "elements": [
+    {
+      "id": "northwest-slate-terrace",
+      "rect": [
+        13.975,
+        13.975,
+        372.125,
+        174.2
+      ],
+      "depth": 0,
+      "cell": [
+        404,
+        4,
+        373,
+        175
+      ]
+    },
     {
       "id": "dial-shelf-rain-sheen",
       "rect": [
@@ -23,7 +39,7 @@
       "depth": 1,
       "cell": [
         4,
-        4,
+        252,
         277,
         110
       ]
@@ -39,9 +55,25 @@
       "depth": 1,
       "cell": [
         292,
-        4,
+        252,
         362,
         94
+      ]
+    },
+    {
+      "id": "watch-beacon-pennant",
+      "rect": [
+        1536.5,
+        228.475,
+        195.075,
+        119.025
+      ],
+      "depth": 2,
+      "cell": [
+        4,
+        4,
+        391,
+        239
       ]
     }
   ]

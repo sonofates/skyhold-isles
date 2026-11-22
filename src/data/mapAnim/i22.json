@@ -5,11 +5,11 @@
     "file": "ambient/i22/loops-1x.mp4",
     "mask": "ambient/i22/mask-1x.webp",
     "width": 416,
-    "height": 96,
+    "height": 216,
     "fps": 12
   },
   "width": 832,
-  "height": 192,
+  "height": 432,
   "fps": 24,
   "elements": [
     {
@@ -23,9 +23,73 @@
       "depth": 0,
       "cell": [
         4,
-        4,
+        244,
         356,
         173
+      ]
+    },
+    {
+      "id": "salt-terrace-shimmer",
+      "rect": [
+        1423.9,
+        615.75,
+        414.4,
+        228.55
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        4,
+        415,
+        229
+      ]
+    },
+    {
+      "id": "sinkhole-north-water",
+      "rect": [
+        703.8625,
+        355.8875,
+        182.1625,
+        28.2625
+      ],
+      "depth": 0,
+      "cell": [
+        500,
+        244,
+        183,
+        29
+      ]
+    },
+    {
+      "id": "northeast-stalactite-glint",
+      "rect": [
+        1723.85,
+        5.95,
+        114.275,
+        112.175
+      ],
+      "depth": 1,
+      "cell": [
+        428,
+        4,
+        229,
+        225
+      ]
+    },
+    {
+      "id": "lantern-gantry-sway",
+      "rect": [
+        618.0,
+        348.0,
+        60.125,
+        38.125
+      ],
+      "depth": 2,
+      "cell": [
+        368,
+        244,
+        121,
+        77
       ]
     }
   ]

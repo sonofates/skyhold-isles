@@ -5,11 +5,11 @@
     "file": "ambient/i03/loops-1x.mp4",
     "mask": "ambient/i03/mask-1x.webp",
     "width": 416,
-    "height": 384,
+    "height": 448,
     "fps": 12
   },
   "width": 832,
-  "height": 768,
+  "height": 896,
   "fps": 24,
   "elements": [
     {
@@ -58,6 +58,54 @@
         4,
         338,
         500
+      ]
+    },
+    {
+      "id": "mid-east-ice-rapids",
+      "rect": [
+        1699.975,
+        389.875,
+        114.075,
+        146.25
+      ],
+      "depth": 0,
+      "cell": [
+        276,
+        520,
+        115,
+        147
+      ]
+    },
+    {
+      "id": "upper-arch-stream",
+      "rect": [
+        7.875,
+        354.0,
+        134.25,
+        58.125
+      ],
+      "depth": 0,
+      "cell": [
+        4,
+        772,
+        269,
+        117
+      ]
+    },
+    {
+      "id": "northeast-spruce-stand",
+      "rect": [
+        1416.0,
+        8.0,
+        206.25,
+        110.25
+      ],
+      "depth": 1,
+      "cell": [
+        400,
+        520,
+        258,
+        138
       ]
     }
   ]

@@ -5,11 +5,11 @@
     "file": "ambient/i12/loops-1x.mp4",
     "mask": "ambient/i12/mask-1x.webp",
     "width": 416,
-    "height": 184,
+    "height": 224,
     "fps": 12
   },
   "width": 832,
-  "height": 368,
+  "height": 448,
   "fps": 24,
   "elements": [
     {
@@ -22,8 +22,8 @@
       ],
       "depth": 0,
       "cell": [
-        4,
-        220,
+        260,
+        280,
         319,
         137
       ]
@@ -38,10 +38,26 @@
       ],
       "depth": 0,
       "cell": [
-        4,
+        208,
         4,
         366,
         206
+      ]
+    },
+    {
+      "id": "west-twilight-glade",
+      "rect": [
+        9.75,
+        145.725,
+        154.375,
+        212.55
+      ],
+      "depth": 1,
+      "cell": [
+        4,
+        4,
+        193,
+        266
       ]
     },
     {
@@ -54,8 +70,8 @@
       ],
       "depth": 2,
       "cell": [
-        380,
         4,
+        280,
         247,
         161
       ]
