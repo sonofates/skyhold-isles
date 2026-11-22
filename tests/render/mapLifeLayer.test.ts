@@ -1,5 +1,6 @@
-import { execFileSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
+import { gunzipSync } from 'node:zlib';
 import { resolve } from 'node:path';
 import { Container, Sprite, Texture } from 'pixi.js';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -33,15 +34,18 @@ interface RawLevel2D {
   entrances?: { id: string; x: number; y: number }[];
 }
 
+/**
+ * Decoded copy of the shipped sway mask (tests/fixtures/i17-sway-mask.gray.gz: "W H\n" + 8-bit pixels), so the
+ * test needs no image library. The fixture records the sha256 of the shipped .webp; regenerate it with
+ * tools/map-life/gen_sway_mask.py whenever the mask changes (the hash check below fails until you do).
+ */
 function decodeGrayscaleMask(filePath: string): { width: number; height: number; data: Uint8Array } {
-  const py = [
-    'import sys',
-    'from PIL import Image',
-    'im = Image.open(sys.argv[1]).convert("L")',
-    'sys.stdout.buffer.write(f"{im.width} {im.height}\\n".encode())',
-    'sys.stdout.buffer.write(im.tobytes())',
-  ].join('; ');
-  const out = execFileSync('python3', ['-c', py, filePath], { maxBuffer: 8 * 1024 * 1024 });
+  const meta = JSON.parse(readFileSync(resolve(process.cwd(), 'tests/fixtures/i17-sway-mask.json'), 'utf8')) as {
+    sha256: string;
+  };
+  const shipped = createHash('sha256').update(readFileSync(filePath)).digest('hex');
+  expect(shipped, 'i17-sway.webp changed: regenerate tests/fixtures/i17-sway-mask.*').toBe(meta.sha256);
+  const out = gunzipSync(readFileSync(resolve(process.cwd(), 'tests/fixtures/i17-sway-mask.gray.gz')));
   const nl = out.indexOf(0x0a);
   const [wStr, hStr] = out.subarray(0, nl).toString('utf8').split(' ');
   const width = Number(wStr);
