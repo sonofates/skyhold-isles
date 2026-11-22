@@ -1,5 +1,5 @@
 import { Container, GlProgram, ImageSource, Mesh, MeshGeometry, Shader, VideoSource } from 'pixi.js';
-import { AmbientFxLayer, getAmbientFxConfig, type AmbientFxStats } from './ambientFx.ts';
+import { AmbientFxLayer, getAmbientFxConfig, isReducedMotion, type AmbientFxStats } from './ambientFx.ts';
 import type { QualityTier } from './renderResolution.ts';
 
 interface AmbientTrack {
@@ -172,11 +172,13 @@ class AmbientPlayer {
     this.pause();
     if (this.mesh) {
       const { geometry, shader } = this.mesh;
-      this.mesh.destroy();
+      if (!this.mesh.destroyed) this.mesh.destroy();
       geometry.destroy(true);
       shader?.destroy();
+      this.mesh = undefined;
     }
     this.mask?.destroy();
+    this.mask = undefined;
     this.source.destroy();
   }
 }
@@ -203,47 +205,92 @@ export function mapAnimLayer(world: Container, island: string, base: string): Ma
 
   let player: AmbientPlayer | undefined;
   let fx: AmbientFxLayer | undefined;
-  if (fxConfig) {
-    fx = new AmbientFxLayer(fxConfig);
-    host.addChild(fx.root);
-  }
+  let destroyed = false;
+  let lastPaused = false;
 
   const releaseVideo = (): void => {
     player?.destroy();
     player = undefined;
   };
-  const releaseAll = (): void => {
-    releaseVideo();
+  const releaseFx = (): void => {
     fx?.destroy();
     fx = undefined;
+  };
+  const releaseRuntime = (): void => {
+    releaseVideo();
+    releaseFx();
+  };
+  const releaseAll = (): void => {
+    destroyed = true;
+    releaseRuntime();
     if (!host.destroyed) host.destroy({ children: true });
   };
+  const ensureFx = (): AmbientFxLayer | undefined => {
+    if (destroyed || !fxConfig || host.destroyed) return undefined;
+    if (!fx) {
+      fx = new AmbientFxLayer(fxConfig);
+      host.addChild(fx.root);
+    }
+    return fx;
+  };
 
-  if (typeof window !== 'undefined') window.addEventListener('pagehide', releaseVideo);
+  if (typeof window !== 'undefined') window.addEventListener('pagehide', releaseRuntime);
   world.once('destroyed', () => {
-    if (typeof window !== 'undefined') window.removeEventListener('pagehide', releaseVideo);
+    if (typeof window !== 'undefined') window.removeEventListener('pagehide', releaseRuntime);
     releaseAll();
   });
 
   return {
     update(enabled: boolean, paused: boolean, smallBake: boolean, dtSec = 1 / 60, tier: QualityTier = 'high'): void {
-      if (data && typeof document !== 'undefined') {
-        if (!enabled) {
+      if (destroyed || host.destroyed) return;
+      const hidden = typeof document !== 'undefined' && document.hidden;
+      const effectiveEnabled = enabled && tier !== 'low' && !isReducedMotion();
+      lastPaused = paused || hidden;
+
+      if (data && typeof document !== 'undefined' && typeof Image !== 'undefined') {
+        if (!effectiveEnabled) {
           if (player) releaseVideo();
         } else {
           const track = smallBake && data.compact ? data.compact : data;
           if (player && player.track !== track) releaseVideo();
-          if (!player && !paused && !document.hidden) player = new AmbientPlayer(host, data, track, base);
+          if (!player && !paused && !hidden) player = new AmbientPlayer(host, data, track, base);
           player?.update(paused);
         }
       }
-      fx?.update(enabled, paused, dtSec, tier);
+
+      if (fxConfig) {
+        if (!effectiveEnabled) {
+          if (fx) releaseFx();
+        } else if (!lastPaused) {
+          ensureFx()?.update(true, false, dtSec, tier);
+        } else if (fx) {
+          fx.update(true, true, dtSec, tier);
+        }
+      }
     },
     stepFx(dtSec: number, tier: QualityTier = 'high'): void {
-      fx?.step(dtSec, tier);
+      if (destroyed || !fxConfig || tier === 'low' || isReducedMotion()) return;
+      const layer = ensureFx();
+      if (!layer) return;
+      layer.root.visible = true;
+      layer.step(dtSec, tier);
     },
     debug(): AmbientFxStats | null {
-      return fx ? fx.debug() : null;
+      if (!fxConfig) return null;
+      if (fx) return fx.debug();
+      return {
+        island: fxConfig.island,
+        built: false,
+        enabled: false,
+        paused: lastPaused,
+        time: 0,
+        activeParticles: 0,
+        particleCap: 0,
+        crackSegments: 0,
+        flames: 0,
+        glows: 0,
+        zones: fxConfig.zones?.length ?? 0,
+      };
     },
   };
 }

@@ -122,6 +122,7 @@ export interface AmbientFxConfig {
 
 export interface AmbientFxStats {
   readonly island: string;
+  readonly built: boolean;
   readonly enabled: boolean;
   readonly paused: boolean;
   readonly time: number;
@@ -131,6 +132,11 @@ export interface AmbientFxStats {
   readonly flames: number;
   readonly glows: number;
   readonly zones: number;
+}
+
+/** Settings → Reduced motion (the page class main2d sets). */
+export function isReducedMotion(): boolean {
+  return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
 }
 
 // Eagerly bundle per-island procedural ambient data (same glob pattern as mapAnimLayer.ts).
@@ -279,9 +285,47 @@ interface AmbientAtlas {
 }
 
 let cachedAtlas: AmbientAtlas | null = null;
+let atlasRefs = 0;
+
+/** QA / tests: number of live built AmbientFxLayer instances holding the shared procedural atlas. */
+export function ambientAtlasRefCount(): number {
+  return atlasRefs;
+}
+
+function acquireAmbientAtlas(): AmbientAtlas | null {
+  const atlas = createAmbientAtlas();
+  if (!atlas) return null;
+  atlasRefs++;
+  return atlas;
+}
+
+function releaseAmbientAtlas(atlas: AmbientAtlas | null): void {
+  if (!atlas) return;
+  atlasRefs = Math.max(0, atlasRefs - 1);
+  if (atlasRefs === 0 && cachedAtlas === atlas) {
+    cachedAtlas = null;
+    const textures = [
+      atlas.glow,
+      atlas.crack,
+      atlas.flame,
+      atlas.spark,
+      atlas.smoke,
+      atlas.ripple,
+      atlas.petal,
+      atlas.shimmer,
+      atlas.beam,
+      atlas.star,
+    ];
+    for (const tex of textures) {
+      if (!tex.destroyed) tex.destroy(false);
+    }
+    if (!atlas.source.destroyed) atlas.source.destroy();
+  }
+}
 
 function createAmbientAtlas(): AmbientAtlas | null {
-  if (cachedAtlas) return cachedAtlas;
+  if (cachedAtlas && !cachedAtlas.source.destroyed) return cachedAtlas;
+  cachedAtlas = null;
   if (typeof document === 'undefined') return null;
   const c = document.createElement('canvas');
   c.width = 256;
@@ -589,7 +633,7 @@ export class AmbientFxLayer {
   private readonly normalLayer = new Container();
   private readonly addLayer = new Container();
   private readonly config: AmbientFxConfig;
-  private readonly atlas: AmbientAtlas | null;
+  private atlas: AmbientAtlas | null = null;
   private readonly rng: { s: number };
   private readonly cracks: CrackSegRuntime[] = [];
   private readonly flames: FlameRuntime[] = [];
@@ -599,8 +643,9 @@ export class AmbientFxLayer {
   private readonly scratchPt = { x: 0, y: 0 };
   private readonly maxPool: number;
   private activeParticles = 0;
-  private currentCap: number;
+  private currentCap = 0;
   private time = 0;
+  private built = false;
   private enabled = false;
   private paused = false;
   private warmed = false;
@@ -618,15 +663,22 @@ export class AmbientFxLayer {
     this.root.addChild(this.normalLayer, this.addLayer);
     this.root.visible = false;
 
-    this.atlas = createAmbientAtlas();
     this.maxPool = Math.max(0, Math.min(GLOBAL_MAX_PARTICLES, config.maxParticles ?? 56));
-    this.currentCap = this.maxPool;
+  }
 
+  /** Lazily allocates the shared atlas and pre-pooled sprites on first eligible active frame. */
+  private ensureBuilt(): boolean {
+    if (this.destroyed || this.root.destroyed) return false;
+    if (this.built) return true;
+    this.built = true;
+    this.atlas = acquireAmbientAtlas();
+    this.currentCap = this.maxPool;
     this.buildCracks();
     this.buildFlames();
     this.buildGlows();
     this.buildZones();
     this.buildParticlePool();
+    return true;
   }
 
   private tex(name: keyof Omit<AmbientAtlas, 'source'>): Texture {
@@ -967,8 +1019,8 @@ export class AmbientFxLayer {
       const p = this.pool[i];
       if (!p.active) continue;
       p.active = false;
-      p.addSprite.visible = false;
-      p.normSprite.visible = false;
+      if (!p.addSprite.destroyed) p.addSprite.visible = false;
+      if (!p.normSprite.destroyed) p.normSprite.visible = false;
     }
     this.activeParticles = 0;
   }
@@ -1107,6 +1159,10 @@ export class AmbientFxLayer {
   /** Advances procedural animation by `dtSec` (clamped for stability). */
   step(dtSec: number, tier: QualityTier = 'high'): void {
     if (this.destroyed) return;
+    if (!this.built) {
+      if (tier === 'low' || isReducedMotion()) return;
+      if (!this.ensureBuilt()) return;
+    }
     const dt = Math.max(0, Math.min(0.1, Number.isFinite(dtSec) ? dtSec : 0));
     this.time += dt;
     const t = this.time;
@@ -1302,17 +1358,24 @@ export class AmbientFxLayer {
    */
   update(enabled: boolean, paused: boolean, dtSec: number, tier: QualityTier = 'high'): void {
     if (this.destroyed) return;
-    this.enabled = enabled && tier !== 'low';
+    this.enabled = enabled && tier !== 'low' && !isReducedMotion();
     this.paused = paused || (typeof document !== 'undefined' && document.hidden);
 
     if (!this.enabled) {
       if (this.root.visible) {
         this.root.visible = false;
+      }
+      if (this.built) {
         this.clearParticles();
         this.warmed = false;
       }
       return;
     }
+
+    // Never allocate sprites or run warm-up steps behind a paused intro or hidden tab.
+    if (this.paused) return;
+
+    if (!this.ensureBuilt()) return;
 
     if (!this.root.visible) {
       this.root.visible = true;
@@ -1325,18 +1388,18 @@ export class AmbientFxLayer {
       return;
     }
 
-    if (this.paused) return;
     this.step(dtSec, tier);
   }
 
   debug(): AmbientFxStats {
     return {
       island: this.config.island,
+      built: this.built,
       enabled: this.enabled,
       paused: this.paused,
       time: Math.round(this.time * 1000) / 1000,
       activeParticles: this.activeParticles,
-      particleCap: this.currentCap,
+      particleCap: this.built ? this.currentCap : 0,
       crackSegments: this.cracks.length,
       flames: this.flames.length,
       glows: this.glows.length,
@@ -1347,7 +1410,22 @@ export class AmbientFxLayer {
   destroy(): void {
     if (this.destroyed) return;
     this.destroyed = true;
-    this.clearParticles();
-    this.root.destroy({ children: true });
+    this.enabled = false;
+    this.warmed = false;
+    if (!this.root.destroyed) {
+      this.clearParticles();
+      this.root.destroy({ children: true });
+    }
+    this.activeParticles = 0;
+    this.currentCap = 0;
+    this.cracks.length = 0;
+    this.flames.length = 0;
+    this.glows.length = 0;
+    this.emitters.length = 0;
+    this.pool.length = 0;
+    const atlas = this.atlas;
+    this.atlas = null;
+    this.built = false;
+    releaseAmbientAtlas(atlas);
   }
 }
