@@ -2623,36 +2623,43 @@
 
 html.pu-phone .pu {
   --ui-font-caption: max(12px, calc(12px * var(--ui-scale, 1)));
-  --ui-font-body: max(14px, calc(14.5px * var(--ui-scale, 1)));
-  --ui-font-label: max(14px, calc(15px * var(--ui-scale, 1)));
-  --ui-font-btn: max(15px, calc(16px * var(--ui-scale, 1)));
+  --ui-font-body: max(14px, calc(14px * var(--ui-scale, 1)));
+  --ui-font-label: max(14px, calc(14.5px * var(--ui-scale, 1)));
+  --ui-font-btn: max(14.5px, calc(15px * var(--ui-scale, 1)));
   --ui-font-btn-sm: max(14px, calc(14px * var(--ui-scale, 1)));
-  --ui-font-heading: max(16px, calc(17px * var(--ui-scale, 1)));
-  --ui-font-title: max(19px, calc(20px * var(--ui-scale, 1)));
-  --ui-tap: max(44px, calc(46px * var(--ui-scale, 1)));
-  --ui-gap: max(8px, calc(9px * var(--ui-scale, 1)));
-  --ui-gap-lg: max(12px, calc(12px * var(--ui-scale, 1)));
+  --ui-font-heading: max(15.5px, calc(16px * var(--ui-scale, 1)));
+  --ui-font-title: max(18px, calc(19px * var(--ui-scale, 1)));
+  --ui-tap: max(44px, calc(44px * var(--ui-scale, 1)));
+  --ui-gap: max(8px, calc(8px * var(--ui-scale, 1)));
+  --ui-gap-lg: max(10px, calc(12px * var(--ui-scale, 1)));
   --ui-icon: max(24px, calc(24px * var(--ui-scale, 1)));
   --ui-pad: max(8px, calc(10px * var(--ui-scale, 1)));
 }
 
 /* ---- overlays & sheets ---- */
 html.pu-phone .pu-overlay {
-  padding: max(4px, var(--safe-t)) max(6px, var(--safe-r)) max(4px, var(--safe-b)) max(6px, var(--safe-l));
+  padding:
+    max(12px, calc(var(--safe-t) + 8px))
+    max(18px, calc(var(--safe-r) + 12px))
+    max(12px, calc(var(--safe-b) + 8px))
+    max(18px, calc(var(--safe-l) + 12px));
 }
 
 html.pu-phone .pu-sheet {
-  --k: 0.255px;
-  max-width: 100%;
-  max-height: 100%;
+  --k: 0.225px;
+  width: auto;
+  height: auto;
+  max-width: min(100%, 92vw);
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-sheet-title {
   font-size: var(--ui-font-title);
+  max-width: 72%;
 }
 
 html.pu-phone .pu-sheet-body {
-  padding: var(--ui-pad) calc(var(--ui-pad) * 1.1);
+  padding: 8px 12px;
 }
 
 html.pu-phone .pu-round.pu-sheet-close {
@@ -2660,8 +2667,8 @@ html.pu-phone .pu-round.pu-sheet-close {
   height: var(--ui-tap);
   min-width: 44px;
   min-height: 44px;
-  right: calc(var(--k) * -108);
-  top: calc(var(--k) * -196);
+  right: calc(var(--k) * -122);
+  top: calc(var(--k) * -194);
 }
 
 /* ---- round buttons, planks, tags, bars ---- */
@@ -2693,10 +2700,10 @@ html.pu-phone .pu-round-label {
 html.pu-phone .pu-plank {
   --ph: var(--ui-tap);
   min-height: var(--ui-tap);
-  min-width: 88px;
+  min-width: 82px;
   font-size: var(--ui-font-btn);
-  padding: 0 max(0.55em, 10px);
-  gap: 0.45em;
+  padding: 0 max(0.5em, 8px);
+  gap: 0.4em;
 }
 
 html.pu-phone .pu-plank > .pu-glyph {
@@ -2707,20 +2714,20 @@ html.pu-phone .pu-plank > .pu-glyph {
 html.pu-phone .pu-plank.small {
   --ph: var(--ui-tap);
   min-height: var(--ui-tap);
-  min-width: 64px;
+  min-width: 60px;
   font-size: var(--ui-font-btn-sm);
 }
 
 html.pu-phone .pu-plank.primary {
-  --ph: max(48px, calc(var(--ui-tap) * 1.08));
+  --ph: max(46px, calc(var(--ui-tap) * 1.05));
   min-height: var(--ph);
-  min-width: 140px;
-  font-size: max(17px, calc(var(--ui-font-btn) * 1.12));
+  min-width: 128px;
+  font-size: max(16px, calc(var(--ui-font-btn) * 1.08));
 }
 
 html.pu-phone .pu-plank.primary > .pu-glyph {
-  width: max(25px, var(--ui-icon));
-  height: max(25px, var(--ui-icon));
+  width: max(24px, var(--ui-icon));
+  height: max(24px, var(--ui-icon));
 }
 
 html.pu-phone .pu-plank-sub {
@@ -2826,15 +2833,17 @@ html.pu-phone .pu-node-ribbon {
   }
 }
 
-/* ---- meta sheets shared ---- */
+/* ---- meta sheets shared (content-sized by default; long-list panels opt into full height) ---- */
 html.pu-phone .pu-meta {
-  width: 100%;
-  max-height: 100%;
+  width: fit-content;
+  max-width: min(100%, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-meta-head {
   gap: var(--ui-gap);
-  margin-bottom: var(--ui-gap);
+  margin-bottom: 6px;
 }
 
 html.pu-phone .pu-meta-note {
@@ -2843,44 +2852,58 @@ html.pu-phone .pu-meta-note {
 
 html.pu-phone .pu-meta-foot {
   font-size: var(--ui-font-caption);
-  padding-top: var(--ui-pad);
+  padding-top: 6px;
 }
 
-/* ---- island briefing ---- */
+/* ---- island briefing (content-sized, centered, never empty parchment) ---- */
 html.pu-phone .pu-brief {
-  width: 100%;
-  height: 100%;
+  width: fit-content;
+  max-width: min(100%, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
+}
+
+html.pu-phone .pu-brief.has-modes {
+  width: min(100%, 840px, 92vw);
 }
 
 html.pu-phone .pu-brief .pu-sheet-body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--ui-pad);
-  gap: var(--ui-gap);
+  padding: 8px 12px;
+  gap: 8px;
 }
 
 html.pu-phone .pu-brief-body {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  align-items: flex-start;
-  gap: var(--ui-gap-lg);
-  padding: 2px 4px;
+  align-items: center;
+  gap: 12px;
+  padding: 2px;
+}
+
+html.pu-phone .pu-brief-medal {
+  --d: 96px !important;
+}
+
+html.pu-phone .pu-brief.has-modes .pu-brief-medal {
+  --d: 88px !important;
 }
 
 html.pu-phone .pu-brief-main {
-  gap: var(--ui-gap-lg);
-  align-items: flex-start;
+  gap: 12px;
+  align-items: center;
 }
 
 html.pu-phone .pu-brief-info {
-  gap: var(--ui-gap);
+  gap: 6px;
 }
 
 html.pu-phone .pu-brief-row {
-  gap: var(--ui-gap);
+  gap: 8px;
   font-size: var(--ui-font-body);
 }
 
@@ -2894,21 +2917,29 @@ html.pu-phone .pu-gem {
 }
 
 html.pu-phone .pu-loadout {
-  gap: var(--ui-gap) var(--ui-gap-lg);
-  flex-wrap: wrap;
-  padding: 6px 10px;
+  gap: 8px 12px;
+  flex-wrap: nowrap;
+  padding: 4px 8px;
+  margin-top: 2px;
+}
+
+html.pu-phone .pu-loadout > .pu-hero-chip,
+html.pu-phone .pu-loadout > .pu-beltchip {
+  flex: none;
 }
 
 html.pu-phone .pu-loadout > .pu-beltchip {
-  padding-left: var(--ui-gap-lg);
+  padding-left: 12px;
 }
 
 html.pu-phone .pu-modes {
+  justify-content: flex-start;
   gap: var(--ui-gap);
-  padding-left: var(--ui-gap-lg);
+  padding-left: 12px;
 }
 
 html.pu-phone .pu-modes-head {
+  flex: none;
   font-size: var(--ui-font-label);
   margin: 0;
 }
@@ -2918,10 +2949,17 @@ html.pu-phone .pu-modes-head small {
 }
 
 html.pu-phone .pu-mode {
-  gap: var(--ui-gap);
+  flex: none;
+  gap: 8px;
   min-height: var(--ui-tap);
+  height: auto;
   padding: 4px 0;
   font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-mode-seal {
+  width: 34px;
+  height: 34px;
 }
 
 html.pu-phone .pu-mode-text small {
@@ -2938,51 +2976,127 @@ html.pu-phone .pu-mode-state small {
 
 html.pu-phone .pu-brief-actions {
   flex: none;
-  gap: var(--ui-gap) var(--ui-gap-lg);
-  padding-top: var(--ui-gap);
+  gap: 8px 12px;
+  padding-top: 6px;
   margin-top: 0;
 }
 
 html.pu-phone .pu-plank.primary.pu-brief-play {
-  --ph: max(48px, calc(var(--ui-tap) * 1.08));
-  min-width: 160px;
-  font-size: max(17px, calc(var(--ui-font-btn) * 1.1));
+  --ph: max(46px, calc(var(--ui-tap) * 1.05));
+  min-width: 136px;
+  font-size: max(15.5px, calc(var(--ui-font-btn) * 1.05));
+}
+
+@media (max-width: 860px) {
+  html.pu-phone .pu-brief.has-modes .pu-loadout {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  html.pu-phone .pu-brief.has-modes .pu-loadout > .pu-beltchip {
+    padding-left: 0;
+    border-left: 0;
+  }
 }
 
 @media (max-width: 740px) {
   html.pu-phone .pu-brief.has-modes .pu-brief-body {
     flex-direction: column;
+    align-items: stretch;
   }
 
   html.pu-phone .pu-brief.has-modes .pu-modes {
     width: 100%;
     padding-left: 0;
-    padding-top: var(--ui-gap);
+    padding-top: 6px;
     border-left: 0;
     border-top: 2px dashed rgba(122, 85, 50, 0.35);
   }
+
+  html.pu-phone .pu-loadout {
+    flex-wrap: wrap;
+  }
 }
 
-/* ---- storybook panels ---- */
+/* ---- storybook panels (pinned bottom actions, never clipped on 932x430 / 844x390 / 667x375) ---- */
 html.pu-phone .pu-story {
-  width: 100%;
-  max-height: 100%;
+  --k: 0.22px;
+  --top: calc(var(--k) * 145);
+  --side: calc(var(--k) * 90);
+  --bottom: calc(var(--k) * 65);
+  --title-y: calc(var(--k) * -82);
+  width: min(100%, 810px, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
+}
+
+html.pu-phone .pu-story:has(.pu-panel:only-child) {
+  width: min(100%, 700px, 92vw);
+}
+
+html.pu-phone .pu-story .pu-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 4px 10px 6px;
+  gap: 6px;
 }
 
 html.pu-phone .pu-story-kicker {
+  flex: none;
   font-size: var(--ui-font-caption);
+  margin: 0;
+  line-height: 1.15;
+}
+
+html.pu-phone .pu-story-strip {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  gap: 8px;
+}
+
+html.pu-phone .pu-panel.pu-card {
+  --card-corner: 10px;
+  padding: 6px 8px;
+  gap: 5px;
+}
+
+html.pu-phone .pu-vignette {
+  height: clamp(66px, calc(100dvh - 305px), 124px);
+}
+
+html.pu-phone .pu-panel:only-child {
+  gap: 14px;
+  padding: 8px 12px;
+}
+
+html.pu-phone .pu-panel:only-child .pu-vignette {
+  height: clamp(120px, calc(100dvh - 210px), 200px);
+  max-width: 54%;
+}
+
+html.pu-phone .pu-panel:only-child .pu-portrait {
+  width: 46px;
+  height: 46px;
+}
+
+html.pu-phone .pu-portrait {
+  width: 34px;
+  height: 34px;
 }
 
 html.pu-phone .pu-vignette-num {
-  width: 30px;
-  height: 30px;
-  font-size: var(--ui-font-body);
+  width: 26px;
+  height: 26px;
+  font-size: max(14.5px, var(--ui-font-body));
 }
 
 html.pu-phone .pu-panel-text,
 html.pu-phone .pu-panel:only-child .pu-panel-text {
   font-size: var(--ui-font-body);
-  line-height: 1.3;
+  line-height: 1.25;
 }
 
 html.pu-phone .pu-panel-text b {
@@ -2990,24 +3104,30 @@ html.pu-phone .pu-panel-text b {
 }
 
 html.pu-phone .pu-story-actions {
+  flex: none;
   gap: var(--ui-gap-lg);
-  padding-top: var(--ui-gap);
+  padding-top: 2px;
 }
 
-/* ---- workshop ---- */
+/* ---- workshop (long grid: capped full-height with trimmed padding) ---- */
+html.pu-phone [data-testid='workshop2d'] .pu-sheet {
+  width: min(100%, 840px, 92vw);
+  height: min(100%, 92dvh);
+}
+
 html.pu-phone .pu-ws-cols {
-  gap: var(--ui-gap);
+  gap: 8px;
 }
 
 html.pu-phone .pu-ws-col h3 {
   font-size: var(--ui-font-heading);
-  margin-bottom: var(--ui-gap);
+  margin-bottom: 6px;
 }
 
 html.pu-phone .pu-ws-node {
-  gap: 6px;
-  margin-bottom: var(--ui-gap);
-  padding: 8px 10px;
+  gap: 4px;
+  margin-bottom: 8px;
+  padding: 6px 8px;
 }
 
 html.pu-phone .pu-ws-name {
@@ -3016,8 +3136,8 @@ html.pu-phone .pu-ws-name {
 
 html.pu-phone .pu-ws-effect {
   font-size: var(--ui-font-body);
-  line-height: 1.25;
-  min-height: 2.5em;
+  line-height: 1.22;
+  min-height: 2.3em;
 }
 
 html.pu-phone .pu-ws-row {
@@ -3030,10 +3150,15 @@ html.pu-phone .pu-ws-row {
   }
 }
 
-/* ---- logbook ---- */
+/* ---- logbook (long list: capped full-height with trimmed padding) ---- */
+html.pu-phone [data-testid='logbook2d'] .pu-sheet {
+  width: min(100%, 820px, 92vw);
+  height: min(100%, 92dvh);
+}
+
 html.pu-phone .pu-lb-totals {
-  gap: var(--ui-gap) var(--ui-gap-lg);
-  margin-bottom: var(--ui-gap);
+  gap: 6px 12px;
+  margin-bottom: 6px;
 }
 
 html.pu-phone .pu-lb-total {
@@ -3042,8 +3167,8 @@ html.pu-phone .pu-lb-total {
 }
 
 html.pu-phone .pu-lb-total .pu-round {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   min-width: 0;
   min-height: 0;
 }
@@ -3054,13 +3179,13 @@ html.pu-phone .pu-lb-total strong {
 
 html.pu-phone .pu-ledger-row {
   gap: var(--ui-gap);
-  padding: 8px 4px;
+  padding: 6px 4px;
   font-size: var(--ui-font-body);
 }
 
 html.pu-phone .pu-ledger-num {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   font-size: var(--ui-font-body);
 }
 
@@ -3069,12 +3194,12 @@ html.pu-phone .pu-ledger-name small {
 }
 
 html.pu-phone .pu-ledger-row .pu-stars {
-  font-size: 18px;
+  font-size: 16px;
 }
 
 html.pu-phone .pu-ledger-badges .pu-round {
-  width: 26px;
-  height: 26px;
+  width: 24px;
+  height: 24px;
   min-width: 0;
   min-height: 0;
 }
@@ -3084,7 +3209,7 @@ html.pu-phone .pu-ledger-badges .pu-round {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 6px 10px;
+    gap: 5px 8px;
   }
 
   html.pu-phone .pu-ledger-row:not(.locked) > .pu-ledger-name {
@@ -3093,15 +3218,15 @@ html.pu-phone .pu-ledger-badges .pu-round {
 }
 
 html.pu-phone .pu-feat {
-  grid-template-columns: 36px minmax(0, 1fr) minmax(100px, 130px);
+  grid-template-columns: 34px minmax(0, 1fr) minmax(96px, 124px);
   gap: var(--ui-gap);
-  padding: 8px 4px;
+  padding: 6px 4px;
   font-size: var(--ui-font-body);
 }
 
 html.pu-phone .pu-feat .pu-round {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   min-width: 0;
   min-height: 0;
 }
@@ -3114,28 +3239,33 @@ html.pu-phone .pu-feat-new {
   font-size: var(--ui-font-caption);
 }
 
-/* ---- daily ---- */
+/* ---- daily (content-sized, centered, no empty parchment chasm) ---- */
 html.pu-phone [data-testid='daily2d'] .pu-sheet {
-  height: 100%;
+  width: fit-content;
+  max-width: min(100%, 740px, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone [data-testid='daily2d'] .pu-sheet-body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--ui-pad);
-  gap: var(--ui-gap);
+  padding: 8px 12px;
+  gap: 8px;
 }
 
 html.pu-phone [data-testid='daily2d'] .pu-daily-grid {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
+  grid-template-columns: auto minmax(200px, 1fr);
+  gap: 14px;
 }
 
 html.pu-phone .pu-daily-island {
-  gap: var(--ui-gap-lg);
+  gap: 10px;
 }
 
 html.pu-phone .pu-daily-island .pu-ink {
@@ -3146,20 +3276,16 @@ html.pu-phone .pu-daily-island .pu-ink-soft {
   font-size: var(--ui-font-body);
 }
 
-html.pu-phone .pu-daily-grid {
-  gap: var(--ui-gap-lg);
-}
-
 html.pu-phone .pu-chips,
 html.pu-phone .pu-daily-grid .pu-chips {
-  gap: var(--ui-gap);
+  gap: 8px;
   font-size: var(--ui-font-body);
-  margin: var(--ui-gap) 0;
+  margin: 8px 0 0;
 }
 
 html.pu-phone .pu-daily-grid .pu-chip {
-  min-width: 68px;
-  padding: 6px 10px;
+  min-width: 62px;
+  padding: 5px 8px;
 }
 
 html.pu-phone .pu-chip strong {
@@ -3167,8 +3293,8 @@ html.pu-phone .pu-chip strong {
 }
 
 html.pu-phone .pu-rule {
-  gap: var(--ui-gap);
-  padding: 6px 0;
+  gap: 8px;
+  padding: 5px 0;
   font-size: var(--ui-font-body);
 }
 
@@ -3177,40 +3303,47 @@ html.pu-phone .pu-rule small {
 }
 
 html.pu-phone .pu-rule .pu-round {
-  width: 34px;
-  height: 34px;
+  width: 30px;
+  height: 30px;
   min-width: 0;
   min-height: 0;
 }
 
 @media (max-width: 740px) {
-  html.pu-phone .pu-daily-grid {
+  html.pu-phone [data-testid='daily2d'] .pu-daily-grid {
     grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
   }
 }
 
-/* ---- settings ---- */
+/* ---- settings (content-sized height so short tabs stay compact; long tabs scroll at 92dvh) ---- */
 html.pu-phone .pu-settings.tabbed {
-  height: 100%;
+  width: min(100%, 660px, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-set-tabs {
   gap: var(--ui-gap);
-  margin: 4px 0 6px;
+  margin: 2px 0 4px;
 }
 
 html.pu-phone .pu-set-tabs .pu-plank {
-  min-width: 82px;
+  min-width: 76px;
 }
 
 html.pu-phone .pu-set-row {
-  gap: var(--ui-gap-lg);
-  padding: 8px 4px;
+  gap: 12px;
+  padding: 6px 4px;
   font-size: var(--ui-font-label);
 }
 
 html.pu-phone .pu-set-row small {
   font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-settings .pu-slider {
+  width: clamp(135px, 26vw, 210px);
 }
 
 html.pu-phone .pu-tabs.pu-lang,
@@ -3221,7 +3354,7 @@ html.pu-phone .pu-tabs.pu-choice {
 
 html.pu-phone .pu-tabs.pu-lang .pu-plank,
 html.pu-phone .pu-tabs.pu-choice .pu-plank {
-  min-width: 68px;
+  min-width: 64px;
   font-size: var(--ui-font-btn-sm);
 }
 
@@ -3233,8 +3366,8 @@ html.pu-phone .pu-tabs.pu-choice .pu-plank {
 }
 
 html.pu-phone .pu-key-grid {
-  column-width: 280px;
-  column-gap: 20px;
+  column-width: 240px;
+  column-gap: 16px;
 }
 
 html.pu-phone .pu-key-section h3 {
@@ -3244,56 +3377,56 @@ html.pu-phone .pu-key-section h3 {
 html.pu-phone .pu-key-row {
   font-size: var(--ui-font-body);
   gap: var(--ui-gap);
-  padding: 6px 0;
+  padding: 5px 0;
 }
 
 html.pu-phone .pu-key {
   font-size: var(--ui-font-body);
 }
 
-/* ---- codex button + codex sheet ---- */
+/* ---- codex button + codex sheet (long list: capped full-height with trimmed padding) ---- */
 html.pu-phone .pu-codex-btn .pu-round-label {
   font-size: var(--ui-font-caption);
 }
 
 html.pu-phone .pu-codex {
-  width: 100%;
-  height: 100%;
+  width: min(100%, 840px, 92vw);
+  height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-cx-tabs {
   gap: var(--ui-gap);
-  margin-bottom: max(10px, var(--ui-gap));
+  margin-bottom: 8px;
 }
 
 html.pu-phone .pu-cx {
-  gap: var(--ui-gap);
-  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.35fr);
+  gap: 8px;
+  grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.38fr);
 }
 
 html.pu-phone .pu-cx-grid {
-  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   grid-auto-rows: max-content;
-  gap: 10px 8px;
-  padding: 4px;
+  gap: 8px 8px;
+  padding: 2px;
 }
 
 html.pu-phone .pu-cx-tile {
   min-width: 44px;
-  gap: 4px;
+  gap: 3px;
   padding: 2px;
 }
 
 html.pu-phone .pu-cx-medal {
-  width: 48px;
-  height: 48px;
+  width: 46px;
+  height: 46px;
   min-width: 44px;
   min-height: 44px;
 }
 
 html.pu-phone .pu-cx-medal.big {
-  width: 60px;
-  height: 60px;
+  width: 54px;
+  height: 54px;
 }
 
 html.pu-phone .pu-cx-name {
@@ -3305,7 +3438,7 @@ html.pu-phone .pu-cx-count {
 }
 
 html.pu-phone .pu-cx-detail {
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-size: var(--ui-font-body);
 }
 
@@ -3354,19 +3487,29 @@ html.pu-phone .pu-cx-cost {
   font-size: var(--ui-font-body);
 }
 
-/* ---- store ---- */
+/* ---- store (content-sized, centered) ---- */
 html.pu-phone .pu-store {
-  width: 100%;
+  width: fit-content;
+  min-width: min(100%, 380px);
+  max-width: min(100%, 760px, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-store-intro {
   font-size: var(--ui-font-body);
-  margin-bottom: var(--ui-gap);
+  margin-bottom: 6px;
+}
+
+html.pu-phone .pu-store-empty {
+  font-size: var(--ui-font-body);
+  padding: 4px 0;
+  gap: var(--ui-gap);
 }
 
 html.pu-phone .pu-store-list {
   gap: var(--ui-gap);
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
 html.pu-phone .pu-store-name {
@@ -3378,7 +3521,7 @@ html.pu-phone .pu-store-blurb {
 }
 
 html.pu-phone .pu-store-price {
-  --tag-h: 38px;
+  --tag-h: 36px;
   font-size: var(--ui-font-body);
 }
 
@@ -3388,7 +3531,7 @@ html.pu-phone .pu-store-owned {
 
 html.pu-phone .pu-store-foot {
   gap: var(--ui-gap);
-  padding-top: var(--ui-gap);
+  padding-top: 6px;
 }
 
 html.pu-phone .pu-store-status {

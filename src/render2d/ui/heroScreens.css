@@ -982,27 +982,28 @@ html.pu-phone .pu-hero-chip-tree-icon {
   height: max(var(--ui-icon), 58%);
 }
 
-/* Hero select: horizontal roster bar on top + spacious 2-col art & info below */
+/* Hero select: content-sized centered card with roster bar + 2-col art & info + pinned actions */
 html.pu-phone .pu-hero-sel {
-  width: 100%;
-  height: 100%;
+  width: min(100%, 720px, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-hero-sel .pu-sheet-body {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: var(--ui-pad);
-  gap: var(--ui-gap);
+  padding: 8px 12px;
+  gap: 8px;
 }
 
 html.pu-phone .pu-hero-sel-grid {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  grid-template-columns: minmax(110px, 0.45fr) minmax(0, 1.55fr);
-  gap: var(--ui-gap) var(--ui-gap-lg);
+  grid-template-columns: minmax(100px, 0.4fr) minmax(0, 1.6fr);
+  gap: 6px 10px;
 }
 
 html.pu-phone .pu-hero-roster {
@@ -1025,11 +1026,11 @@ html.pu-phone .pu-hero-tab .pu-hero-face {
 }
 
 html.pu-phone .pu-hero-art {
-  height: 190px;
+  height: clamp(118px, 32dvh, 148px);
 }
 
 html.pu-phone .pu-hero-info {
-  gap: 6px;
+  gap: 5px;
 }
 
 html.pu-phone .pu-hero-name {
@@ -1052,8 +1053,8 @@ html.pu-phone .pu-hero-skill {
 }
 
 html.pu-phone .pu-hero-skill-icon {
-  width: 36px;
-  height: 36px;
+  width: 32px;
+  height: 32px;
 }
 
 html.pu-phone .pu-hero-skill-text small {
@@ -1064,21 +1065,21 @@ html.pu-phone .pu-hero-actions {
   flex: none;
   gap: var(--ui-gap-lg);
   margin-top: 0;
-  padding-top: var(--ui-gap);
+  padding-top: 6px;
   border-top: 2px dashed rgba(122, 85, 50, 0.3);
 }
 
-/* Hero skill tree: full-size >= 44px nodes, >= 8px gaps, >= 14px detail card, scrollable */
+/* Hero skill tree: capped full-height scrollable tree with trimmed padding */
 html.pu-phone .pu-hero-tree {
-  width: 100%;
-  height: 100%;
+  width: min(100%, 850px, 92vw);
+  height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-hero-tree-top {
   gap: var(--ui-gap);
-  margin-bottom: var(--ui-gap);
-  padding-top: 8px;
-  padding-right: 12px;
+  margin-bottom: 10px;
+  padding-top: 4px;
+  padding-right: 18px;
 }
 
 html.pu-phone .pu-hero-tree-tabs {

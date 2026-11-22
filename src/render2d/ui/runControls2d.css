@@ -192,12 +192,19 @@ html.pu-phone .pu-pause-menu .pu-plank {
   font-size: var(--ui-font-btn-sm);
 }
 
+html.pu-phone .pu-sheet.pu-confirm {
+  width: fit-content;
+  min-width: min(100%, 340px);
+  max-width: min(100%, 460px, 92vw);
+}
+
 html.pu-phone .pu-confirm .pu-sheet-title {
   font-size: var(--ui-font-title);
 }
 
 html.pu-phone .pu-confirm .pu-confirm-text {
   font-size: var(--ui-font-body);
+  margin: 4px 6px 10px;
 }
 
 html.pu-phone .pu-confirm .pu-confirm-row {

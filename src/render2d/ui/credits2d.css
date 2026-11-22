@@ -52,16 +52,18 @@
 
 /* ---- phone UI tokens (html.pu-phone) ---- */
 html.pu-phone .pu-credits {
-  width: 100%;
+  width: min(100%, 580px, 92vw);
+  height: auto;
+  max-height: min(100%, 92dvh);
 }
 
 html.pu-phone .pu-credits-col {
-  gap: var(--ui-gap-lg);
-  padding: var(--ui-pad) var(--ui-gap-lg);
+  gap: 8px;
+  padding: 6px 10px;
 }
 
 html.pu-phone .pu-credits-sec {
-  gap: 6px;
+  gap: 4px;
 }
 
 html.pu-phone .pu-credits-head {

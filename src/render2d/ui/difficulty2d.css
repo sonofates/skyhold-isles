@@ -348,21 +348,21 @@
 
 /* ---- phone UI tokens (html.pu-phone) ---- */
 html.pu-phone .pu-brief-actions:has(> .pu-diff) {
-  column-gap: var(--ui-gap-lg);
+  column-gap: 12px;
   row-gap: 4px;
   margin-top: 0;
-  padding-top: var(--ui-gap);
+  padding-top: 6px;
 }
 
 html.pu-phone .pu-diff-row {
-  gap: 14px;
+  gap: 12px;
 }
 
 html.pu-phone .pu-diff-opt {
   --ph: var(--ui-tap);
   min-height: var(--ui-tap);
-  min-width: 78px;
-  padding: 0 8px;
+  min-width: 72px;
+  padding: 0 7px;
   font-size: var(--ui-font-btn-sm);
 }
 
@@ -379,11 +379,11 @@ html.pu-phone .pu-diff-badge {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: var(--ui-gap);
+    gap: 8px;
   }
 
   html.pu-phone .pu-diff-opt {
-    min-width: 70px;
+    min-width: 68px;
     padding: 0 6px;
   }
 }
