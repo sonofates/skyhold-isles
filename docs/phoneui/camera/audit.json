@@ -1,0 +1,338 @@
+{
+  "phone": [
+    {
+      "label": "l1c-932x430",
+      "scale": 0.671,
+      "minScale": 0.5049,
+      "maxScale": 1.2622,
+      "offset": [
+        -108,
+        -67
+      ],
+      "ringCssPx": 62.9,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i04-932x430",
+      "scale": 0.727,
+      "minScale": 0.5049,
+      "maxScale": 1.2622,
+      "offset": [
+        -173,
+        -129
+      ],
+      "ringCssPx": 68.2,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i13-932x430",
+      "scale": 0.6783,
+      "minScale": 0.5049,
+      "maxScale": 1.2622,
+      "offset": [
+        -129,
+        -110
+      ],
+      "ringCssPx": 63.6,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i19-932x430",
+      "scale": 0.7444,
+      "minScale": 0.5049,
+      "maxScale": 1.2622,
+      "offset": [
+        -268,
+        -149
+      ],
+      "ringCssPx": 69.8,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i24-932x430",
+      "scale": 0.7573,
+      "minScale": 0.5049,
+      "maxScale": 1.2622,
+      "offset": [
+        -244,
+        -145
+      ],
+      "ringCssPx": 71,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "l1c-844x390",
+      "scale": 0.6076,
+      "minScale": 0.4577,
+      "maxScale": 1.1444,
+      "offset": [
+        -98,
+        -61
+      ],
+      "ringCssPx": 57,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i04-844x390",
+      "scale": 0.6583,
+      "minScale": 0.4577,
+      "maxScale": 1.1444,
+      "offset": [
+        -161,
+        -116
+      ],
+      "ringCssPx": 61.7,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i13-844x390",
+      "scale": 0.6143,
+      "minScale": 0.4577,
+      "maxScale": 1.1444,
+      "offset": [
+        -117,
+        -99
+      ],
+      "ringCssPx": 57.6,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i19-844x390",
+      "scale": 0.6741,
+      "minScale": 0.4577,
+      "maxScale": 1.1444,
+      "offset": [
+        -243,
+        -134
+      ],
+      "ringCssPx": 63.2,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i24-844x390",
+      "scale": 0.6866,
+      "minScale": 0.4577,
+      "maxScale": 1.1444,
+      "offset": [
+        -222,
+        -132
+      ],
+      "ringCssPx": 64.4,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "l1c-667x375",
+      "scale": 0.5252,
+      "minScale": 0.4401,
+      "maxScale": 1.1004,
+      "offset": [
+        -149,
+        -50
+      ],
+      "ringCssPx": 49.2,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i04-667x375",
+      "scale": 0.5378,
+      "minScale": 0.4401,
+      "maxScale": 1.1004,
+      "offset": [
+        -158,
+        -67
+      ],
+      "ringCssPx": 50.4,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i13-667x375",
+      "scale": 0.5502,
+      "minScale": 0.4401,
+      "maxScale": 1.1004,
+      "offset": [
+        -183,
+        -76
+      ],
+      "ringCssPx": 51.6,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i19-667x375",
+      "scale": 0.5502,
+      "minScale": 0.4401,
+      "maxScale": 1.1004,
+      "offset": [
+        -209,
+        -81
+      ],
+      "ringCssPx": 51.6,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    },
+    {
+      "label": "i24-667x375",
+      "scale": 0.6153,
+      "minScale": 0.4401,
+      "maxScale": 1.1004,
+      "offset": [
+        -253,
+        -116
+      ],
+      "ringCssPx": 57.7,
+      "bands": [
+        0,
+        0,
+        0,
+        0
+      ],
+      "mirroredEdges": false
+    }
+  ],
+  "interactions": [
+    {
+      "label": "l1c-932x430",
+      "tapOpenedPlot": 11,
+      "dragMovedPx": 131.1,
+      "pinchInScale": "0.671 -> 1.262",
+      "zoomTapPlot": 11,
+      "pinchOutClampedScale": 0.5049,
+      "minScale": 0.5049,
+      "allInsideMap": true
+    },
+    {
+      "label": "i13-932x430",
+      "tapOpenedPlot": 27,
+      "dragMovedPx": 151.7,
+      "pinchInScale": "0.678 -> 1.262",
+      "zoomTapPlot": 26,
+      "pinchOutClampedScale": 0.5049,
+      "minScale": 0.5049,
+      "allInsideMap": true
+    }
+  ],
+  "desktop": [
+    {
+      "key": "l1c-2000x991",
+      "fitMatch": true,
+      "pngIdentical": false,
+      "scale": 1.2213028169014084,
+      "offset": [
+        -172.41502640845067,
+        -49.549999999999955
+      ]
+    },
+    {
+      "key": "l1c-1440x900",
+      "fitMatch": true,
+      "pngIdentical": false,
+      "scale": 1.1091549295774648,
+      "offset": [
+        -258.74207746478874,
+        -45
+      ]
+    },
+    {
+      "key": "i13-2000x991",
+      "fitMatch": true,
+      "pngIdentical": false,
+      "scale": 1.2213028169014084,
+      "offset": [
+        21.497222222222206,
+        -53.95444444444442
+      ]
+    },
+    {
+      "key": "i13-1440x900",
+      "fitMatch": true,
+      "pngIdentical": false,
+      "scale": 1.1091549295774648,
+      "offset": [
+        -58.58333333333337,
+        -128.5
+      ]
+    }
+  ]
+}
