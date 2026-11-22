@@ -37,6 +37,8 @@ export class MapView {
    * reachRange); that strip shows the map's own painted edge, never the dark frame.
    */
   private readonly edgeSprites: Sprite[] = [];
+  /** Desktop allows mirrored edge fill for plot-clear reach; phones strictly clamp inside the painting. */
+  allowMirroredEdges = true;
   private tier: QualityTier = 'high';
   /** QA: how long building the backdrop took (ms, once per map). */
   private readonly backdropMs: number;
@@ -136,11 +138,20 @@ export class MapView {
    * `world` moves with it; the bands (only past the painting's edge) re-lay when one is open.
    */
   setOffset(offsetX: number, offsetY: number): void {
+    this.setTransform(this.fit.scale, offsetX, offsetY);
+  }
+
+  /**
+   * Updates both camera scale and screen offset (phone pinch-to-zoom + pan). Everything inside
+   * `world` follows immediately; bands re-lay whenever one opens or closes.
+   */
+  setTransform(scale: number, offsetX: number, offsetY: number): void {
     const f = this.fit;
-    if (f.offsetX === offsetX && f.offsetY === offsetY) return;
+    if (f.scale === scale && f.offsetX === offsetX && f.offsetY === offsetY) return;
     const wasOpen = f.bandLeft > 0.5 || f.bandRight > 0.5 || f.bandTop > 0.5 || f.bandBottom > 0.5;
     const [iw, ih] = this.layout.imageSize;
-    this.fit = fitAt(this.screenW, this.screenH, iw, ih, f.scale, offsetX, offsetY);
+    this.fit = fitAt(this.screenW, this.screenH, iw, ih, scale, offsetX, offsetY);
+    this.world.scale.set(scale);
     this.world.position.set(offsetX, offsetY);
     const n = this.fit;
     if (wasOpen || n.bandLeft > 0.5 || n.bandRight > 0.5 || n.bandTop > 0.5 || n.bandBottom > 0.5) this.layoutBands();
@@ -159,7 +170,7 @@ export class MapView {
   /** QA: what fills the bands right now. */
   frameInfo(): {
     backdrop: 'blur' | 'flat' | 'none'; shadow: boolean; vignette: boolean; border: boolean; tier: QualityTier;
-    bands: [number, number, number, number]; backdropMs: number;
+    bands: [number, number, number, number]; backdropMs: number; mirroredEdges: boolean;
   } {
     const f = this.fit;
     return {
@@ -170,6 +181,7 @@ export class MapView {
       vignette: this.vignette.visible,
       border: this.border.visible,
       tier: this.tier,
+      mirroredEdges: this.edgeSprites.some((e) => e.visible),
     };
   }
 
@@ -185,10 +197,12 @@ export class MapView {
     const y1 = y0 + ih * s;
     // A band on an axis the painting covers — or a narrow margin opened by plot-clear camera fit —
     // is filled seamlessly with the mirrored edge art. Only a wide band (extreme aspects like
-    // portrait or 32:9) opens the painted wooden frame.
+    // portrait or 32:9) opens the painted wooden frame. On phones, mirrored edges are disabled.
     const coverX = iw * s >= sw - 0.5 || f.bandLeft + f.bandRight <= sw * 0.34;
     const coverY = ih * s >= sh - 0.5 || f.bandTop + f.bandBottom <= sh * 0.34;
-    const reach = [coverX && f.bandLeft > 0.5, coverX && f.bandRight > 0.5, coverY && f.bandTop > 0.5, coverY && f.bandBottom > 0.5];
+    const reach = this.allowMirroredEdges
+      ? [coverX && f.bandLeft > 0.5, coverX && f.bandRight > 0.5, coverY && f.bandTop > 0.5, coverY && f.bandBottom > 0.5]
+      : [false, false, false, false];
     this.layoutEdges(reach);
     const bandOpen = [f.bandLeft > 0.5 && !reach[0], f.bandRight > 0.5 && !reach[1], f.bandTop > 0.5 && !reach[2], f.bandBottom > 0.5 && !reach[3]];
     const open = bandOpen.some(Boolean);

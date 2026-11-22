@@ -71,6 +71,15 @@ import { pointAlong, primaryWaveEntrance, waveEntranceCounts } from './lanePath.
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { fullBleedFitItems, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
 import { MapPan, PAN_SLOP } from './mapPan.ts';
+import {
+  exceedsDragThreshold,
+  firstSpawnPointPx,
+  isPhoneCamera,
+  phoneCameraFit,
+  pinchStep,
+  strictPanRange,
+  type PhoneCameraLimits,
+} from './phoneCamera.ts';
 import type { HornPlacement } from './hornSpot.ts';
 import { GoldPops2D } from './ui/goldPops2d.ts';
 import { applyRunCommand, ReplayCursor, RunRecorder, runFingerprint, sameFingerprint, type RunCommand, type RunReplay } from './ui/replay2d.ts';
@@ -220,13 +229,21 @@ export class Game2D {
   private readonly inspectRing = new Graphics();
   /** Fired when the hero selection changes (HUD portrait highlight). */
   onHeroSelect: ((selected: boolean) => void) | null = null;
-  private down: { x: number; y: number; t: number } | null = null;
+  private down: { id: number; x: number; y: number; t: number } | null = null;
   /** Gentle map pan (mapPan.ts): the map's offset inside its pan range. */
   readonly pan = new MapPan();
-  /** A press that may become a pan drag (one pointer; a second one cancels it). */
+  /** Phone battle camera active (bigger default zoom on playable area, pinch-to-zoom, strict inside-map clamp). */
+  private phoneCamera = false;
+  /** Zoom limits for the active phone camera (null on desktop). */
+  private cameraLimits: PhoneCameraLimits | null = null;
+  /** Active touch/primary pointers on the canvas (for two-finger pinch-to-zoom on phones). */
+  private readonly activePointers = new Map<number, { clientX: number; clientY: number; x: number; y: number }>();
+  /** Active two-finger pinch gesture on phones (null when not pinching). */
+  private pinch: { idA: number; idB: number; lastDist: number; lastMidX: number; lastMidY: number } | null = null;
+  /** A press that may become a pan drag (one pointer; a second one cancels it on desktop or pinches on phone). */
   private panPress: { id: number; x: number; y: number; active: boolean } | null = null;
-  /** The horn's spot beside a cave and the map offset it was placed at (it moves with the map). */
-  private hornPlaced: { p: HornPlacement; ox: number; oy: number } | null = null;
+  /** The horn's spot beside a cave and its map-px anchor (moves with both pan and zoom). */
+  private hornPlaced: { p: HornPlacement; mx: number; my: number } | null = null;
   /** The view moved since the horn was last placed (re-placed once the pan settles). */
   private hornStale = false;
   /** Free plot under the mouse (desktop hover glow), or -1. */
@@ -952,9 +969,33 @@ export class Game2D {
       }
     }
     this.hud.setHornPlacement(placed);
-    this.hornPlaced = placed ? { p: placed, ox: this.map.fit.offsetX, oy: this.map.fit.offsetY } : null;
+    const fitNow = this.map.fit;
+    this.hornPlaced = placed
+      ? { p: placed, mx: (placed.horn.x - fitNow.offsetX) / fitNow.scale, my: (placed.horn.y - fitNow.offsetY) / fitNow.scale }
+      : null;
     this.hornStale = false;
     this.dock = placed ? { ...this.dock, horn: placed.horn, hornBox: placed.hornBox } : { ...this.dock, horn: home.horn, hornBox: home.hornBox };
+  }
+
+  /** Syncs the cave-side horn (if anchored to a cave) after the camera pans or zooms. */
+  private syncAnchoredHorn(): void {
+    const hp = this.hornPlaced;
+    if (hp) {
+      const nx = this.map.screenX(hp.mx);
+      const ny = this.map.screenY(hp.my);
+      const p = hp.p;
+      const dx = nx - p.horn.x;
+      const dy = ny - p.horn.y;
+      const moved: HornPlacement = {
+        ...p,
+        horn: { ...p.horn, x: nx, y: ny },
+        hornBox: { ...p.hornBox, x: p.hornBox.x + dx, y: p.hornBox.y + dy },
+      };
+      this.hud.setHornPlacement(moved);
+      this.dock = { ...this.dock, horn: moved.horn, hornBox: moved.hornBox };
+    }
+    this.hornStale = true;
+    this.hoverPlot = -1;
   }
 
   /**
@@ -963,17 +1004,16 @@ export class Game2D {
    */
   private applyPan(): void {
     this.map.setOffset(this.pan.x, this.pan.y);
-    const hp = this.hornPlaced;
-    if (hp) {
-      const dx = this.map.fit.offsetX - hp.ox;
-      const dy = this.map.fit.offsetY - hp.oy;
-      const p = hp.p;
-      const moved: HornPlacement = { ...p, horn: { ...p.horn, x: p.horn.x + dx, y: p.horn.y + dy }, hornBox: { ...p.hornBox, x: p.hornBox.x + dx, y: p.hornBox.y + dy } };
-      this.hud.setHornPlacement(moved);
-      this.dock = { ...this.dock, horn: moved.horn, hornBox: moved.hornBox };
-    }
-    this.hornStale = true;
-    this.hoverPlot = -1;
+    this.syncAnchoredHorn();
+  }
+
+  /** Phone pinch-to-zoom moved both scale and offset; updates MapView, MapPan range, and horn. */
+  private applyCamera(scale: number, offsetX: number, offsetY: number): void {
+    const [iw, ih] = this.level.layout2d!.imageSize;
+    const range = strictPanRange(this.viewW, this.viewH, iw, ih, scale);
+    this.pan.setView(range, offsetX, offsetY);
+    this.map.setTransform(scale, this.pan.x, this.pan.y);
+    this.syncAnchoredHorn();
   }
 
   /** A pan gesture began: the screen-space build ring would float off its plot, so it closes. */
@@ -1004,18 +1044,43 @@ export class Game2D {
     this.applyResolution(w, h);
     this.insets = readSafeInsets();
     this.ring.insets = this.insets;
-    // The map covers the screen (full bleed) and the HUD sits in its corners over the decorative
-    // edges; a piece slides along its edge (or the map shrinks a little) only where it would cover
-    // a plot, cave, castle or a safe-area road (fullBleed.ts).
-    const shapes = (this.playShapes ??= hardShapes(this.level.layout2d!));
+    const lay = this.level.layout2d!;
+    const shapes = (this.playShapes ??= hardShapes(lay));
     const dockOpts = { ...this.hud.dockOptions(!!this.hooks.hero), items: this.itemSlots };
-    const placed = fullBleedFitItems(w, h, this.level.layout2d!, (itemMode) => hudDock(w, h, this.insets, { ...dockOpts, itemMode }), shapes);
+    this.phoneCamera = isPhoneCamera(this.quality.isDesktop, w, h);
+    this.map.allowMirroredEdges = !this.phoneCamera;
+    let placed;
+    if (this.phoneCamera) {
+      const w0 = this.level.waves[0];
+      const entries = w0
+        ? waveEntranceCounts(w0.groups, lay.paths, lay.flightPath, (ty) => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying))
+        : [];
+      const firstSpawn = firstSpawnPointPx(lay, primaryWaveEntrance(entries)?.path);
+      const phonePlaced = phoneCameraFit(
+        w,
+        h,
+        lay,
+        (itemMode) => hudDock(w, h, this.insets, { ...dockOpts, itemMode }),
+        shapes,
+        firstSpawn,
+      );
+      this.cameraLimits = phonePlaced.limits;
+      placed = phonePlaced;
+    } else {
+      // Desktop: the map covers the screen (full bleed) and the HUD sits in its corners over the
+      // decorative edges; a piece slides along its edge (or the map shrinks a little) only where it
+      // would cover a plot, cave, castle or a safe-area road (fullBleed.ts).
+      this.cameraLimits = null;
+      placed = fullBleedFitItems(w, h, lay, (itemMode) => hudDock(w, h, this.insets, { ...dockOpts, itemMode }), shapes);
+    }
     this.dock = placed.dock;
     this.fullBleed = placed.fit;
     this.map.resize(w, h, placed.fit);
-    // Re-centred on every resize: the default view (fullBleed.ts), the pan range around it.
+    // Re-centred on every resize: the default view, with the pan range around it.
     this.pan.reset(placed.pan, placed.fit.offsetX, placed.fit.offsetY);
     this.panPress = null;
+    this.pinch = null;
+    this.activePointers.clear();
     this.hud.layout(w, h, this.dock, this.insets);
     this.dockHome = this.dock;
     this.placeHorn(true);
@@ -1102,7 +1167,7 @@ export class Game2D {
       this.map.root.position.set(sx + cx * (1 - z), sy + cy * (1 - z));
     }
     if (this.pan.step(dtSec)) this.applyPan();
-    if (this.hornStale && !this.pan.dragging && !this.pan.gliding) {
+    if (this.hornStale && !this.pan.dragging && !this.pan.gliding && !this.pinch) {
       this.hornStale = false;
       this.placeHorn(true);
     }
@@ -1215,6 +1280,9 @@ export class Game2D {
   pauseForBackground(): boolean {
     if (this.hooks.endless || this.endShown || this.world.outcome !== 'ongoing' || !this.stepper.simActive) return false;
     this.down = null;
+    this.panPress = null;
+    this.pinch = null;
+    this.activePointers.clear();
     this.hoverPlot = -1;
     this.closeRing();
     this.stepper.paused = true;
@@ -1742,6 +1810,34 @@ export class Game2D {
   /** Wires pointer (touch + mouse) and keyboard input on the canvas. */
   attachInput(canvas: HTMLCanvasElement): void {
     canvas.style.touchAction = 'none';
+    const beginPinch = (idA: number, idB: number): void => {
+      const a = this.activePointers.get(idA);
+      const b = this.activePointers.get(idB);
+      if (!a || !b) return;
+      this.pan.stop();
+      this.panPress = null;
+      this.panStarted();
+      this.pinch = {
+        idA,
+        idB,
+        lastDist: Math.hypot(b.x - a.x, b.y - a.y),
+        lastMidX: (a.x + b.x) / 2,
+        lastMidY: (a.y + b.y) / 2,
+      };
+    };
+    const updatePointer = (e: PointerEvent): void => {
+      const r = canvas.getBoundingClientRect();
+      this.activePointers.set(e.pointerId, {
+        clientX: e.clientX,
+        clientY: e.clientY,
+        x: e.clientX - r.left,
+        y: e.clientY - r.top,
+      });
+    };
+    // Prevent iOS Safari / WKWebView from hijacking two-finger canvas pinches for page zoom.
+    canvas.addEventListener('gesturestart', (e) => {
+      if (this.phoneCamera) e.preventDefault();
+    });
     canvas.addEventListener('pointerdown', (e) => {
       if (e.button === 2) {
         // Right click: a hero move order (when the hero is selected); never a tap.
@@ -1750,8 +1846,22 @@ export class Game2D {
         this.rightClick(e.clientX - r.left, e.clientY - r.top);
         return;
       }
-      this.down = { x: e.clientX, y: e.clientY, t: performance.now() };
-      // One pointer may become a pan drag; a second finger cancels both (no pinch here).
+      if (this.phoneCamera) {
+        if (e.button !== 0 && e.pointerType === 'mouse') return;
+        updatePointer(e);
+        if (this.activePointers.size === 1) {
+          this.down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+          this.panPress = { id: e.pointerId, x: e.clientX, y: e.clientY, active: false };
+        } else if (this.activePointers.size === 2 && !this.replayCursor && !this.endShown && !anySheetOpen()) {
+          const ids = Array.from(this.activePointers.keys());
+          beginPinch(ids[0], ids[1]);
+        } else {
+          this.down = null;
+        }
+        return;
+      }
+      this.down = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now() };
+      // Desktop: one pointer may become a pan drag; a second pointer cancels both.
       if (this.panPress && this.panPress.id !== e.pointerId) {
         if (this.panPress.active) this.pan.release(performance.now(), true);
         this.panPress = null;
@@ -1759,8 +1869,43 @@ export class Game2D {
       } else if (e.button === 0) this.panPress = { id: e.pointerId, x: e.clientX, y: e.clientY, active: false };
     });
     // Drag on the map: past PAN_SLOP the press pans instead of tapping (plots, towers, hero
-    // orders keep their taps). Ability / skill aiming swallows these events (abilityBar2d.ts).
+    // orders keep their taps). Two fingers on phones pinch-zoom. Ability / skill aiming swallows
+    // these events (abilityBar2d.ts).
     canvas.addEventListener('pointermove', (e) => {
+      if (this.phoneCamera && this.activePointers.has(e.pointerId)) {
+        updatePointer(e);
+        const pin = this.pinch;
+        if (pin && this.cameraLimits) {
+          const a = this.activePointers.get(pin.idA);
+          const b = this.activePointers.get(pin.idB);
+          if (a && b && !this.replayCursor && !this.endShown && !anySheetOpen()) {
+            const dist = Math.hypot(b.x - a.x, b.y - a.y);
+            const midX = (a.x + b.x) / 2;
+            const midY = (a.y + b.y) / 2;
+            const ratio = pin.lastDist > 4 && dist > 4 ? dist / pin.lastDist : 1;
+            const [iw, ih] = this.level.layout2d!.imageSize;
+            const f = this.map.fit;
+            const next = pinchStep(
+              { scale: f.scale, offsetX: f.offsetX, offsetY: f.offsetY },
+              pin.lastMidX,
+              pin.lastMidY,
+              midX,
+              midY,
+              ratio,
+              this.viewW,
+              this.viewH,
+              iw,
+              ih,
+              this.cameraLimits,
+            );
+            this.applyCamera(next.scale, next.offsetX, next.offsetY);
+            pin.lastDist = dist;
+            pin.lastMidX = midX;
+            pin.lastMidY = midY;
+          }
+          return;
+        }
+      }
       const pp = this.panPress;
       if (!pp || pp.id !== e.pointerId) return;
       if (e.pointerType === 'mouse' && (e.buttons & 1) === 0) {
@@ -1769,7 +1914,7 @@ export class Game2D {
       }
       const now = performance.now();
       if (!pp.active) {
-        if (Math.hypot(e.clientX - pp.x, e.clientY - pp.y) < PAN_SLOP || this.replayCursor || this.endShown) return;
+        if (!exceedsDragThreshold(pp.x, pp.y, e.clientX, e.clientY, PAN_SLOP) || this.replayCursor || this.endShown) return;
         pp.active = true;
         this.pan.beginDrag(now);
         this.panStarted();
@@ -1787,6 +1932,26 @@ export class Game2D {
       if (this.pan.dragBy(dx, dy, now)) this.applyPan();
     });
     const endPan = (e: PointerEvent): void => {
+      if (this.phoneCamera) {
+        this.activePointers.delete(e.pointerId);
+        const pin = this.pinch;
+        if (pin && (e.pointerId === pin.idA || e.pointerId === pin.idB)) {
+          this.pinch = null;
+          this.down = null;
+          if (e.type !== 'pointercancel') {
+            if (this.activePointers.size >= 2) {
+              const ids = Array.from(this.activePointers.keys());
+              beginPinch(ids[0], ids[1]);
+            } else if (this.activePointers.size === 1) {
+              // Seamless handoff from two-finger pinch to one-finger drag (never triggers a tap).
+              const [[remId, rem]] = Array.from(this.activePointers.entries());
+              this.panPress = { id: remId, x: rem.clientX, y: rem.clientY, active: true };
+              this.pan.beginDrag(performance.now());
+            }
+          }
+          return;
+        }
+      }
       const pp = this.panPress;
       if (!pp || pp.id !== e.pointerId) return;
       this.panPress = null;
@@ -1810,14 +1975,15 @@ export class Game2D {
     canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     canvas.addEventListener('pointerup', (e) => {
       const d = this.down;
+      if (!d || d.id !== e.pointerId) return;
       this.down = null;
-      if (!d) return;
+      if (this.pinch || this.activePointers.size > 0) return;
       if (Math.hypot(e.clientX - d.x, e.clientY - d.y) > TAP_SLOP || performance.now() - d.t > TAP_MS) return;
       const r = canvas.getBoundingClientRect();
       this.tap(e.clientX - r.left, e.clientY - r.top);
     });
-    canvas.addEventListener('pointercancel', () => {
-      this.down = null;
+    canvas.addEventListener('pointercancel', (e) => {
+      if (this.down && this.down.id === e.pointerId) this.down = null;
     });
     // Desktop hover: glow the free plot under the mouse (touch has no hover).
     canvas.addEventListener('pointermove', (e) => {
@@ -1985,6 +2151,17 @@ export class Game2D {
       insets: this.insets,
       fit: this.map.fit,
       pan: { x: Math.round(this.pan.x), y: Math.round(this.pan.y), range: this.pan.range, dragging: this.pan.dragging },
+      camera: this.cameraLimits
+        ? {
+            phone: true,
+            scale: this.map.fit.scale,
+            minScale: this.cameraLimits.minScale,
+            defaultScale: this.cameraLimits.defaultScale,
+            maxScale: this.cameraLimits.maxScale,
+            playable: this.cameraLimits.playable,
+            pinching: !!this.pinch,
+          }
+        : { phone: false, scale: this.map.fit.scale },
       mapInfo: {
         key: this.art.map.key,
         texelScale: this.map.texelScale,
