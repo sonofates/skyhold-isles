@@ -3,7 +3,7 @@ import { t, type MsgKey } from '../i18n/index.ts';
 import type { LoadedArt } from './assets2d.ts';
 import { paintedText, setFontSize, setText } from './hudText.ts';
 import { easeOutBack, easeOutCubic, fitWidth, INK_SOFT, inkText, kit, paintedUiTexture, setInkSize } from './uiKit.ts';
-import { END_FRAME, endBoardFit, endButtonR, endHeroRoom, endLayout, NO_INSETS, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
+import { END_FRAME, endBoardFit, endButtonR, endHeroRoom, endLayout, NO_INSETS, type EndDiffSpot, type EndLayout, type Insets, type Rect } from './uiLayout.ts';
 import type { EndModeNote } from './ui/modeBits.ts';
 import type { DifficultyId } from '../data/difficulty.ts';
 import { DIFFICULTY_EMBLEMS } from './ui/difficultyEmblems.ts';
@@ -463,6 +463,7 @@ export class EndPanel {
       labelH = Math.max(labelH, b.label.height);
     }
     // No board text may reach the buttons (phones: the rule line used to sit under them).
+    const diffFs = Math.max(12, Math.round(L.fontBody * 0.8));
     const fitted = endBoardFit(L, {
       won,
       victoryBoard: !!this.note?.victoryBoard,
@@ -471,6 +472,7 @@ export class EndPanel {
       captionH: this.caption.height,
       ruleH: ruleOn ? this.rule.height : 0,
       labelH,
+      diffPillH: this.diffTag.visible ? diffFs * 1.6 : 0,
     });
     const S = fitted.stack;
     const Lb = fitted.layout;
@@ -506,7 +508,7 @@ export class EndPanel {
     this.rule.visible = S.ruleVisible;
     this.rule.position.set(L.summary.x, S.ruleY);
     this.layoutHero(Lb, f, r);
-    this.layoutDiffTag(Lb);
+    this.layoutDiffTag(Lb, fitted.diffSpot);
     for (const b of this.buttons) b.root.visible = shown.includes(b);
     // The glowing medallion marks the way on: Next isle after a win, Retry after a defeat.
     const main = primaryEndAction(this.summary?.won ?? false);
@@ -526,8 +528,8 @@ export class EndPanel {
     for (const b of shown) b.label.scale.set(minScale);
   }
 
-  /** Difficulty tag: a small parchment pill on the board's top edge, just under the ribbon. */
-  private layoutDiffTag(L: EndLayout): void {
+  /** Difficulty tag: a small parchment pill under the ribbon, or beside the title when vertical room above the middle star is too tight. */
+  private layoutDiffTag(L: EndLayout, spot: EndDiffSpot): void {
     if (!this.diffTag.visible) return;
     const P = L.panel;
     const fs = Math.max(12, Math.round(L.fontBody * 0.8));
@@ -537,17 +539,33 @@ export class EndPanel {
     const hasSeal = this.diffSeal.texture !== Texture.EMPTY;
     const w = (hasSeal ? d * 0.82 + fs * 0.3 : 0) + this.diffText.width + padX * 2;
     const h = fs * 1.6;
-    const cx = P.x + P.w / 2;
-    // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop); stay clear
-    // of both the ribbon title and the lifted middle star on short landscape phones with a hero row.
-    const defaultCy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.6);
-    const minCy = L.title.y + L.fontTitle * 0.5 + h / 2 + 2;
-    let cy = defaultCy;
-    if (this.summary?.won) {
-      const midStarTop = L.stars[1].y - L.starR * 1.15;
-      cy = Math.max(minCy, Math.min(defaultCy, midStarTop - h / 2 - 2));
+    let x0: number;
+    let cy: number;
+    if (spot === 'beside') {
+      // Short landscape / portrait victory boards with a hero row: pair title + pill on the ribbon
+      // so the pill stays well clear of the raised middle star while keeping the title inside the ribbon band.
+      const gap = Math.max(6, fs * 0.5);
+      const maxPairW = P.w * 0.58;
+      const maxTitleW = Math.max(P.w * 0.2, Math.min(P.w * 0.5, maxPairW - gap - w));
+      fitWidth(this.title, maxTitleW);
+      const pairW = this.title.width + gap + w;
+      const pairX0 = P.x + P.w / 2 - pairW / 2;
+      this.title.position.set(pairX0 + this.title.width / 2, L.title.y);
+      x0 = pairX0 + this.title.width + gap;
+      cy = L.title.y;
+    } else {
+      const cx = P.x + P.w / 2;
+      // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop); stay clear
+      // of both the ribbon title and the middle star.
+      const defaultCy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.6);
+      const minCy = L.title.y + L.fontTitle * 0.5 + h / 2 + 2;
+      cy = defaultCy;
+      if (this.summary?.won) {
+        const midStarTop = L.stars[1].y - L.starR * 1.15;
+        cy = Math.max(minCy, Math.min(defaultCy, midStarTop - h / 2 - 2));
+      }
+      x0 = cx - w / 2;
     }
-    const x0 = cx - w / 2;
     this.diffPill
       .clear()
       .roundRect(x0, cy - h / 2, w, h, h / 2)

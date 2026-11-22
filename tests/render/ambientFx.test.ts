@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { Container, Sprite, Texture } from 'pixi.js';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
+  ambientAtlasRefCount,
   AmbientFxLayer,
   effectiveParticleCap,
   effectiveRateScale,
@@ -278,5 +279,202 @@ describe('AmbientFxLayer runtime and mapAnimLayer integration', () => {
     // Destroying world cleans up the ambient host cleanly.
     world.destroy({ children: true });
     expect(ambientHost.destroyed).toBe(true);
+    expect(ambientAtlasRefCount()).toBe(0);
+  });
+
+  it('builds lazily on first eligible update (zero sprites on Low quality or disabled)', () => {
+    const world = new Container();
+    world.addChild(new Sprite(Texture.EMPTY));
+    const controller = mapAnimLayer(world, 'i16', '/art2d/')!;
+    const ambientHost = world.children[1] as Container;
+
+    // Entering i16 must not eagerly construct particle/crack/flame/glow sprites.
+    expect(ambientHost.children.length).toBe(0);
+    expect(controller.debug()).toMatchObject({
+      island: 'i16',
+      built: false,
+      enabled: false,
+      activeParticles: 0,
+      particleCap: 0,
+      crackSegments: 0,
+      flames: 0,
+      glows: 0,
+    });
+
+    // Low quality tier or disabled flag keeps the layer unbuilt.
+    controller.update(true, false, false, 1 / 60, 'low');
+    controller.update(false, false, false, 1 / 60, 'high');
+    expect(ambientHost.children.length).toBe(0);
+    expect(controller.debug()?.built).toBe(false);
+    expect(controller.debug()?.crackSegments).toBe(0);
+
+    // First eligible active frame builds lazily and pre-warms.
+    controller.update(true, false, false, 1 / 60, 'high');
+    expect(ambientHost.children.length).toBe(1);
+    const active = controller.debug()!;
+    expect(active.built).toBe(true);
+    expect(active.enabled).toBe(true);
+    expect(active.crackSegments).toBeGreaterThan(0);
+    expect(active.flames).toBeGreaterThan(0);
+    expect(active.activeParticles).toBeGreaterThan(0);
+    expect(active.time).toBeCloseTo(2.5, 3);
+
+    // Switching back to Low quality destroys sprites immediately.
+    controller.update(true, false, false, 1 / 60, 'low');
+    expect(ambientHost.children.length).toBe(0);
+    expect(controller.debug()?.built).toBe(false);
+
+    world.destroy({ children: true });
+    expect(ambientAtlasRefCount()).toBe(0);
+  });
+
+  it('does not build or run warm-up steps while paused, hidden, or under reduced motion', () => {
+    const cfg = getAmbientFxConfig('i16')!;
+    const layer = new AmbientFxLayer(cfg);
+
+    // First enabled update while paused (e.g. island opened behind story intro): no warm-up jump!
+    layer.update(true, true, 1 / 60, 'high');
+    layer.update(true, true, 1 / 60, 'high');
+    expect(layer.root.visible).toBe(false);
+    expect(layer.debug()).toMatchObject({
+      built: false,
+      paused: true,
+      time: 0,
+      activeParticles: 0,
+      crackSegments: 0,
+    });
+
+    // Unpausing triggers lazy build + 2.5 s warm-up cleanly.
+    layer.update(true, false, 1 / 60, 'high');
+    expect(layer.root.visible).toBe(true);
+    expect(layer.debug().built).toBe(true);
+    expect(layer.debug().time).toBeCloseTo(2.5, 3);
+    expect(layer.debug().activeParticles).toBeGreaterThan(0);
+
+    // Disabling while paused clears & un-warms; re-enabling while still paused must NOT re-warm.
+    layer.update(false, true, 1 / 60, 'high');
+    expect(layer.root.visible).toBe(false);
+    expect(layer.debug().activeParticles).toBe(0);
+    const tAfterDisable = layer.debug().time;
+    layer.update(true, true, 1 / 60, 'high');
+    expect(layer.debug().time).toBe(tAfterDisable);
+    expect(layer.debug().activeParticles).toBe(0);
+    layer.destroy();
+
+    // Verify document.hidden and pu-reduce-motion also prevent lazy build and warm-up.
+    const origDocument = globalThis.document;
+    let hidden = true;
+    let reduced = false;
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        get hidden() {
+          return hidden;
+        },
+        documentElement: {
+          classList: {
+            contains: (cls: string) => cls === 'pu-reduce-motion' && reduced,
+          },
+        },
+        createElement: () => ({ width: 0, height: 0, getContext: () => null }),
+      },
+    });
+    try {
+      const world = new Container();
+      world.addChild(new Sprite(Texture.EMPTY));
+      const controller = mapAnimLayer(world, 'i16', '/art2d/')!;
+      const host = world.children[1] as Container;
+
+      // Hidden tab: stays unbuilt and unwarmed.
+      controller.update(true, false, false, 1 / 60, 'high');
+      expect(host.children.length).toBe(0);
+      expect(controller.debug()?.time).toBe(0);
+      expect(controller.debug()?.built).toBe(false);
+
+      // Tab becomes visible, but reduced motion is enabled: still stays unbuilt.
+      hidden = false;
+      reduced = true;
+      controller.update(true, false, false, 1 / 60, 'high');
+      expect(host.children.length).toBe(0);
+      expect(controller.debug()?.built).toBe(false);
+
+      // Reduced motion off + visible + unpaused: builds and warms.
+      reduced = false;
+      controller.update(true, false, false, 1 / 60, 'high');
+      expect(host.children.length).toBe(1);
+      expect(controller.debug()?.built).toBe(true);
+      expect(controller.debug()?.time).toBeCloseTo(2.5, 3);
+
+      world.destroy({ children: true });
+      expect(ambientAtlasRefCount()).toBe(0);
+    } finally {
+      Object.defineProperty(globalThis, 'document', { configurable: true, value: origDocument });
+    }
+  });
+
+  it('destroys sprites and shared procedural atlas cleanly across repeated level changes', () => {
+    const origDocument = globalThis.document;
+    const noop = (): void => undefined;
+    const fakeGrad = { addColorStop: noop };
+    const fakeCtx = {
+      save: noop,
+      restore: noop,
+      beginPath: noop,
+      rect: noop,
+      clip: noop,
+      createRadialGradient: () => fakeGrad,
+      createLinearGradient: () => fakeGrad,
+      fillRect: noop,
+      translate: noop,
+      scale: noop,
+      arc: noop,
+      fill: noop,
+      moveTo: noop,
+      lineTo: noop,
+      bezierCurveTo: noop,
+      quadraticCurveTo: noop,
+      closePath: noop,
+      stroke: noop,
+      fillStyle: '',
+      strokeStyle: '',
+      lineWidth: 1,
+      lineCap: 'butt',
+    };
+    Object.defineProperty(globalThis, 'document', {
+      configurable: true,
+      value: {
+        hidden: false,
+        documentElement: { classList: { contains: () => false } },
+        createElement: (tag: string) =>
+          tag === 'canvas' ? { width: 256, height: 256, getContext: () => fakeCtx } : {},
+      },
+    });
+    try {
+      expect(ambientAtlasRefCount()).toBe(0);
+      for (const id of ['i16', 'i09', 'i17', 'i21', 'i22'] as const) {
+        const world = new Container();
+        world.addChild(new Sprite(Texture.EMPTY));
+        const controller = mapAnimLayer(world, id, '/art2d/')!;
+        const host = world.children[1] as Container;
+
+        // Still 0 before first eligible update.
+        expect(ambientAtlasRefCount()).toBe(0);
+
+        controller.update(true, false, false, 1 / 60, 'high');
+        expect(ambientAtlasRefCount()).toBe(1);
+        const fxRoot = host.children[0] as Container;
+        const sprites = fxRoot.children.flatMap((c) => (c as Container).children);
+        expect(sprites.length).toBeGreaterThan(0);
+
+        // Leaving the level destroys world -> host -> fxRoot -> all sprites and releases atlas.
+        world.destroy({ children: true });
+        expect(host.destroyed).toBe(true);
+        expect(fxRoot.destroyed).toBe(true);
+        expect(sprites.every((s) => s.destroyed)).toBe(true);
+        expect(ambientAtlasRefCount()).toBe(0);
+      }
+    } finally {
+      Object.defineProperty(globalThis, 'document', { configurable: true, value: origDocument });
+    }
   });
 });
