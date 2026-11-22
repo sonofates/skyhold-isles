@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Across the sunlit yellow-green glade along the northern plateau rim, a light warm breeze ripples gently from left to right through the painted grass tufts, tiny clover blossoms, and overhanging leafy canopy edge. The green brush clusters bend a few pixels and return smoothly with no white wind lines or colour shifts. Hold the spilled wicker basket, brown dirt road below, and open ground tones completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

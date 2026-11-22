@@ -1,0 +1,36 @@
+{
+  "id": "i22-brine-ferry-bob",
+  "element": "brine-ferry-bob",
+  "source": "public/art2d/map-i22-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 844,
+    "y": 310,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2532,
+    930,
+    3588,
+    1524
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    174,
+    167,
+    1019,
+    662
+  ],
+  "featherInwardStartPx": 25
+}

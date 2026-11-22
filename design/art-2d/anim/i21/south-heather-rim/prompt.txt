@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Along the southern cliff rim below the road, the painted dusty-pink heather beds and golden-green grass tufts nod gently by a few pixels in the highland breeze and ease smoothly back into place. Preserve the soft storybook brushwork with zero sharpening, no new flowers, and no wind lines. Hold the pale limestone cliff face and curved dirt road above completely rigid.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

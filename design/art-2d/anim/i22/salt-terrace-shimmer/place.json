@@ -1,0 +1,36 @@
+{
+  "id": "i22-salt-terrace-shimmer",
+  "element": "salt-terrace-shimmer",
+  "source": "public/art2d/map-i22-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1398,
+    "y": 600,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4194,
+    1800,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    74,
+    45,
+    1258,
+    698
+  ],
+  "featherInwardStartPx": 26
+}

@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Beneath the timber A-frame beside the eastern approach, the hanging bronze coastal fog bell rocks gently left and right by two or three pixels in the sea wind, its small clapper swaying subtly with the bell before settling cleanly back to rest. Preserve the warm bronze paint with no flashes or shine changes. Hold the weathered timber frame, dark green turf, and nearby stone castle completely stationary.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

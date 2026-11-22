@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+From the arching northeast canopy branch, the three hanging woven fig baskets sway slowly and gently side to side by a few pixels on their suspension ropes, each lagging slightly behind its neighbour before returning cleanly to its opening position. Keep every woven rim, fig cluster, and rope texture intact. Hold the gnarled overhead branch, green leaves, and distant misty jungle trees completely locked.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

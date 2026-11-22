@@ -1,0 +1,36 @@
+{
+  "id": "i19-northwest-hanging-baskets",
+  "element": "northwest-hanging-baskets",
+  "source": "public/art2d/map-i19-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 56,
+    "y": 36,
+    "width": 336,
+    "height": 189
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    168,
+    108,
+    1176,
+    675
+  ],
+  "startPxPerLayoutPx": 3.8095238095238093,
+  "startPxPerSourcePx": 1.2698412698412698,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    175,
+    38,
+    808,
+    694
+  ],
+  "featherInwardStartPx": 23
+}

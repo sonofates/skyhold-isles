@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+In the ruined limestone colonnade, the three suspended bronze bells rock gently by a few pixels in the highland breeze, swinging slightly left and right from their fixed iron chains and settling smoothly back to rest. Preserve their weathered olive-brown bronze patina and carved rims with no change in colour or brightness. Keep the white limestone arches, fluted columns, shadows, and yellow flowers beneath completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

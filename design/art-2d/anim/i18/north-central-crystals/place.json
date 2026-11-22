@@ -1,0 +1,36 @@
+{
+  "id": "i18-north-central-crystals",
+  "element": "north-central-crystals",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 756,
+    "y": 0,
+    "width": 480,
+    "height": 270
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2268,
+    0,
+    3708,
+    810
+  ],
+  "startPxPerLayoutPx": 2.6666666666666665,
+  "startPxPerSourcePx": 0.8888888888888888,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    160,
+    21,
+    1195,
+    289
+  ],
+  "featherInwardStartPx": 16
+}

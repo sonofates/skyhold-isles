@@ -1,0 +1,36 @@
+{
+  "id": "i23-southwest-apple-bough",
+  "element": "southwest-apple-bough",
+  "source": "public/art2d/map-i23-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 636,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    1908,
+    1152,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    20,
+    40,
+    1027,
+    694
+  ],
+  "featherInwardStartPx": 27
+}

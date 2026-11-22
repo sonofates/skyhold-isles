@@ -1,0 +1,36 @@
+{
+  "id": "i24-northeast-pasture-grass",
+  "element": "northeast-pasture-grass",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1024,
+    "y": 0,
+    "width": 480,
+    "height": 270
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3072,
+    0,
+    4512,
+    810
+  ],
+  "startPxPerLayoutPx": 2.6666666666666665,
+  "startPxPerSourcePx": 0.8888888888888888,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    53,
+    26,
+    1227,
+    358
+  ],
+  "featherInwardStartPx": 27
+}

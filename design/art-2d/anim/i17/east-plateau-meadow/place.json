@@ -1,0 +1,36 @@
+{
+  "id": "i17-east-plateau-meadow",
+  "element": "east-plateau-meadow",
+  "source": "public/art2d/map-i17-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1490,
+    "y": 360,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4470,
+    1080,
+    5526,
+    1674
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    94,
+    87,
+    837,
+    670
+  ],
+  "featherInwardStartPx": 33
+}

@@ -1,0 +1,36 @@
+{
+  "id": "i22-northeast-stalactite-glint",
+  "element": "northeast-stalactite-glint",
+  "source": "public/art2d/map-i22-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1622,
+    "y": 0,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4866,
+    0,
+    5538,
+    378
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619047,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    582,
+    34,
+    1235,
+    675
+  ],
+  "featherInwardStartPx": 29
+}

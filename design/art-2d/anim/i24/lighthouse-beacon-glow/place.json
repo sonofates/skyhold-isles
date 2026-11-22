@@ -1,0 +1,36 @@
+{
+  "id": "i24-lighthouse-beacon-glow",
+  "element": "lighthouse-beacon-glow",
+  "source": "public/art2d/map-i24-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1064,
+    "y": 462,
+    "width": 176,
+    "height": 99
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3192,
+    1386,
+    3720,
+    1683
+  ],
+  "startPxPerLayoutPx": 7.2727272727272725,
+  "startPxPerSourcePx": 2.4242424242424243,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    436,
+    407,
+    844,
+    568
+  ],
+  "featherInwardStartPx": 29
+}

@@ -1,0 +1,36 @@
+{
+  "id": "i18-alchemist-bench-flasks",
+  "element": "alchemist-bench-flasks",
+  "source": "public/art2d/map-i18-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 388,
+    "y": 548,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1164,
+    1644,
+    1884,
+    2049
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    448,
+    181,
+    843,
+    395
+  ],
+  "featherInwardStartPx": 21
+}

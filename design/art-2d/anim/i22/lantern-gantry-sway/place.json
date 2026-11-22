@@ -1,0 +1,36 @@
+{
+  "id": "i22-lantern-gantry-sway",
+  "element": "lantern-gantry-sway",
+  "source": "public/art2d/map-i22-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 576,
+    "y": 324,
+    "width": 160,
+    "height": 90
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1728,
+    972,
+    2208,
+    1242
+  ],
+  "startPxPerLayoutPx": 8.0,
+  "startPxPerSourcePx": 2.6666666666666665,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    336,
+    192,
+    817,
+    497
+  ],
+  "featherInwardStartPx": 32
+}

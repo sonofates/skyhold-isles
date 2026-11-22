@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Strictly inside the hanging pale-turquoise mineral stalactites clinging to the purple cavern ceiling, a soft moist sheen slowly brightens a subtle shade along the existing painted cyan tips and settles cleanly back to its opening tone. Keep every stalactite outline rigid with no falling drops, no new shapes, and zero change on the cavern floor below. Hold the purple rock overhang, ore cart, and salt floor perfectly still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

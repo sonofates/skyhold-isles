@@ -1,0 +1,36 @@
+{
+  "id": "i17-cloister-east-banner",
+  "element": "cloister-east-banner",
+  "source": "public/art2d/map-i17-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 280,
+    "y": 572,
+    "width": 272,
+    "height": 153
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    840,
+    1716,
+    1656,
+    2175
+  ],
+  "startPxPerLayoutPx": 4.705882352941177,
+  "startPxPerSourcePx": 1.5686274509803921,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    489,
+    94,
+    857,
+    669
+  ],
+  "featherInwardStartPx": 24
+}

@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Along the dark jagged rocks of the northwest shore, the deep slate-teal ocean swells heave gently shoreward and withdraw, pulsing the existing painted white surf lace a few pixels around the rock feet and relaxing back. Preserve the painterly foam texture with no thin wire-like arcs or bright flashes. Hold the black basalt crags, coiled rope, and grassy slope perfectly still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

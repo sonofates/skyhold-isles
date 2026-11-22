@@ -1,0 +1,36 @@
+{
+  "id": "i21-northeast-golden-grass",
+  "element": "northeast-golden-grass",
+  "source": "public/art2d/map-i21-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1104,
+    "y": 0,
+    "width": 368,
+    "height": 207
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3312,
+    0,
+    4416,
+    621
+  ],
+  "startPxPerLayoutPx": 3.4782608695652173,
+  "startPxPerSourcePx": 1.1594202898550725,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    69,
+    34,
+    1211,
+    446
+  ],
+  "featherInwardStartPx": 28
+}
