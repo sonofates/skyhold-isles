@@ -1,0 +1,36 @@
+{
+  "element": "mid-east-bush",
+  "id": "l1c-mid-east-bush",
+  "source": "public/art2d/map-L1c-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1118,
+    "y": 152,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3354,
+    456,
+    4026,
+    834
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619047,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    240,
+    91,
+    892,
+    481
+  ],
+  "featherInwardStartPx": 29
+}

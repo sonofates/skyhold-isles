@@ -1,0 +1,36 @@
+{
+  "element": "north-ridge-wheat",
+  "id": "i05-north-ridge-wheat",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 500,
+    "y": 0,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1500,
+    0,
+    2844,
+    756
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    128,
+    22,
+    1223,
+    275
+  ],
+  "featherInwardStartPx": 23
+}

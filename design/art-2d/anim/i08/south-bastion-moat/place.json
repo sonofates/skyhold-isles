@@ -1,0 +1,36 @@
+{
+  "element": "south-bastion-moat",
+  "id": "i08-south-bastion-moat",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 555,
+    "y": 314,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1665,
+    942,
+    2385,
+    1347
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    229,
+    128,
+    1009,
+    545
+  ],
+  "featherInwardStartPx": 27
+}

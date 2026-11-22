@@ -1,0 +1,36 @@
+{
+  "element": "south-harbour-shallows",
+  "id": "i02-south-harbour-shallows",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 830,
+    "y": 618,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2490,
+    1854,
+    3738,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410255,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    86,
+    196,
+    991,
+    690
+  ],
+  "featherInwardStartPx": 22
+}

@@ -1,0 +1,36 @@
+{
+  "element": "south-poppy-border",
+  "id": "i01-south-poppy-border",
+  "source": "public/art2d/map-i01-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 160,
+    "y": 600,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    480,
+    1800,
+    1824,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    57,
+    157,
+    1243,
+    692
+  ],
+  "featherInwardStartPx": 23
+}

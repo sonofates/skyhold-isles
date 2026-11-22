@@ -1,0 +1,36 @@
+{
+  "element": "northeast-orchard-trees",
+  "id": "i05-northeast-orchard-trees",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1430,
+    "y": 54,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4290,
+    162,
+    5442,
+    810
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    60,
+    46,
+    1227,
+    401
+  ],
+  "featherInwardStartPx": 17
+}

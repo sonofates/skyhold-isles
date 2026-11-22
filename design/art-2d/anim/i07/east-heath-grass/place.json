@@ -1,0 +1,36 @@
+{
+  "element": "east-heath-grass",
+  "id": "i07-east-heath-grass",
+  "source": "public/art2d/map-i07-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1195,
+    "y": 0,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3585,
+    0,
+    4737,
+    648
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    83,
+    40,
+    1167,
+    394
+  ],
+  "featherInwardStartPx": 27
+}

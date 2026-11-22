@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A light sea breeze sways the drooping olive-green foliage clusters of the small coastal tree a few pixels right and lets them settle softly back. Preserve the rounded painted leaf tufts with no extra twigs or sharpened outlines. Keep the split brown trunk, cast shadow, grass and stone bank motionless.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

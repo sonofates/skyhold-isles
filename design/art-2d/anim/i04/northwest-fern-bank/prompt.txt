@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A light forest breeze flexes the long arching green fern fronds in the upper-left corner and softly ripples the sunlit meadow grass beside the mossy blocks by a few pixels right and back. Preserve the exact hand-painted frond shapes without adding sharp outlines or pale wind streaks. Keep every mossy stone slab and shadow completely motionless.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

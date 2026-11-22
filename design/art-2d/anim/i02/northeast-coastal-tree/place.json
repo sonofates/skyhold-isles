@@ -1,0 +1,36 @@
+{
+  "element": "northeast-coastal-tree",
+  "id": "i02-northeast-coastal-tree",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1606,
+    "y": 85,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4818,
+    255,
+    5538,
+    660
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    490,
+    144,
+    1067,
+    550
+  ],
+  "featherInwardStartPx": 27
+}

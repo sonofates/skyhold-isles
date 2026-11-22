@@ -1,0 +1,36 @@
+{
+  "element": "northwest-shrubs",
+  "id": "l1c-northwest-shrubs",
+  "source": "public/art2d/map-L1c-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 72,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    216,
+    864,
+    702
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814814,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    62,
+    44,
+    703,
+    685
+  ],
+  "featherInwardStartPx": 22
+}

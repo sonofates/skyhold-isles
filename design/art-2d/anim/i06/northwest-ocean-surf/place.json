@@ -1,0 +1,36 @@
+{
+  "element": "northwest-ocean-surf",
+  "id": "i06-northwest-ocean-surf",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 0,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    0,
+    768,
+    432
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    40,
+    40,
+    1071,
+    591
+  ],
+  "featherInwardStartPx": 30
+}

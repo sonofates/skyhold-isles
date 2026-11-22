@@ -1,0 +1,36 @@
+{
+  "element": "northeast-poppy-field",
+  "id": "i01-northeast-poppy-field",
+  "source": "public/art2d/map-i01-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1398,
+    "y": 0,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4194,
+    0,
+    5538,
+    756
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    234,
+    22,
+    1258,
+    686
+  ],
+  "featherInwardStartPx": 23
+}

@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A soft mint-emerald glint breathes gently upward inside the tall painted green crystal shards nestled in the tree roots, then dims smoothly back to the opening luminance. Keep every crystal silhouette, bevel and tip rigid, with no new crystals growing and no light spilling onto the gnarled brown roots, grass or stepping stones.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

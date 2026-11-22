@@ -1,0 +1,36 @@
+{
+  "element": "west-arch-waters",
+  "id": "i08-west-arch-waters",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 12,
+    "width": 352,
+    "height": 198
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    36,
+    1056,
+    630
+  ],
+  "startPxPerLayoutPx": 3.6363636363636362,
+  "startPxPerSourcePx": 1.2121212121212122,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    29,
+    29,
+    1222,
+    684
+  ],
+  "featherInwardStartPx": 25
+}

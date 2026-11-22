@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+The narrow glacial blue stream at the upper gorge glides steadily downward and slightly left, carrying its existing pale ice-blue current lines past the snowy banks. Keep the muted icy palette and painted brushwork unchanged with no flat opaque white ribbons or bright glare. Hold the snowy ledges, dark rocks and pine trees on both sides completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

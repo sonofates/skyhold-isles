@@ -1,0 +1,36 @@
+{
+  "element": "northeast-spruce-stand",
+  "id": "i03-northeast-spruce-stand",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1320,
+    "y": 0,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3960,
+    0,
+    4920,
+    540
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    384,
+    32,
+    1209,
+    473
+  ],
+  "featherInwardStartPx": 20
+}

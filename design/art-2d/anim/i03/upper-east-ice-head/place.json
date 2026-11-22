@@ -1,0 +1,36 @@
+{
+  "element": "upper-east-ice-head",
+  "id": "i03-upper-east-ice-head",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1558,
+    "y": 0,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4674,
+    0,
+    5538,
+    486
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814814,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    328,
+    26,
+    756,
+    552
+  ],
+  "featherInwardStartPx": 27
+}

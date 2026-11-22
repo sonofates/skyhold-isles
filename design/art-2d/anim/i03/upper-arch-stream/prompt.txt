@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+The muted slate-blue water above the little stone arch glides gently rightward toward the bridge shadow, shifting only the existing fine painted surface strokes a few pixels downstream without creating flat opaque white crescents, bright ribbons or level changes. Keep the snow banks, mossy stones, stone arch and cave entrance completely motionless.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

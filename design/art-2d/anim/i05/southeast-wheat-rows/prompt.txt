@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A gentle breeze ripples across the low golden wheat rows in the southeast field, nodding the painted amber grain tips two to three pixels right and smoothly back in place. Leave the warm ochre soil gaps between rows completely clear and stationary with no white wind ribbons, pale streaks or light flashes. Keep the outer ground margin and stones completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

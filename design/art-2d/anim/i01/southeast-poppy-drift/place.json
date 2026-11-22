@@ -1,0 +1,36 @@
+{
+  "element": "southeast-poppy-drift",
+  "id": "i01-southeast-poppy-drift",
+  "source": "public/art2d/map-i01-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 920,
+    "y": 600,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2760,
+    1800,
+    4104,
+    2556
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809523,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    71,
+    262,
+    1143,
+    692
+  ],
+  "featherInwardStartPx": 23
+}

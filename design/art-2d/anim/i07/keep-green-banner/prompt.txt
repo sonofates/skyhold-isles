@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A steady canyon breeze ripples the small green-and-gold pennant flying atop the watchtower keep, sending a soft shallow wave from its mast edge out to its forked tail and settling back. Keep the vertical flagpole, stone battlements, dark roof and hillside completely fixed with no distortion of the masonry.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

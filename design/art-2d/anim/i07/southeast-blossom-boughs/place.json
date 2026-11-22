@@ -1,0 +1,36 @@
+{
+  "element": "southeast-blossom-boughs",
+  "id": "i07-southeast-blossom-boughs",
+  "source": "public/art2d/map-i07-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1430,
+    "y": 618,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4290,
+    1854,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410255,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    560,
+    153,
+    1256,
+    696
+  ],
+  "featherInwardStartPx": 22
+}

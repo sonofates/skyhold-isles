@@ -1,0 +1,36 @@
+{
+  "element": "west-lake-bay",
+  "id": "i08-west-lake-bay",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 220,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    660,
+    1248,
+    1362
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410255,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    24,
+    24,
+    825,
+    671
+  ],
+  "featherInwardStartPx": 25
+}

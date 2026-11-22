@@ -1,0 +1,36 @@
+{
+  "element": "east-windswept-tree",
+  "id": "i07-east-windswept-tree",
+  "source": "public/art2d/map-i07-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1638,
+    "y": 248,
+    "width": 208,
+    "height": 117
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4914,
+    744,
+    5538,
+    1095
+  ],
+  "startPxPerLayoutPx": 6.153846153846154,
+  "startPxPerSourcePx": 2.051282051282051,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    726,
+    160,
+    1207,
+    493
+  ],
+  "featherInwardStartPx": 31
+}

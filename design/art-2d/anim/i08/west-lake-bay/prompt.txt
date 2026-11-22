@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Calm lake water drifts gently across the western bay, sliding the existing muted blue-teal surface brushstrokes two to three pixels rightward and easing them smoothly back. Preserve the exact subdued painted water values without creating bright rings, gold bands, new glare or hard outlines. Keep all lily pads, shoreline reeds and grassy banks completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

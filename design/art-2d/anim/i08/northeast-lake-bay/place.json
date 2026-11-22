@@ -1,0 +1,36 @@
+{
+  "element": "northeast-lake-bay",
+  "id": "i08-northeast-lake-bay",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1430,
+    "y": 0,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4290,
+    0,
+    5538,
+    702
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410255,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    400,
+    30,
+    1250,
+    690
+  ],
+  "featherInwardStartPx": 25
+}

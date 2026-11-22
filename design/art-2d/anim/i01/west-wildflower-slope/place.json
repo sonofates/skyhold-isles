@@ -1,0 +1,36 @@
+{
+  "element": "west-wildflower-slope",
+  "id": "i01-west-wildflower-slope",
+  "source": "public/art2d/map-i01-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 248,
+    "width": 400,
+    "height": 225
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    744,
+    1200,
+    1419
+  ],
+  "startPxPerLayoutPx": 3.2,
+  "startPxPerSourcePx": 1.0666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    32,
+    38,
+    1009,
+    685
+  ],
+  "featherInwardStartPx": 26
+}

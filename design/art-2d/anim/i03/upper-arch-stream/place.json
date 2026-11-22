@@ -1,0 +1,36 @@
+{
+  "element": "upper-arch-stream",
+  "id": "i03-upper-arch-stream",
+  "source": "public/art2d/map-i03-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 318,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    954,
+    720,
+    1359
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    42,
+    192,
+    758,
+    502
+  ],
+  "featherInwardStartPx": 21
+}

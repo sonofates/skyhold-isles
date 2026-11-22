@@ -1,0 +1,36 @@
+{
+  "element": "southeast-lake-waters",
+  "id": "i08-southeast-lake-waters",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1446,
+    "y": 627,
+    "width": 400,
+    "height": 225
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4338,
+    1881,
+    5538,
+    2556
+  ],
+  "startPxPerLayoutPx": 3.2,
+  "startPxPerSourcePx": 1.0666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    198,
+    73,
+    1249,
+    689
+  ],
+  "featherInwardStartPx": 26
+}

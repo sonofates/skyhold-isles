@@ -1,0 +1,36 @@
+{
+  "element": "lighthouse-beacon",
+  "id": "i06-lighthouse-beacon",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 855,
+    "y": 276,
+    "width": 160,
+    "height": 90
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2565,
+    828,
+    3045,
+    1098
+  ],
+  "startPxPerLayoutPx": 8.0,
+  "startPxPerSourcePx": 2.6666666666666665,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    520,
+    144,
+    745,
+    369
+  ],
+  "featherInwardStartPx": 24
+}

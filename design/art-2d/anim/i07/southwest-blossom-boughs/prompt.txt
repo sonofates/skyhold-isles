@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A gentle valley breeze sways the soft olive-green foliage and scattered pale pink blossom clusters along the lower-left hedgerow a few pixels right and smoothly back. Keep the diffuse painted brushwork and soft blossom dabs intact without turning them into sharply outlined foreground branches. Hold the grass meadow, hearth and castle walls completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

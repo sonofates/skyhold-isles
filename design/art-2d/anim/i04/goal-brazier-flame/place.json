@@ -1,0 +1,36 @@
+{
+  "element": "goal-brazier-flame",
+  "id": "i04-goal-brazier-flame",
+  "source": "public/art2d/map-i04-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1550,
+    "y": 528,
+    "width": 176,
+    "height": 99
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4650,
+    1584,
+    5178,
+    1881
+  ],
+  "startPxPerLayoutPx": 7.2727272727272725,
+  "startPxPerSourcePx": 2.4242424242424243,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    247,
+    145,
+    510,
+    437
+  ],
+  "featherInwardStartPx": 29
+}

@@ -1,0 +1,36 @@
+{
+  "element": "southeast-ocean-swell",
+  "id": "i06-southeast-ocean-swell",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1526,
+    "y": 648,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4578,
+    1944,
+    5538,
+    2484
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    568,
+    32,
+    1249,
+    689
+  ],
+  "featherInwardStartPx": 28
+}

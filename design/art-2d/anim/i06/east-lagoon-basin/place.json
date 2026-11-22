@@ -1,0 +1,36 @@
+{
+  "element": "east-lagoon-basin",
+  "id": "i06-east-lagoon-basin",
+  "source": "public/art2d/map-i06-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 980,
+    "y": 248,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2940,
+    744,
+    4092,
+    1392
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    350,
+    46,
+    1121,
+    667
+  ],
+  "featherInwardStartPx": 23
+}

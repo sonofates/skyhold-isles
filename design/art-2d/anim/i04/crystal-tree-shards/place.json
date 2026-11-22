@@ -1,0 +1,36 @@
+{
+  "element": "crystal-tree-shards",
+  "id": "i04-crystal-tree-shards",
+  "source": "public/art2d/map-i04-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 638,
+    "y": 564,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1914,
+    1692,
+    2682,
+    2124
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    350,
+    50,
+    871,
+    571
+  ],
+  "featherInwardStartPx": 25
+}

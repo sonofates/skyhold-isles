@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+In the open muted teal lake water beside the drowned stone arch, ease the existing painted horizontal water strokes two to three pixels right and softly back in place. Keep the subdued tones and loose brushwork identical with zero concentric rings, zero bright gold bands and zero outlines. Hold the stone arch, footings, lily pads and grassy bank completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

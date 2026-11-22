@@ -1,0 +1,36 @@
+{
+  "element": "mill-south-wheat",
+  "id": "i05-mill-south-wheat",
+  "source": "public/art2d/map-i05-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 515,
+    "y": 560,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    1545,
+    1680,
+    2313,
+    2112
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    235,
+    40,
+    1116,
+    581
+  ],
+  "featherInwardStartPx": 30
+}

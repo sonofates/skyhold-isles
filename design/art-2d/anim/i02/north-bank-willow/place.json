@@ -1,0 +1,36 @@
+{
+  "element": "north-bank-willow",
+  "id": "i02-north-bank-willow",
+  "source": "public/art2d/map-i02-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1080,
+    "y": 35,
+    "width": 240,
+    "height": 135
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3240,
+    105,
+    3960,
+    510
+  ],
+  "startPxPerLayoutPx": 5.333333333333333,
+  "startPxPerSourcePx": 1.7777777777777777,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    309,
+    208,
+    811,
+    571
+  ],
+  "featherInwardStartPx": 27
+}

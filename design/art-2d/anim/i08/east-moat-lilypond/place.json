@@ -1,0 +1,36 @@
+{
+  "element": "east-moat-lilypond",
+  "id": "i08-east-moat-lilypond",
+  "source": "public/art2d/map-i08-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 838,
+    "y": 148,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    2514,
+    444,
+    3282,
+    876
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    340,
+    140,
+    831,
+    391
+  ],
+  "featherInwardStartPx": 25
+}

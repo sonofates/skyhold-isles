@@ -1,0 +1,36 @@
+{
+  "element": "shrine-sapling-foliage",
+  "id": "i04-shrine-sapling-foliage",
+  "source": "public/art2d/map-i04-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1475,
+    "y": 220,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4425,
+    660,
+    5193,
+    1092
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    495,
+    130,
+    886,
+    491
+  ],
+  "featherInwardStartPx": 25
+}

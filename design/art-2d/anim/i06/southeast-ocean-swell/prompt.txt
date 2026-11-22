@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A slow sea swell pushes the turquoise water and soft painted foam edge gently left toward the southeast beach and pulls it back out into the deeper teal. Keep the existing soft brushwork intact without forming crisp parallel white arcs or opaque ribbons. Hold the dry beach sand, cave rocks above and corner shells completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

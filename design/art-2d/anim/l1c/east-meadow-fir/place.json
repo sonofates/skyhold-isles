@@ -1,0 +1,36 @@
+{
+  "element": "east-meadow-fir",
+  "id": "l1c-east-meadow-fir",
+  "source": "public/art2d/map-L1c-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1566,
+    "y": 352,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4698,
+    1056,
+    5466,
+    1488
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    60,
+    30,
+    611,
+    611
+  ],
+  "featherInwardStartPx": 25
+}

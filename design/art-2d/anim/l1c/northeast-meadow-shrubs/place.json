@@ -1,0 +1,36 @@
+{
+  "element": "northeast-meadow-shrubs",
+  "id": "l1c-northeast-meadow-shrubs",
+  "source": "public/art2d/map-L1c-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1414,
+    "y": 0,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4242,
+    0,
+    4914,
+    378
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619047,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    45,
+    45,
+    1235,
+    675
+  ],
+  "featherInwardStartPx": 29
+}
