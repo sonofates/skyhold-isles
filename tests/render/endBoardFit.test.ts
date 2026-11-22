@@ -17,11 +17,13 @@ import {
 const VIEWS: readonly [string, number, number, Insets][] = [
   ['1920x1080', 1920, 1080, NO_INSETS],
   ['1440x900', 1440, 900, NO_INSETS],
+  ['1366x768', 1366, 768, NO_INSETS],
   ['1280x800', 1280, 800, NO_INSETS],
   ['1280x720', 1280, 720, NO_INSETS],
   ['915x412', 915, 412, NO_INSETS],
   ['844x390', 844, 390, NO_INSETS],
   ['844x390 notch', 844, 390, { top: 0, right: 47, bottom: 21, left: 47 }],
+  ['740x360', 740, 360, NO_INSETS],
   ['667x375', 667, 375, NO_INSETS],
   ['390x844', 390, 844, NO_INSETS],
 ];
@@ -106,6 +108,56 @@ describe('end board text vs buttons', () => {
         expect(fit.stack.btnY - L.buttons[0].y).toBeLessThanOrEqual(L.panel.h * 0.04);
       }
     }
+  });
+  it('never overlaps the difficulty pill with the middle star or title across desktop and phone viewports', () => {
+    const victoryVariants = VARIANTS.filter((v) => v.won);
+    for (const [name, w, h, ins] of VIEWS) {
+      for (const v of victoryVariants) {
+        const base = endLayout(w, h, ins, ASPECT, END_FRAME);
+        const L = v.hero ? endHeroRoom(base, INNER) : base;
+        const diffFs = Math.max(12, Math.round(L.fontBody * 0.8));
+        const diffPillH = diffFs * 1.6;
+        const m = { ...texts(L, v), diffPillH };
+        const { layout, stack, btnR, diffSpot } = endBoardFit(L, m);
+        const tag = `${name} / ${v.name}`;
+        const f = L.fontBody;
+        const titleBottom = layout.title.y + layout.fontTitle * 0.5;
+        const midStarTop = layout.stars[1].y - layout.starR * 1.15;
+
+        if (diffSpot === 'below') {
+          // Exact placement formula from EndPanel.layoutDiffTag: must clear BOTH title and middle star by >= 2 px.
+          const P = layout.panel;
+          const defaultCy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.6);
+          const minCy = titleBottom + diffPillH / 2 + 2;
+          const cy = Math.max(minCy, Math.min(defaultCy, midStarTop - diffPillH / 2 - 2));
+          expect(cy - diffPillH / 2, `${tag} pill vs title`).toBeGreaterThanOrEqual(titleBottom + 2 - 1e-6);
+          expect(cy + diffPillH / 2, `${tag} pill vs middle star`).toBeLessThanOrEqual(midStarTop - 2 + 1e-6);
+        } else {
+          // Beside-title placement sits vertically centred on the ribbon title: well clear of the middle star.
+          expect(layout.title.y + diffPillH / 2, `${tag} beside pill vs middle star`).toBeLessThanOrEqual(midStarTop - 2 + 1e-6);
+        }
+
+        // Stars must still clear the stats row icons (1.5 f tall), and text must clear buttons.
+        expect(stack.rowY - f * 0.75, `${tag} stars vs stats`).toBeGreaterThanOrEqual(endStarsBottom(layout) - 1e-6);
+        const btnTop = stack.btnY - btnR;
+        const room = v.hero ? Math.round(f * 0.8) * 2.3 - 1 : 3;
+        expect(stack.captionY + m.captionH / 2 + room, `${tag} caption vs buttons`).toBeLessThanOrEqual(btnTop + 1e-6);
+      }
+    }
+
+    // Regression check: reported 667x375 + hero moves the pill beside the title instead of clipping the star;
+    // roomy 1366x768 + hero reserves room cleanly underneath the ribbon.
+    const phoneHero = endHeroRoom(endLayout(667, 375, NO_INSETS, ASPECT, END_FRAME), INNER);
+    const phonePillH = Math.max(12, Math.round(phoneHero.fontBody * 0.8)) * 1.6;
+    expect(endBoardFit(phoneHero, { ...texts(phoneHero, VARIANTS[2]), diffPillH: phonePillH }).diffSpot).toBe('beside');
+
+    const deskHero = endHeroRoom(endLayout(1366, 768, NO_INSETS, ASPECT, END_FRAME), INNER);
+    const deskPillH = Math.max(12, Math.round(deskHero.fontBody * 0.8)) * 1.6;
+    const deskFit = endBoardFit(deskHero, { ...texts(deskHero, VARIANTS[2]), diffPillH: deskPillH });
+    expect(deskFit.diffSpot).toBe('below');
+    expect(deskFit.layout.stars[1].y - deskFit.layout.starR * 1.15).toBeGreaterThanOrEqual(
+      deskFit.layout.title.y + deskFit.layout.fontTitle * 0.5 + deskPillH + 4 - 1e-6,
+    );
   });
 });
 

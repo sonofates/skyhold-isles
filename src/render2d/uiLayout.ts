@@ -727,13 +727,20 @@ export interface EndBoardText {
   readonly ruleH: number;
   /** Button label height at full size. */
   readonly labelH: number;
+  /** Difficulty pill height (0 or omitted = no difficulty pill on this board). */
+  readonly diffPillH?: number;
 }
+
+/** Where the difficulty pill sits on the end board: under the ribbon title, or beside it on the ribbon when vertical room above the middle star is too tight. */
+export type EndDiffSpot = 'below' | 'beside';
 
 export interface EndBoardFit {
   /** The layout with the stars / button row as placed. */
   readonly layout: EndLayout;
   readonly stack: EndStack;
   readonly btnR: number;
+  /** Where the difficulty pill fits cleanly without overlapping the title or middle star. */
+  readonly diffSpot: EndDiffSpot;
 }
 
 /**
@@ -783,5 +790,24 @@ export function endBoardFit(L: EndLayout, m: EndBoardText): EndBoardFit {
     }
   }
   if (stack.btnY !== layout.buttons[0].y) layout = { ...layout, buttons: layout.buttons.map((p) => ({ x: p.x, y: stack.btnY })) };
-  return { layout, stack, btnR };
+  // Reserve room for the difficulty pill between the title and the raised middle star. If shifting
+  // the stars down keeps >= 2 px above the stats-row icons, reserve room under the title; otherwise
+  // place the pill beside the title on the ribbon so it never overlaps the middle star.
+  let diffSpot: EndDiffSpot = 'below';
+  const diffPillH = m.diffPillH ?? 0;
+  if (m.won && diffPillH > 0) {
+    const titleBottom = layout.title.y + layout.fontTitle * 0.5;
+    const needMidStarTop = titleBottom + 2 + diffPillH + 2;
+    const midStarTop = layout.stars[1].y - layout.starR * 1.15;
+    const deficit = needMidStarTop - midStarTop;
+    if (deficit > 1e-6) {
+      const starToRow = stack.rowY - f * 0.75 - endStarsBottom(layout);
+      if (starToRow - deficit >= 2) {
+        layout = { ...layout, stars: layout.stars.map((s) => ({ x: s.x, y: s.y + deficit })) };
+      } else {
+        diffSpot = 'beside';
+      }
+    }
+  }
+  return { layout, stack, btnR, diffSpot };
 }
