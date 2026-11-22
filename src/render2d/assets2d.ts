@@ -196,7 +196,7 @@ const textureCache = new Map<string, Promise<Texture | null>>();
  * worker-side fetch + decode fails there, so every texture (the map first) would fail to load.
  * Decode on the main thread in the native shell; the web keeps the faster worker path.
  */
-if (Capacitor.isNativePlatform()) loadTextures.config.preferWorkers = false;
+if (Capacitor.isNativePlatform() && loadTextures.config) loadTextures.config.preferWorkers = false;
 
 function tryTexture(url: string, mips = false): Promise<Texture | null> {
   const cacheKey = mips ? `${url}#mips` : url;
