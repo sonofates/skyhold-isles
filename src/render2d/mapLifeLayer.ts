@@ -765,33 +765,37 @@ const SURFACE_WATER_FRAGMENT = `
         float across = dot(p, wPerp) * rScale;
         float tF = uTime * fSpd;
 
-        float wA = sin(along * 42.0 - tF * 2.4 + sin(across * 30.0 + uTime * 0.65) * 1.05);
-        float wB = detail > 0.7 ? sin(along * 74.0 + across * 40.0 - tF * 3.5) * 0.48 : 0.0;
-        float wC = sin(along * 22.0 - across * 26.0 - tF * 1.4) * 0.42;
+        float wA = sin(along * 40.0 - tF * 2.5 + sin(across * 28.0 + uTime * 0.65) * 1.15);
+        float wB = detail > 0.7 ? sin(along * 70.0 + across * 38.0 - tF * 3.6) * 0.50 : 0.0;
+        float wC = sin(along * 22.0 - across * 24.0 - tF * 1.55) * 0.45;
 
-        float dAlong = clamp(wA * 0.42 + wC * 0.34, -1.0, 1.0) * 0.52 * mw;
-        float dAcross = clamp(wA * 0.56 + wB * 0.44, -1.0, 1.0) * 0.90 * mw;
+        float dAlong = clamp(wA * 0.48 + wC * 0.38, -1.0, 1.0) * 0.65 * mw;
+        float dAcross = clamp(wA * 0.58 + wB * 0.46, -1.0, 1.0) * 0.98 * mw;
         totalOffset += (wDir * dAlong + wPerp * dAcross) * uWaterAmpUV;
 
-        float c1 = 0.5 + 0.5 * sin(along * 50.0 - tF * 2.6 + sin(across * 28.0 - uTime * 0.52) * 1.35);
-        float c2 = 0.5 + 0.5 * sin(along * 32.0 + across * 44.0 - uTime * (1.35 * gSpd));
-        float env = 0.55 + 0.45 * sin(along * 10.5 - uTime * (0.85 * gSpd) + across * 8.5);
-        waterGlint = pow(c1 * c2, 3.0) * env * mw * uGlintColor.a * fGlint * (0.72 + 0.28 * detail);
+        float c1 = 0.5 + 0.5 * sin(along * 46.0 - tF * 2.75 + sin(across * 26.0 - uTime * 0.55) * 1.45);
+        float c2 = 0.5 + 0.5 * sin(along * 28.0 + across * 42.0 - tF * 1.85);
+        float env = 0.52 + 0.48 * sin(along * 10.5 - uTime * (0.95 * gSpd) + across * 8.5);
+        float crest = smoothstep(0.46, 0.96, c1 * 0.62 + c2 * 0.38);
+        float waveShade = (c1 - 0.5) * 0.08;
+        waterGlint = (crest * crest * env * uGlintColor.a * fGlint + waveShade) * mw * (0.72 + 0.28 * detail);
       } else {
         isStillPond = 1.0;
         float px = p.x * rScale;
         float py = p.y * rScale;
         float tS = uTime * gSpd;
 
-        float rx = sin(py * 56.0 + tS * 1.12 + sin(px * 22.0 - tS * 0.45) * 1.2) * 0.65;
-        rx += detail > 0.7 ? sin(py * 92.0 - px * 28.0 - tS * 1.5) * 0.35 : 0.0;
-        float ry = sin(px * 42.0 + py * 26.0 + tS * 0.82) * 0.30;
-        totalOffset += vec2(rx * 0.92, ry * 0.38) * uWaterAmpUV * mw;
+        float rx = sin(py * 54.0 + tS * 1.18 + sin(px * 20.0 - tS * 0.48) * 1.35) * 0.68;
+        rx += detail > 0.7 ? sin(py * 88.0 - px * 28.0 - tS * 1.55) * 0.36 : 0.0;
+        float ry = sin(px * 40.0 + py * 26.0 + tS * 0.85) * 0.32;
+        totalOffset += vec2(rx * 0.98, ry * 0.40) * uWaterAmpUV * mw;
 
-        float m1 = 0.5 + 0.5 * sin(py * 74.0 - tS * 0.92 + sin(px * 18.0 + tS * 0.36) * 1.45);
-        float m2 = 0.5 + 0.5 * sin(px * 24.0 + py * 36.0 + tS * 0.68);
-        float env = 0.55 + 0.45 * sin(px * 8.5 - py * 11.5 + tS * 0.52);
-        waterGlint = pow(m1 * m2, 3.2) * env * mw * uGlintColor.a * fGlint * (0.72 + 0.28 * detail);
+        float m1 = 0.5 + 0.5 * sin(py * 68.0 - tS * 1.02 + sin(px * 18.0 + tS * 0.38) * 1.55);
+        float m2 = 0.5 + 0.5 * sin(px * 22.0 + py * 34.0 + tS * 0.74);
+        float env = 0.54 + 0.46 * sin(px * 8.5 - py * 11.5 + tS * 0.58);
+        float crest = smoothstep(0.44, 0.96, m1 * 0.64 + m2 * 0.36);
+        float waveShade = (m1 - 0.5) * 0.068;
+        waterGlint = (crest * crest * env * uGlintColor.a * fGlint + waveShade) * mw * (0.72 + 0.28 * detail);
       }
     }
 
@@ -801,11 +805,11 @@ const SURFACE_WATER_FRAGMENT = `
     if (swayShimmer > 0.0001) {
       col = min(vec3(1.0), col + vec3(0.96, 1.0, 0.58) * swayShimmer);
     }
-    if (waterGlint > 0.0001) {
+    if (mw >= 0.004) {
       float luma = dot(col, vec3(0.299, 0.587, 0.114));
-      float lumaMod = mix(0.82 + 0.18 * luma, 0.62 + 0.38 * luma, isStillPond);
-      vec3 glintAdd = uGlintColor.rgb * (waterGlint * lumaMod);
-      col = min(vec3(0.95), col + glintAdd * (1.0 - col * 0.42));
+      float lumaMod = mix(0.84 + 0.16 * luma, 0.66 + 0.34 * luma, isStillPond);
+      vec3 glintDelta = uGlintColor.rgb * (waterGlint * lumaMod);
+      col = clamp(col + glintDelta * (1.0 - col * 0.36), vec3(0.0), vec3(0.94));
     }
 
     float edge = smoothstep(0.004, 0.06, max(ms, mw));
@@ -891,6 +895,8 @@ class SurfacePass {
   private swayLoaded = false;
   private waterLoaded = false;
   private hazeLoaded = false;
+  private swayFailed = false;
+  private waterFailed = false;
   private destroyed = false;
 
   constructor(
@@ -970,10 +976,14 @@ class SurfacePass {
 
   private onSwayError = (): void => {
     this.swayLoaded = false;
+    this.swayFailed = true;
+    this.ensureMesh();
   };
 
   private onWaterError = (): void => {
     this.waterLoaded = false;
+    this.waterFailed = true;
+    this.ensureMesh();
   };
 
   private onHazeError = (): void => {
@@ -991,6 +1001,7 @@ class SurfacePass {
       this.mesh.shader.resources.uMask = this.swayMaskSource;
       if (this.uniforms && this.water) {
         (this.uniforms.uniforms.uFlags as Float32Array)[0] = 1;
+        this.uniforms.update();
       }
     }
   };
@@ -1006,6 +1017,7 @@ class SurfacePass {
       this.mesh.shader.resources.uWaterMask = this.waterMaskSource;
       if (this.uniforms) {
         (this.uniforms.uniforms.uFlags as Float32Array)[1] = 1;
+        this.uniforms.update();
       }
     }
   };
@@ -1030,7 +1042,11 @@ class SurfacePass {
 
     let shader: Shader;
     if (this.water) {
-      if (!this.swayMaskSource && !this.waterMaskSource) {
+      // Wait for all configured mask images (sway + water) to settle before creating the combined shader
+      // so both sampler bindings and uFlags are final on frame 1 with zero hot-swap race.
+      const swaySettled = !this.wind || this.swayLoaded || this.swayFailed;
+      const waterSettled = this.waterLoaded || this.waterFailed;
+      if (!swaySettled || !waterSettled || (!this.swayMaskSource && !this.waterMaskSource)) {
         geometry.destroy(true);
         return;
       }
@@ -1172,6 +1188,7 @@ class SurfacePass {
       } else if (this.heatHaze && !this.wind) {
         (this.uniforms.uniforms.uHazeParams as Float32Array)[2] = this.detail;
       }
+      this.uniforms.update();
     }
   }
 

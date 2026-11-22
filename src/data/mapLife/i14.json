@@ -11,7 +11,7 @@
     "count": 10,
     "dir": [0.94, 0.34],
     "speed": 46,
-    "alpha": 0.125,
+    "alpha": 0.145,
     "tint": "#f0d3a6",
     "tint2": "#f7e3c4",
     "sizeRange": [220, 420],
