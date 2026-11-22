@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A warm afternoon breeze stirs the olive desert bushes, tiny yellow blossom clusters and blue-green agave plants perched along the northeastern sandstone ridge. Their outer leaves lean two to three pixels to the right and ease back while the red-ochre rock ledges, scattered stones and the wooden signal brazier below stay completely locked and motionless.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

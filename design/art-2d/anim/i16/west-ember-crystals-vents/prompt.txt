@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Between the two western forge caves, a slow warm orange-amber gleam breathes softly along the painted facets of the three clustered volcanic amber crystals while the thin red-orange lava cracks in the dark basalt mounds above and below them pulse gently from deep red to dull ember orange and back. Produce zero flames, zero light spill onto the dark ash ground and no new crystal edges; keep every basalt rock contour and the cave stonework completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

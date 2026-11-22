@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A calm mountain breeze rolls across the broad emerald-and-ochre grass slope on the southeastern plateau. Painted tufts of pale highland grass and low heather patches nod gently two to three pixels to the right and recover in a slow travelling wave. Hold the grey field stones, stepped limestone cliff below and distant road edge completely fixed with unchanged daylight and colour.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

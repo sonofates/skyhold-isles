@@ -1,0 +1,36 @@
+{
+  "element": "east-spire-cloudsea",
+  "id": "i11-east-spire-cloudsea",
+  "source": "public/art2d/map-i11-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1414,
+    "y": 165,
+    "width": 432,
+    "height": 243
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4242,
+    495,
+    5538,
+    1224
+  ],
+  "startPxPerLayoutPx": 2.962962962962963,
+  "startPxPerSourcePx": 0.9876543209876543,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    148,
+    299,
+    1239,
+    632
+  ],
+  "featherInwardStartPx": 21
+}

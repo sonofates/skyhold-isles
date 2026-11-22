@@ -1,0 +1,36 @@
+{
+  "element": "east-silver-grass-slope",
+  "id": "i13-east-silver-grass-slope",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1526,
+    "y": 325,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4578,
+    975,
+    5538,
+    1515
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    96,
+    76,
+    1225,
+    685
+  ],
+  "featherInwardStartPx": 24
+}

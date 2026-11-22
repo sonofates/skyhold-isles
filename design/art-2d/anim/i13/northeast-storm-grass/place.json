@@ -1,0 +1,36 @@
+{
+  "element": "northeast-storm-grass",
+  "id": "i13-northeast-storm-grass",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1414,
+    "y": 0,
+    "width": 432,
+    "height": 243
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4242,
+    0,
+    5538,
+    729
+  ],
+  "startPxPerLayoutPx": 2.962962962962963,
+  "startPxPerSourcePx": 0.9876543209876543,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    94,
+    41,
+    1233,
+    534
+  ],
+  "featherInwardStartPx": 21
+}

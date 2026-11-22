@@ -1,0 +1,36 @@
+{
+  "element": "north-terrace-willow",
+  "id": "i10-north-terrace-willow",
+  "source": "public/art2d/map-i10-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1150,
+    "y": 0,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3450,
+    0,
+    4698,
+    702
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410258,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    86,
+    30,
+    1133,
+    327
+  ],
+  "featherInwardStartPx": 18
+}

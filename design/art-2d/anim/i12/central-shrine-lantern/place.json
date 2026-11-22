@@ -1,0 +1,36 @@
+{
+  "element": "central-shrine-lantern",
+  "id": "i12-central-shrine-lantern",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1000,
+    "y": 510,
+    "width": 224,
+    "height": 126
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    3000,
+    1530,
+    3672,
+    1908
+  ],
+  "startPxPerLayoutPx": 5.714285714285714,
+  "startPxPerSourcePx": 1.9047619047619049,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    388,
+    331,
+    949,
+    658
+  ],
+  "featherInwardStartPx": 23
+}

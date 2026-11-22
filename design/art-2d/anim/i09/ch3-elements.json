@@ -1,0 +1,83 @@
+{
+  "island": "i09",
+  "elements": [
+    {
+      "element": "west-cypress-grove",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 116, "width": 480, "height": 270 },
+      "mask": [
+        [[14, 122], [238, 122], [244, 380], [14, 380]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A gentle garden breeze moves left to right across the three tapered olive-and-lime cypress trees and the three small hanging gold cloth standards in the western lawn. Each cypress crown tilts three to four pixels to the right near its pointed tip and eases back, while the pale olive and cream border bushes on the far left shift slightly in the same rhythm and each narrow gold pennant sways a couple of pixels from its crossbar. Keep every trunk base, wooden pole, white stone balustrade, cast ground shadow and the open green grass between them completely still, with no new branches, outlines or brightening.",
+      "retryOf": null,
+      "why": "Brings the tall western cypress grove and golden garden standards into gentle unison motion beside the western entry."
+    },
+    {
+      "element": "north-meadow-standards",
+      "kind": "grass",
+      "crop": { "x": 440, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[464, 12], [856, 12], [856, 94], [735, 118], [645, 154], [525, 162], [464, 142]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A soft breeze ripples across the sunlit north garden lawn above the stone road. The small painted yellow-green grass tufts and wildflower clusters nod gently two to three pixels to the right and settle back, while the rounded yellow flowering shrub at the upper left and the slender hanging ochre banners on the gold standards sway slightly in time. Hold the pale stone balustrades, wooden banner posts, smooth green lawn tone and the paved road below completely fixed, with no white wind streaks or colour brightening.",
+      "retryOf": null,
+      "why": "Animates the wide open northern meadow and banner standards directly above the main approach bend."
+    },
+    {
+      "element": "north-balustrade-lawns",
+      "kind": "grass",
+      "crop": { "x": 880, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[898, 12], [1306, 12], [1306, 96], [898, 96]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Across the narrow northern garden terrace above the upper road, a light breeze combs the small painted grass tufts, tiny clover patches and the rounded yellow-blooming shrub near the top border. The slender ochre banner hanging from the gold standard sways gently sideways by a few pixels and settles back as the foliage eases to rest. Keep the paved pink-stone road, wooden post, pale lawn shading and distant border stonework completely locked in place.",
+      "retryOf": null,
+      "why": "Extends subtle garden wind motion along the upper terrace directly above the castle and central loop."
+    },
+    {
+      "element": "east-cypress-terrace",
+      "kind": "foliage",
+      "crop": { "x": 1446, "y": 360, "width": 400, "height": 225 },
+      "mask": [
+        [[1648, 372], [1834, 372], [1834, 574], [1648, 574]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A light breeze brushes the three tall tapered olive-green cypresses and the soft flowering shrubs along the eastern garden border. The upper rounded lobes of each cypress bend a few pixels to the right and recover in a staggered wave, while the narrow gold cloth hanging on each nearby garden standard flutters gently without detaching from its bar. Keep the cypress trunks, stone balustrades, cast shadows and flat green lawn completely steady, with no extra leaves or brightness shifts.",
+      "retryOf": null,
+      "why": "Animates the prominent eastern cypress terrace flanking the long outer road loop."
+    },
+    {
+      "element": "south-west-meadow-tufts",
+      "kind": "grass",
+      "crop": { "x": 180, "y": 600, "width": 416, "height": 234 },
+      "mask": [
+        [[206, 628], [568, 628], [568, 818], [206, 818]]
+      ],
+      "featherPx": 8,
+      "depth": 0,
+      "motion": "A calm breeze sweeps slowly across the broad sunlit southwest lawn. Each painted clump of pale yellow-green grass blades and tiny cream wildflowers leans two to three pixels to the right and springs back in a soft travelling wave, while the hanging gold cloth on the small wooden standard near the left margin swings slightly from its top bar. Hold the smooth mottled green turf, the wooden standard posts and the surrounding flowering border bushes completely still, with no light streaks or colour change.",
+      "retryOf": null,
+      "why": "Wakes up the large quiet southwest lawn area without disturbing the rejected corner bush."
+    },
+    {
+      "element": "northeast-cypress-garden",
+      "kind": "foliage",
+      "crop": { "x": 1526, "y": 96, "width": 320, "height": 180 },
+      "mask": [
+        [[1616, 102], [1834, 102], [1834, 266], [1616, 266]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A mild breeze nudges the tall tapered olive-green cypress tree on the eastern terrace and the soft pale-green hedge tufts beside the eastern border. The pointed crown of the cypress leans three pixels to the right and settles slowly back, keeping its existing painted leaf clusters intact, while the small gold banner on the standard above the stone balustrade sways gently by two pixels. Hold the white balustrade, dark trunk base, cast shadow and clipped green lawn completely still, with no new branches or brightening.",
+      "retryOf": "northeast-border-crown",
+      "why": "Replaces the rejected top-border crop with a focused cypress and standard composition framed cleanly off the flowerbed."
+    }
+  ]
+}

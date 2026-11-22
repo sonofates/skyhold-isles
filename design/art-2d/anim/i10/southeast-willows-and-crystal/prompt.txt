@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A gentle breeze moves across the two weeping willows on the southeastern terrace while a quiet internal shimmer breathes inside the faceted mint-green crystal cluster set between them. The drooping willow leaf clusters sway softly three pixels to the right and recover without growing new twigs, and a muted pale-aqua glint travels slowly up the existing painted crystal planes before dimming back to rest. Keep both brown tree trunks, the mossy stones under the crystal, the stone terrace rim and the grassy ground completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

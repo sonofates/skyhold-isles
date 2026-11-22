@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A steady highland wind sends a smooth horizontal wave from left to right along the long dark-emerald cloth pennant flying from the stone lookout spire. The forked tail lifts and dips three to four pixels while the painted gold spiral motif ripples naturally with the cloth, returning cleanly to the opening wave. Keep the flagpole, wooden crow's nest, carved stone spire, cliff rim and green grass completely rigid and still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+At the top of the stone watch beacon, the narrow gold-and-orange wind pennant ripples steadily to the right in the breeze while the warm amber lantern flame inside the curved glass chamber flickers softly in place. Keep the warm glow strictly confined behind the existing painted window mullions without brightening the stone tower, red roof, stairs or surrounding grass, all of which stay completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

@@ -1,0 +1,36 @@
+{
+  "element": "southeast-hollow-dapple",
+  "id": "i12-southeast-hollow-dapple",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1460,
+    "y": 620,
+    "width": 384,
+    "height": 216
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4380,
+    1860,
+    5532,
+    2508
+  ],
+  "startPxPerLayoutPx": 3.3333333333333335,
+  "startPxPerSourcePx": 1.1111111111111112,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    100,
+    193,
+    1234,
+    694
+  ],
+  "featherInwardStartPx": 23
+}

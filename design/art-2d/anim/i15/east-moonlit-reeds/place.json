@@ -1,0 +1,36 @@
+{
+  "element": "east-moonlit-reeds",
+  "id": "i15-east-moonlit-reeds",
+  "source": "public/art2d/map-i15-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1526,
+    "y": 310,
+    "width": 320,
+    "height": 180
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4578,
+    930,
+    5538,
+    1470
+  ],
+  "startPxPerLayoutPx": 4.0,
+  "startPxPerSourcePx": 1.3333333333333333,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    136,
+    64,
+    1225,
+    665
+  ],
+  "featherInwardStartPx": 24
+}

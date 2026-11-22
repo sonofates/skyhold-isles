@@ -1,0 +1,36 @@
+{
+  "element": "west-twilight-glade",
+  "id": "i12-west-twilight-glade",
+  "source": "public/art2d/map-i12-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 135,
+    "width": 416,
+    "height": 234
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    405,
+    1248,
+    1107
+  ],
+  "startPxPerLayoutPx": 3.076923076923077,
+  "startPxPerSourcePx": 1.0256410256410258,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    30,
+    33,
+    505,
+    687
+  ],
+  "featherInwardStartPx": 18
+}

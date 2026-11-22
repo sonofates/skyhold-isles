@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A soft twilight breeze nudges the rounded blue-green crown of the western silver tree and the magenta flowering shrubs below it two to three pixels to the right and gently back, while the warm amber flame inside the curved golden street lantern near the bottom right flickers quietly inside its glass panes. Keep the tree trunk, purple stone cave, carved stone, lamppost stem and plum ground completely still with no sprouting branches.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

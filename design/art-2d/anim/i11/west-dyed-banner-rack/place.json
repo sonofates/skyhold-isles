@@ -1,0 +1,36 @@
+{
+  "element": "west-dyed-banner-rack",
+  "id": "i11-west-dyed-banner-rack",
+  "source": "public/art2d/map-i11-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 140,
+    "y": 420,
+    "width": 256,
+    "height": 144
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    420,
+    1260,
+    1188,
+    1692
+  ],
+  "startPxPerLayoutPx": 5.0,
+  "startPxPerSourcePx": 1.6666666666666667,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    560,
+    240,
+    981,
+    451
+  ],
+  "featherInwardStartPx": 20
+}

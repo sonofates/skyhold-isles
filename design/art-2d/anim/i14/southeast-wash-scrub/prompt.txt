@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Across the dry southeastern desert wash below the eastern cave, a light hot breeze sways the olive desert shrubs, dry grass blades and low agave leaves two to three pixels to the right while a subtle translucent ribbon of warm rust-coloured dust drifts low across the open terracotta gravel and fades away. Keep the sandstone boulders, cliff ledges, timber post and cave entrance completely still.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

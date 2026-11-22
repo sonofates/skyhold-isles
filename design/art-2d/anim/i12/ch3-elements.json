@@ -1,0 +1,96 @@
+{
+  "island": "i12",
+  "elements": [
+    {
+      "element": "northeast-lantern-grove",
+      "kind": "foliage",
+      "crop": { "x": 1526, "y": 0, "width": 320, "height": 180 },
+      "mask": [
+        [[1572, 10], [1832, 10], [1832, 168], [1762, 168], [1754, 134], [1690, 134], [1686, 168], [1572, 168]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "In the quiet twilight corner, a soft night breeze sways the rounded blue-green crown of the small silver tree and the low magenta flowering bush beside it by two to three pixels while the warm amber flames inside the four hanging golden street lanterns breathe gently within their glass housings. Keep the iron-and-gold lampposts, tree trunk, mushrooms, tree stump and plum ground completely still, with no new branches and no added light spill outside the glass.",
+      "retryOf": null,
+      "why": "Brings the enchanted northeast lantern grove, silver tree and flowering bush to life."
+    },
+    {
+      "element": "east-lantern-hedges",
+      "kind": "foliage",
+      "crop": { "x": 1494, "y": 252, "width": 352, "height": 198 },
+      "mask": [
+        [[1594, 266], [1834, 266], [1834, 436], [1594, 436]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A light twilight breeze gently rustles the rounded plum-magenta flowering hedges and pale blue-grey grass tufts along the eastern clearing while the warm yellow-orange light inside the ornate golden lamppost flickers softly behind its dark glass frame. Keep the lamp post, mossy stump, twilight floor grain and surrounding shadows completely still with no colour shift or extra glow.",
+      "retryOf": null,
+      "why": "Animates the eastern lanterns and enchanted twilight hedges above silver-hazel."
+    },
+    {
+      "element": "west-twilight-glade",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 135, "width": 416, "height": 234 },
+      "mask": [
+        [[10, 146], [122, 146], [122, 214], [164, 232], [164, 358], [10, 358]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A soft twilight breeze nudges the rounded blue-green crown of the western silver tree and the magenta flowering shrubs below it two to three pixels to the right and gently back, while the warm amber flame inside the curved golden street lantern near the bottom right flickers quietly inside its glass panes. Keep the tree trunk, purple stone cave, carved stone, lamppost stem and plum ground completely still with no sprouting branches.",
+      "retryOf": null,
+      "why": "Animates the western silver tree, pink twilight bushes and street lantern."
+    },
+    {
+      "element": "southwest-lantern-row",
+      "kind": "other",
+      "crop": { "x": 80, "y": 504, "width": 352, "height": 198 },
+      "mask": [
+        [[114, 518], [308, 518], [308, 692], [114, 692]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Inside the cluster of ornate golden street lanterns along the southwestern clearing, each warm amber flame trembles softly behind its curved glass panes while the small pale blue-grey grass tufts on the plum floor sway two pixels in a slow night breeze. Keep every golden post, curved bracket, mushroom, stump and the surrounding twilight ground completely rigid and unchanged in brightness.",
+      "retryOf": null,
+      "why": "Brings the iconic glowing lantern cluster in the southwestern clearing to life."
+    },
+    {
+      "element": "central-shrine-lantern",
+      "kind": "fire",
+      "crop": { "x": 1000, "y": 510, "width": 224, "height": 126 },
+      "mask": [
+        [[1068, 568], [1166, 568], [1166, 625], [1068, 625]]
+      ],
+      "featherPx": 4,
+      "depth": 1,
+      "motion": "Inside the open carved chamber of the golden stone shrine lantern, the warm yellow-orange flame breathes and flickers subtly behind its central opening, shifting softly in place without brightening or expanding onto the surrounding stonework. Keep the curved golden roof, carved stone pedestal, tiny blue blossoms, plum floor and upper stone road completely motionless.",
+      "retryOf": null,
+      "why": "Animates the focal golden shrine lantern sitting right in the center of the battle view."
+    },
+    {
+      "element": "southeast-hollow-dapple",
+      "kind": "grass",
+      "crop": { "x": 1460, "y": 620, "width": 384, "height": 216 },
+      "mask": [
+        [[1490, 678], [1830, 678], [1830, 828], [1490, 828]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Across the quiet plum floor of the southeastern hollow, the pale blue-grey grass blades and tiny ferns sway gently two to three pixels in a passing night breeze while the existing soft purple canopy shadow dapples on the ground shift smoothly a few pixels and return. Do not introduce any foreground branches, dark silhouettes, outlines or new objects; keep the tree stumps, carved standing stone, tiny mushrooms and floor texture completely steady.",
+      "retryOf": "east-canopy-shadow",
+      "why": "Retries the southeastern twilight hollow with strict no-foreground-branch instructions focused on ground grass and soft dapple."
+    },
+    {
+      "element": "north-edge-tree-lantern",
+      "kind": "foliage",
+      "crop": { "x": 430, "y": 0, "width": 352, "height": 198 },
+      "mask": [
+        [[446, 8], [748, 8], [748, 60], [446, 60]]
+      ],
+      "featherPx": 5,
+      "depth": 2,
+      "motion": "Along the upper twilight border north of the road, a faint breeze tilts the rounded blue-green crown of the small silver tree two to three pixels to the right and back, gently rustling the tiny pale grass tufts while the warm amber glass of the golden street lantern on the right flickers quietly in place. Keep the trunk, lamppost, mossy stumps, mushrooms and the entire pink stone road below completely fixed.",
+      "retryOf": null,
+      "why": "Adds subtle living motion along the upper-central border directly above the top lane."
+    }
+  ]
+}

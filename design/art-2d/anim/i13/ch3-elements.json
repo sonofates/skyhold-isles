@@ -1,0 +1,83 @@
+{
+  "island": "i13",
+  "elements": [
+    {
+      "element": "watch-beacon-pennant",
+      "kind": "cloth",
+      "crop": { "x": 1460, "y": 190, "width": 288, "height": 162 },
+      "mask": [
+        [[1542, 234], [1726, 234], [1726, 342], [1542, 342]]
+      ],
+      "featherPx": 4,
+      "depth": 2,
+      "motion": "A brisk coastal wind ripples the small gold-and-teal cloth pennant flying from the weathered stone watch beacon, sending a smooth wave along its forked tail while the clumps of pale silvery-white storm grass on the wet slate to its right bend three to four pixels to the left and spring back. Keep the stone beacon base, staircase, iron fire-basket, stacked firewood, stone ruin and wet blue-grey slate ledges completely rigid and still.",
+      "retryOf": null,
+      "why": "Animates the signature watch-beacon pennant and nearby storm grass on the eastern ridge."
+    },
+    {
+      "element": "west-windswept-pines",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 300, "width": 320, "height": 180 },
+      "mask": [
+        [[16, 320], [208, 320], [208, 462], [16, 462]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A gusty highland wind bends the dark-olive boughs of the windswept coastal pine tree and combs the pale silvery grass tufts and low rusty heather patches on the wet blue-grey slate around it. The slanted pine foliage leans three to four pixels further left and eases back in its original painted clumps without sharpening into fine needles. Keep the crooked brown trunk, stone ruins, wet rock contours and ground shadows completely steady.",
+      "retryOf": null,
+      "why": "Brings the iconic wind-bent coastal pine and stormy slate turf on the western flank to life."
+    },
+    {
+      "element": "northwest-slate-terrace",
+      "kind": "grass",
+      "crop": { "x": 0, "y": 0, "width": 416, "height": 234 },
+      "mask": [
+        [[14, 14], [386, 14], [386, 124], [285, 130], [260, 188], [14, 188]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Across the rain-slicked northwestern slate ledges, the dark wind-bent pine on the left shelf sways gently three pixels in the gale while the scattered silvery grass tufts and low rusty heather patches tremble and recover in the same wind direction. Hold every layered slate rock edge, pale stone ridge, driftwood stump and the wet stone hue completely still, with no bright sparkles or added streaks.",
+      "retryOf": null,
+      "why": "Animates the sweeping northwestern stormy slate shelf and upper wind-bent pine."
+    },
+    {
+      "element": "northeast-storm-grass",
+      "kind": "grass",
+      "crop": { "x": 1414, "y": 0, "width": 432, "height": 243 },
+      "mask": [
+        [[1446, 14], [1830, 14], [1830, 180], [1550, 180], [1545, 136], [1446, 136]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A cool highland wind sweeps across the broad northeastern wet slate terrace. Each tuft of pale silvery grass and low rusty heather bends gently two to three pixels to the left and eases back in a soft staggered rhythm across the damp hillside. Keep the layered grey-blue slate ledges, small cairn stones and wet rock surfaces completely fixed, with no drifting streamers or bright highlights.",
+      "retryOf": null,
+      "why": "Brings subtle storm-wind motion across the large open northeastern plateau."
+    },
+    {
+      "element": "east-silver-grass-slope",
+      "kind": "grass",
+      "crop": { "x": 1526, "y": 325, "width": 320, "height": 180 },
+      "mask": [
+        [[1550, 344], [1832, 344], [1832, 496], [1550, 496]]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "In the steady coastal wind, the curved clumps of pale silvery-white storm grass rooted along the eastern slate slope bow three to four pixels to the left and spring smoothly back in a soft wave. Keep the surrounding wet blue-grey slate, rusty rock patches and stone edges completely motionless, with zero pale streamers, zero sparkles and no colour shift on the rock.",
+      "retryOf": "eastern-slate-sheen",
+      "why": "Replaces the failed slate-sheen prompt with physical wind motion in the bright painted silver grass tufts."
+    },
+    {
+      "element": "southwest-cliff-heather",
+      "kind": "grass",
+      "crop": { "x": 0, "y": 570, "width": 384, "height": 216 },
+      "mask": [
+        [[14, 582], [258, 582], [258, 772], [14, 772]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "A steady storm breeze combs the pale silvery grass tufts and low rusty-brown heather scattered across the southwestern wet slate ridge. Each tuft leans two to three pixels down-left and recovers smoothly while the damp layered slate shelves, weathered white driftwood pieces and cliff shadows stay completely rigid and unchanged in tone.",
+      "retryOf": null,
+      "why": "Balances the stormy western flank with wind-driven heather and storm grass above the cliff drop."
+    }
+  ]
+}

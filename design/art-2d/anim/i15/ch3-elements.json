@@ -1,0 +1,96 @@
+{
+  "island": "i15",
+  "elements": [
+    {
+      "element": "northwest-moonlit-cove",
+      "kind": "water",
+      "crop": { "x": 0, "y": 0, "width": 384, "height": 216 },
+      "mask": [
+        [[16, 14], [340, 14], [340, 124], [234, 146], [234, 166], [16, 166]]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "Across the calm steel-blue water of the northwestern moonlit cove, slow horizontal ripples gently stretch and reunite the existing pale silver-blue reflection strokes by three to four pixels while the small tufts of pale blue reeds along the banks sway subtly. Keep the exact muted night palette with no bright glowing trails, no camera motion and no extra highlights. Hold the carved rune stones, little stone-rimmed lily pools, mushrooms and outer banks completely still.",
+      "retryOf": null,
+      "why": "Animates the large moonlit water inlet above west-pool-reflection."
+    },
+    {
+      "element": "west-lily-pond-ripples",
+      "kind": "water",
+      "crop": { "x": 0, "y": 240, "width": 352, "height": 198 },
+      "mask": [
+        [[48, 254], [244, 254], [244, 424], [48, 424]]
+      ],
+      "featherPx": 6,
+      "depth": 0,
+      "motion": "Within the quiet deep-blue moonlit pond framed by the western shore and lantern, slow horizontal ripples drift softly right across the water surface, subtly shifting the existing pale blue-grey reflection marks by a few pixels before easing back. Keep the camera strictly locked and hold the golden shore lantern, overhanging reeds, carved rune stones, white water lily, mini stone-rimmed lily pool and the eastern bank completely fixed.",
+      "retryOf": "western-deepwater",
+      "why": "Reframes the failed western deepwater crop with clear static banks and lantern landmarks to prevent camera drift."
+    },
+    {
+      "element": "north-lantern-reeds",
+      "kind": "foliage",
+      "crop": { "x": 750, "y": 0, "width": 416, "height": 234 },
+      "mask": [
+        [[774, 14], [1142, 14], [1142, 114], [774, 114]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "Across the moonlit northern sanctuary terrace, a soft night breeze combs the pale silver-blue grass tufts and tiny wildflower sprays two to three pixels to the right and back, while the warm amber flame inside the hanging golden street lantern flickers quietly behind its glass panes. Keep the iron lamppost, smooth indigo lawn, carved stone border and the stone road below completely fixed, with no added glow spilling onto the ground.",
+      "retryOf": null,
+      "why": "Animates the northern golden lantern and moonlit reed terrace overlooking the central lane."
+    },
+    {
+      "element": "central-lily-pond-east",
+      "kind": "water",
+      "crop": { "x": 1150, "y": 510, "width": 288, "height": 162 },
+      "mask": [
+        [[1282, 558], [1346, 568], [1364, 606], [1348, 628], [1304, 654], [1266, 654], [1266, 604], [1282, 580]]
+      ],
+      "featherPx": 5,
+      "depth": 0,
+      "motion": "In the quiet eastern bay of the central moonlit lily pond, subtle dark-teal and muted silver-blue ripples drift horizontally across the open water by two to three pixels and settle back into the existing brushwork. Keep the water low-contrast and natural with zero electric-blue trails or glowing arcs. Hold the floating green lily pads, shore grass tufts and the surrounding curved stone road completely motionless.",
+      "retryOf": "inner-moonwell-pool",
+      "why": "Retries the signature central moonlit lily pond in a clear open-water pocket with strict low-contrast water brushwork."
+    },
+    {
+      "element": "east-moonlit-reeds",
+      "kind": "foliage",
+      "crop": { "x": 1526, "y": 310, "width": 320, "height": 180 },
+      "mask": [
+        [[1560, 326], [1832, 326], [1832, 476], [1560, 476]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A calm night breeze moves through the lush indigo-and-silver moonlit reeds, fern sprays and tall blue grass clusters along the eastern sanctuary slope. The upper leaf tips lean gently three pixels to the right and return in a slow wave while the carved standing rune stones, small pebbles and smooth slate-blue ground stay completely fixed.",
+      "retryOf": null,
+      "why": "Animates the rich eastern moonlit reed bank framing the eastern road curve."
+    },
+    {
+      "element": "southeast-moonlit-foliage",
+      "kind": "foliage",
+      "crop": { "x": 1414, "y": 609, "width": 432, "height": 243 },
+      "mask": [
+        [[1560, 636], [1828, 636], [1828, 834], [1484, 834], [1484, 678], [1560, 674]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "A gentle twilight breeze glides across the dense clusters of silver-blue and dark-indigo moonlit ferns and leafy shrubs filling the southeastern corner. The soft painted leaf fans sway three to four pixels to the right and settle back together without sharpening or brightening. Keep the carved rune stones, small round stone-rimmed lily pools, mushrooms and dark mossy floor completely steady.",
+      "retryOf": null,
+      "why": "Brings the sweeping moonlit forest undergrowth of the southeast corner to life."
+    },
+    {
+      "element": "southwest-lantern-ferns",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 626, "width": 384, "height": 216 },
+      "mask": [
+        [[14, 650], [316, 650], [316, 826], [14, 826]]
+      ],
+      "featherPx": 7,
+      "depth": 2,
+      "motion": "In the quiet southwestern corner, a slow night breeze sways the lush blue-silver ferns, reeds and grass tufts two to three pixels to the right and back while the warm amber flame inside the hanging golden lantern on the left breathes softly within its glass enclosure. Hold the golden lamppost, wooden stumps, standing rune stone, cave wall above and muted indigo ground completely still.",
+      "retryOf": null,
+      "why": "Completes the moonlit sanctuary atmosphere across the lower-left lantern and fern bank."
+    }
+  ]
+}

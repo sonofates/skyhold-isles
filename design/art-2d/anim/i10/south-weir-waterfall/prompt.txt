@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+In the small foaming weir at the bottom of the valley, thin pale-cream and soft aqua water threads spill steadily down over the narrow lip and curl gently outward across the small teal pool below. Keep the existing painted foam texture soft and low-contrast without turning into flat opaque white bands. Hold the carved stone channel walls, grassy banks and mossy boulders on either side completely fixed.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

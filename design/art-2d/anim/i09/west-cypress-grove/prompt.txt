@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A gentle garden breeze moves left to right across the three tapered olive-and-lime cypress trees and the three small hanging gold cloth standards in the western lawn. Each cypress crown tilts three to four pixels to the right near its pointed tip and eases back, while the pale olive and cream border bushes on the far left shift slightly in the same rhythm and each narrow gold pennant sways a couple of pixels from its crossbar. Keep every trunk base, wooden pole, white stone balustrade, cast ground shadow and the open green grass between them completely still, with no new branches, outlines or brightening.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

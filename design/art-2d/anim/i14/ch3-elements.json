@@ -1,0 +1,83 @@
+{
+  "island": "i14",
+  "elements": [
+    {
+      "element": "west-oasis-scrub",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 0, "width": 320, "height": 180 },
+      "mask": [
+        [[14, 14], [228, 14], [228, 168], [14, 168]]
+      ],
+      "featherPx": 6,
+      "depth": 2,
+      "motion": "A warm desert breeze moves through the olive-green canyon shrubs, low sage bushes and small yellow-flowering desert plants tucked along the northwestern sandstone terraces. Each leafy clump sways gently two to three pixels to the right and settles back in its existing hand-painted clusters. Hold the terraced red sandstone cliffs, rocky outcrops, pale sand floor and potter's canopy completely still.",
+      "retryOf": null,
+      "why": "Extends warm bazaar breeze motion to the lush sandstone scrub overlooking the oasis market."
+    },
+    {
+      "element": "north-canyon-scrub-drift",
+      "kind": "grass",
+      "crop": { "x": 780, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[800, 14], [1206, 14], [1206, 126], [800, 126]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Along the sunlit northern canyon rim above the road, a dry desert breeze gently sways the olive sage shrubs, yellow flowering desert bushes and stiff blue-green agave tips by two pixels while a very faint, translucent wisp of warm terracotta dust skims low across the flat ochre sand and disperses. Keep the stepped sandstone cliffs, rocks, ground cracks and the upper sandy road completely still, with no opaque clouds or colour changes.",
+      "retryOf": null,
+      "why": "Animates the wide open northern desert rim with gentle scrub movement and low sand drift."
+    },
+    {
+      "element": "northeast-sandstone-scrub",
+      "kind": "foliage",
+      "crop": { "x": 1240, "y": 0, "width": 448, "height": 252 },
+      "mask": [
+        [[1264, 14], [1666, 14], [1666, 140], [1518, 140], [1518, 162], [1264, 162]]
+      ],
+      "featherPx": 7,
+      "depth": 1,
+      "motion": "A warm afternoon breeze stirs the olive desert bushes, tiny yellow blossom clusters and blue-green agave plants perched along the northeastern sandstone ridge. Their outer leaves lean two to three pixels to the right and ease back while the red-ochre rock ledges, scattered stones and the wooden signal brazier below stay completely locked and motionless.",
+      "retryOf": null,
+      "why": "Animates the prominent northeastern desert ridge overlooking the signal brazier and castle."
+    },
+    {
+      "element": "bazaar-courtyard-dust",
+      "kind": "cloud",
+      "crop": { "x": 360, "y": 310, "width": 320, "height": 180 },
+      "mask": [
+        [[524, 372], [656, 372], [656, 468], [452, 468], [452, 434]]
+      ],
+      "featherPx": 7,
+      "depth": 1,
+      "motion": "Across the open terracotta sand floor east of the market cart, a very thin, translucent breath of warm ochre dust gathers close to the ground, drifts slowly down-right a few brushstrokes and disperses cleanly so the painted clay texture remains visible through it. Keep the market stall, merchant cart, stone tiles, small pebbles and surrounding sunlit ground completely steady.",
+      "retryOf": null,
+      "why": "Adds atmospheric desert wind drift right in the open sunlit central courtyard beside the bazaar."
+    },
+    {
+      "element": "southwest-canyon-agaves",
+      "kind": "foliage",
+      "crop": { "x": 0, "y": 608, "width": 352, "height": 198 },
+      "mask": [
+        [[16, 622], [268, 622], [320, 644], [320, 792], [16, 792]]
+      ],
+      "featherPx": 6,
+      "depth": 1,
+      "motion": "A warm canyon breeze rustles the olive sage shrubs, dry grass tufts and low desert plants along the southwestern sandstone ledges below the cave. Each bush leans gently two to three pixels to the right and settles back while a faint translucent veil of terracotta dust skims briefly across the flat sand pocket. Hold the red sandstone cave, cliff steps and loose rocks completely fixed.",
+      "retryOf": null,
+      "why": "Animates the quiet southwest sandstone scrub and canyon floor."
+    },
+    {
+      "element": "southeast-wash-scrub",
+      "kind": "grass",
+      "crop": { "x": 1460, "y": 636, "width": 384, "height": 216 },
+      "mask": [
+        [[1516, 658], [1828, 658], [1828, 836], [1516, 836]]
+      ],
+      "featherPx": 7,
+      "depth": 0,
+      "motion": "Across the dry southeastern desert wash below the eastern cave, a light hot breeze sways the olive desert shrubs, dry grass blades and low agave leaves two to three pixels to the right while a subtle translucent ribbon of warm rust-coloured dust drifts low across the open terracotta gravel and fades away. Keep the sandstone boulders, cliff ledges, timber post and cave entrance completely still.",
+      "retryOf": null,
+      "why": "Brings desert wind and scrub motion to the wide open southeastern wash."
+    }
+  ]
+}

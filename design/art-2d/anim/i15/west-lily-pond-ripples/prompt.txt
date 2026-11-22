@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+Within the quiet deep-blue moonlit pond framed by the western shore and lantern, slow horizontal ripples drift softly right across the water surface, subtly shifting the existing pale blue-grey reflection marks by a few pixels before easing back. Keep the camera strictly locked and hold the golden shore lantern, overhanging reeds, carved rune stones, white water lily, mini stone-rimmed lily pool and the eastern bank completely fixed.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

@@ -1,0 +1,5 @@
+Create an 8-second seamless loop from the supplied start frame. Lock the camera to this exact crop and perspective for the entire shot. No pan, tilt, shake or zoom. Keep the hand-painted storybook game art, brushwork, palette and daylight unchanged. Only the element described below moves; every other part of the picture stays perfectly still, and the motion fades out smoothly at its edges. The last frame matches the first frame exactly.
+
+A light twilight breeze gently rustles the rounded plum-magenta flowering hedges and pale blue-grey grass tufts along the eastern clearing while the warm yellow-orange light inside the ornate golden lamppost flickers softly behind its dark glass frame. Keep the lamp post, mossy stump, twilight floor grain and surrounding shadows completely still with no colour shift or extra glow.
+
+Match the opening pose, light and brush marks at the eight-second seam. Carry the rhythm smoothly through the join.

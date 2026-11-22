@@ -1,0 +1,36 @@
+{
+  "element": "northwest-ember-ridge",
+  "id": "i16-northwest-ember-ridge",
+  "source": "public/art2d/map-i16-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 0,
+    "y": 0,
+    "width": 448,
+    "height": 252
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    0,
+    0,
+    1344,
+    756
+  ],
+  "startPxPerLayoutPx": 2.857142857142857,
+  "startPxPerSourcePx": 0.9523809523809524,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    40,
+    40,
+    1201,
+    395
+  ],
+  "featherInwardStartPx": 17
+}

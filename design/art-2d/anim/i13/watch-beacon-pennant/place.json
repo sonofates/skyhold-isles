@@ -1,0 +1,36 @@
+{
+  "element": "watch-beacon-pennant",
+  "id": "i13-watch-beacon-pennant",
+  "source": "public/art2d/map-i13-layered@3x.webp",
+  "layoutSizePx": [
+    1846,
+    852
+  ],
+  "startSizePx": [
+    1280,
+    720
+  ],
+  "cropLayoutPx": {
+    "x": 1460,
+    "y": 190,
+    "width": 288,
+    "height": 162
+  },
+  "sourcePxPerLayoutPx": 3,
+  "sourceCropPxLTRB": [
+    4380,
+    570,
+    5244,
+    1056
+  ],
+  "startPxPerLayoutPx": 4.444444444444445,
+  "startPxPerSourcePx": 1.4814814814814816,
+  "resample": "Lanczos",
+  "maskBBoxStartPxLTRB": [
+    364,
+    195,
+    1183,
+    676
+  ],
+  "featherInwardStartPx": 18
+}
