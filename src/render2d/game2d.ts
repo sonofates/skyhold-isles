@@ -3,7 +3,7 @@ import type { ItemCounts, ItemId } from '../data/market.ts';
 import { Container, Graphics, NineSliceSprite, Sprite, Text, Texture, type Application, type TextureSource } from 'pixi.js';
 import { EventBus } from '../core/eventBus.ts';
 import { FixedTimestepStepper } from '../core/gameLoop.ts';
-import type { AbilityId, GameSettings, HeroSkillSlot, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
+import type { AbilityId, EnemyType, GameSettings, HeroSkillSlot, SpeedMultiplier, TargetingMode, TowerType, Vec3 } from '../core/types.ts';
 import { LEVELS } from '../data/levels/index.ts';
 import { BALANCE } from '../data/balance.ts';
 import { STAR_RULES } from '../data/stars.ts';
@@ -58,7 +58,7 @@ import { NO_INSETS, WAVE_EASE_SEC, waveEaseZoom, type Insets } from './uiLayout.
 import { dockPieces, hudDock, type HudDock } from './hudDock.ts';
 import { hornNearCave, rectsTouch, roadMouths } from './hornSpot.ts';
 import { distSegRect, type Seg } from './playfield.ts';
-import { pointAlong, waveLaneCounts } from './lanePath.ts';
+import { pointAlong, primaryWaveEntrance, waveEntranceCounts } from './lanePath.ts';
 import { buildEndlessWaveDef } from '../sim/waveSystem.ts';
 import { fullBleedFitItems, hardOverlaps, hardShapes, type FullBleedFit, type HardShapes } from './fullBleed.ts';
 import { MapPan, PAN_SLOP } from './mapPan.ts';
@@ -873,16 +873,10 @@ export class Game2D {
     this.hornFor = idx;
     const def = idx < 0 ? null : idx < this.level.waves.length ? this.level.waves[idx] : ws.isEndless ? buildEndlessWaveDef(idx, this.level) : null;
     let placed = null;
-    if (def && lay.paths.length > 0) {
-      let lane = 0;
-      let most = -1;
-      for (const [l, n] of waveLaneCounts(def.groups)) {
-        if (n > most || (n === most && l < lane)) {
-          most = n;
-          lane = l;
-        }
-      }
-      const path = lay.paths[lane] ?? lay.paths[0];
+    if (def && (lay.paths.length > 0 || lay.flightPath.length > 0)) {
+      const entries = waveEntranceCounts(def.groups, lay.paths, lay.flightPath, (ty) => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying));
+      const chosen = primaryWaveEntrance(entries);
+      const path = chosen?.path;
       if (path && path.length > 1) {
         const scr = (p: { x: number; z: number }): { x: number; y: number } => ({ x: this.map.screenX(this.map.pxX(p.x)), y: this.map.screenY(this.map.pxY(p.z)) });
         // The road's mouth as seen: the first point along it out of the cave's painted front and on

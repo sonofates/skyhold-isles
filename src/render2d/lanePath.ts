@@ -86,6 +86,36 @@ export function waveEntranceCounts(
 }
 
 /**
+ * Total world-unit length of a path (pure).
+ */
+export function pathLength(path: readonly PathPoint[]): number {
+  let len = 0;
+  for (let i = 1; i < path.length; i++) {
+    len += Math.hypot(path[i].x - path[i - 1].x, path[i].z - path[i - 1].z);
+  }
+  return len;
+}
+
+/**
+ * The entrance with the most enemies in an upcoming wave (pure, shared by the horn).
+ * Ties prefer ground entrances over a dedicated air entry (`flying: true`), then the lowest lane index.
+ */
+export function primaryWaveEntrance(entries: readonly EntranceCount[]): EntranceCount | null {
+  let best: EntranceCount | null = null;
+  for (const e of entries) {
+    if (e.count <= 0 || e.path.length === 0) continue;
+    if (
+      !best ||
+      e.count > best.count ||
+      (e.count === best.count && (best.flying !== e.flying ? !e.flying : e.lane < best.lane))
+    ) {
+      best = e;
+    }
+  }
+  return best;
+}
+
+/**
  * A point `dist` world units along a path from its start (just outside the cave mouth, where the
  * marker stands), clamped to the path's end (pure).
  */

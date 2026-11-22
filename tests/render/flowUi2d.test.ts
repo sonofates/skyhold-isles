@@ -12,12 +12,28 @@ import { hudTipText } from '../../src/render2d/ui/hudTips2d.ts';
 import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { coachCardSpot, coachStep, coachText, type CoachObs } from '../../src/render2d/ui/coach2d.ts';
 import { waveCallout } from '../../src/render2d/ui/waveBanner2d.ts';
-import { LANE_MARK_MARGIN, laneMarkBox, laneMarkSpot, pointAlong, shouldShowEntranceMarks, waveEntranceCounts, waveLaneCounts } from '../../src/render2d/ui/laneMarks2d.ts';
+import {
+  kitUnit,
+  LANE_MARK_MARGIN,
+  laneMarkBox,
+  laneMarkPlaceKey,
+  laneMarkSpot,
+  pathLength,
+  pointAlong,
+  primaryWaveEntrance,
+  shouldShowEntranceMarks,
+  waveEntranceCounts,
+  waveLaneCounts,
+  type LaneMarkPlaceInputs,
+} from '../../src/render2d/ui/laneMarks2d.ts';
+import { addHudKeepOut, hudKeepOutsVersion, invalidateSafeInsets, readSafeInsets } from '../../src/render2d/uiKit.ts';
+import { fullBleedFitItems, hardShapes } from '../../src/render2d/fullBleed.ts';
+import { hudDock } from '../../src/render2d/hudDock.ts';
 import { buildEndlessWaveDef } from '../../src/sim/waveSystem.ts';
 import type { EnemyType } from '../../src/core/types.ts';
 import { livesLow } from '../../src/render2d/ui/lowLives2d.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
-import { gateKeepOutsPx, plateCentreY } from '../../src/render2d/uiLayout.ts';
+import { gateKeepOutsPx, NO_INSETS, plateCentreY } from '../../src/render2d/uiLayout.ts';
 
 afterEach(() => setLocale('en'));
 
@@ -358,5 +374,248 @@ describe('next-wave caves', () => {
     // Overlay / run ended -> hidden.
     expect(shouldShowEntranceMarks({ waveState: 'betweenWaves', canStartNextWave: true, ongoing: true, overlayOpen: true })).toBe(false);
     expect(shouldShowEntranceMarks({ waveState: 'betweenWaves', canStartNextWave: true, ongoing: false, overlayOpen: false })).toBe(false);
+  });
+
+  it('laneMarkSpot finds visible road past 18 world units on panned i04 and never vanishes on any legal pan', () => {
+    const i04 = LEVELS_2D.find((l) => l.id === 'i04')!;
+    const lay04 = i04.layout2d!;
+    const fit04 = fullBleedFitItems(
+      800,
+      600,
+      lay04,
+      (itemMode) =>
+        hudDock(800, 600, NO_INSETS, {
+          plaqueAspect: 3.5,
+          plaqueSlots: { lives: [0.268, 0.455], gold: [0.688, 0.898], midY: 0.514 },
+          bannerAspect: 3.4,
+          hero: true,
+          items: 3,
+          itemMode,
+        }),
+      hardShapes(lay04),
+    );
+    const toPan04 = (p: { x: number; z: number }): { x: number; y: number } => ({
+      x: fit04.pan.minX + (p.x * lay04.pxPerUnit + lay04.imageSize[0] / 2) * fit04.fit.scale,
+      y: fit04.pan.minY + (p.z * lay04.pxPerUnit + lay04.imageSize[1] / 2) * fit04.fit.scale,
+    });
+    const s04 = kitUnit(800, 600);
+    const spot04 = laneMarkSpot(lay04.paths[0], toPan04, [], s04, { w: 800, h: 600 });
+    expect(spot04).not.toBeNull();
+    expect(spot04!.angle).toBeUndefined();
+    const b04 = laneMarkBox(spot04!.x, spot04!.y, s04);
+    expect(b04.x).toBeGreaterThanOrEqual(4);
+    expect(b04.x + b04.w).toBeLessThanOrEqual(796);
+    expect(b04.y).toBeGreaterThanOrEqual(4);
+    expect(b04.y + b04.h).toBeLessThanOrEqual(596);
+    expect(pathLength(lay04.paths[0])).toBeGreaterThan(22);
+
+    // Completely off-screen path (i07 flight path panned fully right/down at 800x600):
+    // clamps inside the viewport edge, dodges a top-left HUD card, and points left toward the off-screen entry.
+    const i07 = LEVELS_2D.find((l) => l.id === 'i07')!;
+    const lay07 = i07.layout2d!;
+    const fit07 = fullBleedFitItems(
+      800,
+      600,
+      lay07,
+      (itemMode) =>
+        hudDock(800, 600, NO_INSETS, {
+          plaqueAspect: 3.5,
+          plaqueSlots: { lives: [0.268, 0.455], gold: [0.688, 0.898], midY: 0.514 },
+          bannerAspect: 3.4,
+          hero: true,
+          items: 3,
+          itemMode,
+        }),
+      hardShapes(lay07),
+    );
+    const toPan07 = (p: { x: number; z: number }): { x: number; y: number } => ({
+      x: fit07.pan.minX + (p.x * lay07.pxPerUnit + lay07.imageSize[0] / 2) * fit07.fit.scale,
+      y: fit07.pan.minY + (p.z * lay07.pxPerUnit + lay07.imageSize[1] / 2) * fit07.fit.scale,
+    });
+    const topLeftCard = { x: 8, y: 8, w: 220, h: 100 };
+    const clamped = laneMarkSpot(lay07.flightPath, toPan07, [topLeftCard], s04, { w: 800, h: 600 });
+    expect(clamped).not.toBeNull();
+    expect(clamped!.angle).toBeDefined();
+    // Pointing left: chevron default direction is +π/2 (down), so direction vector is (cos(angle + π/2), sin(angle + π/2)).
+    expect(Math.cos(clamped!.angle! + Math.PI / 2)).toBeLessThan(-0.5);
+    const bc = laneMarkBox(clamped!.x, clamped!.y, s04);
+    expect(bc.x).toBeGreaterThanOrEqual(4 - 1e-6);
+    expect(bc.x + bc.w).toBeLessThanOrEqual(796 + 1e-6);
+    expect(bc.y).toBeGreaterThanOrEqual(topLeftCard.y + topLeftCard.h + LANE_MARK_MARGIN - 1e-6);
+
+    // Every island & path stays inside the viewport under extreme legal pans at 800x600 and 390x844.
+    for (const [w, h] of [
+      [800, 600],
+      [390, 844],
+    ] as const) {
+      const s = kitUnit(w, h);
+      for (const lv of LEVELS_2D) {
+        const lay = lv.layout2d!;
+        const placed = fullBleedFitItems(
+          w,
+          h,
+          lay,
+          (itemMode) =>
+            hudDock(w, h, NO_INSETS, {
+              plaqueAspect: 3.5,
+              plaqueSlots: { lives: [0.268, 0.455], gold: [0.688, 0.898], midY: 0.514 },
+              bannerAspect: 3.4,
+              hero: true,
+              items: 3,
+              itemMode,
+            }),
+          hardShapes(lay),
+        );
+        const corners = [
+          [placed.pan.minX, placed.pan.minY],
+          [placed.pan.maxX, placed.pan.maxY],
+        ] as const;
+        for (const path of [...lay.paths, ...(lay.flightPath.length > 0 ? [lay.flightPath] : [])]) {
+          for (const [ox, oy] of corners) {
+            const toScr = (p: { x: number; z: number }): { x: number; y: number } => ({
+              x: ox + (p.x * lay.pxPerUnit + lay.imageSize[0] / 2) * placed.fit.scale,
+              y: oy + (p.z * lay.pxPerUnit + lay.imageSize[1] / 2) * placed.fit.scale,
+            });
+            const spot = laneMarkSpot(path, toScr, [], s, { w, h });
+            expect(spot, `${lv.id} ${w}x${h}`).not.toBeNull();
+            const box = laneMarkBox(spot!.x, spot!.y, s);
+            expect(box.x, `${lv.id} ${w}x${h} left`).toBeGreaterThanOrEqual(4 - 1e-6);
+            expect(box.x + box.w, `${lv.id} ${w}x${h} right`).toBeLessThanOrEqual(w - 4 + 1e-6);
+            expect(box.y, `${lv.id} ${w}x${h} top`).toBeGreaterThanOrEqual(4 - 1e-6);
+            expect(box.y + box.h, `${lv.id} ${w}x${h} bottom`).toBeLessThanOrEqual(h - 4 + 1e-6);
+          }
+        }
+      }
+    }
+  });
+
+  it('primaryWaveEntrance agrees with waveEntranceCounts on i20 wave 10 and i16 dedicated air waves', () => {
+    const isFlying = (ty: string): boolean => Boolean(ENEMY_DEFS[ty as EnemyType]?.flying);
+    // i20 wave 10: all 19 enemies (9 ground + 10 flyers whose flightPath shares lane 1) enter via lane 1.
+    const i20 = LEVELS_2D.find((l) => l.id === 'i20')!;
+    const lay20 = i20.layout2d!;
+    const w10 = waveEntranceCounts(i20.waves[9].groups, lay20.paths, lay20.flightPath, isFlying);
+    const chosen20 = primaryWaveEntrance(w10);
+    expect(chosen20).not.toBeNull();
+    expect(chosen20!.lane).toBe(1);
+    expect(chosen20!.flying).toBe(false);
+    expect(chosen20!.count).toBe(19);
+    expect(chosen20!.path).toBe(lay20.paths[1]);
+
+    // i16 wave 7: 13 flyers on dedicated air entry outnumber 5 on lane 0 and 5 on lane 1.
+    const i16 = LEVELS_2D.find((l) => l.id === 'i16')!;
+    const lay16 = i16.layout2d!;
+    const w7 = waveEntranceCounts(i16.waves[6].groups, lay16.paths, lay16.flightPath, isFlying);
+    const chosen16 = primaryWaveEntrance(w7);
+    expect(chosen16).not.toBeNull();
+    expect(chosen16!.lane).toBe(-1);
+    expect(chosen16!.flying).toBe(true);
+    expect(chosen16!.count).toBe(13);
+    expect(chosen16!.path).toBe(lay16.flightPath);
+
+    // Ties prefer ground over dedicated air, and lowest lane index among ground lanes.
+    const pA = [{ x: 0, z: 0 }, { x: 1, z: 0 }];
+    const pB = [{ x: 2, z: 0 }, { x: 3, z: 0 }];
+    const pAir = [{ x: 4, z: 0 }, { x: 5, z: 0 }];
+    expect(
+      primaryWaveEntrance([
+        { lane: -1, flying: true, count: 10, path: pAir },
+        { lane: 2, flying: false, count: 10, path: pB },
+        { lane: 1, flying: false, count: 10, path: pA },
+      ])?.lane,
+    ).toBe(1);
+    expect(primaryWaveEntrance([])).toBeNull();
+  });
+
+  it('laneMarkPlaceKey and uiKit safe-inset/keepOut measurement caching invalidate only on geometry changes', () => {
+    const base: LaneMarkPlaceInputs = {
+      waveKey: 'i20|0|9',
+      viewW: 1366,
+      viewH: 768,
+      unit: 12.977,
+      fitScale: 0.9465,
+      fitOffsetX: -183,
+      fitOffsetY: -19,
+      card: { x: 8, y: 8, w: 220, h: 100 },
+      foe: null,
+      toast: null,
+      hornBox: { x: 1100, y: 120, w: 90, h: 90 },
+      plaque: { x: 8, y: 700, w: 240, h: 60 },
+      banner: { x: 1100, y: 700, w: 240, h: 60 },
+      tray: { x: 480, y: 700, w: 400, h: 60 },
+      hasDiffBadge: true,
+      coachKey: '',
+      specHintShown: false,
+      keepOutsVersion: 2,
+      layoutGen: 0,
+    };
+    const k0 = laneMarkPlaceKey(base);
+    expect(laneMarkPlaceKey({ ...base })).toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, waveKey: 'i20|0|10' })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, fitOffsetX: -200 })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, viewW: 800 })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, hornBox: { x: 1050, y: 120, w: 90, h: 90 } })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, card: null })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, coachKey: 'build' })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, specHintShown: true })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, keepOutsVersion: 3 })).not.toBe(k0);
+    expect(laneMarkPlaceKey({ ...base, layoutGen: 1 })).not.toBe(k0);
+
+    // hudKeepOutsVersion bumps on register and unregister.
+    const v0 = hudKeepOutsVersion();
+    const drop = addHudKeepOut(() => null);
+    expect(hudKeepOutsVersion()).toBe(v0 + 1);
+    drop();
+    expect(hudKeepOutsVersion()).toBe(v0 + 2);
+    drop(); // idempotent
+    expect(hudKeepOutsVersion()).toBe(v0 + 2);
+
+    // readSafeInsets caches getComputedStyle across calls until resize or invalidateSafeInsets().
+    const g = globalThis as unknown as Record<string, unknown>;
+    const origDoc = g.document;
+    const origWin = g.window;
+    const origGcs = g.getComputedStyle;
+    const listeners = new Map<string, Set<() => void>>();
+    let gcsCalls = 0;
+    let padTop = '12px';
+    const fakeEl = { style: { cssText: '' }, isConnected: false };
+    g.document = {
+      body: {
+        appendChild: (el: typeof fakeEl) => {
+          el.isConnected = true;
+          return el;
+        },
+      },
+      createElement: () => fakeEl,
+    };
+    g.window = {
+      addEventListener: (ev: string, fn: () => void) => {
+        if (!listeners.has(ev)) listeners.set(ev, new Set());
+        listeners.get(ev)!.add(fn);
+      },
+    };
+    g.getComputedStyle = () => {
+      gcsCalls++;
+      return { paddingTop: padTop, paddingRight: '0px', paddingBottom: '8px', paddingLeft: '0px' };
+    };
+    try {
+      invalidateSafeInsets();
+      expect(readSafeInsets()).toEqual({ top: 12, right: 0, bottom: 8, left: 0 });
+      expect(readSafeInsets()).toEqual({ top: 12, right: 0, bottom: 8, left: 0 });
+      expect(readSafeInsets()).toEqual({ top: 12, right: 0, bottom: 8, left: 0 });
+      expect(gcsCalls).toBe(1);
+      padTop = '24px';
+      for (const fn of listeners.get('resize') ?? []) fn();
+      expect(readSafeInsets()).toEqual({ top: 24, right: 0, bottom: 8, left: 0 });
+      expect(gcsCalls).toBe(2);
+    } finally {
+      invalidateSafeInsets();
+      if (origDoc === undefined) delete g.document;
+      else g.document = origDoc;
+      if (origWin === undefined) delete g.window;
+      else g.window = origWin;
+      if (origGcs === undefined) delete g.getComputedStyle;
+      else g.getComputedStyle = origGcs;
+    }
   });
 });
