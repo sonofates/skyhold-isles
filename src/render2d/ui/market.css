@@ -688,3 +688,181 @@
   align-items: center;
   gap: calc(var(--s) * 0.8);
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-market {
+  width: 100%;
+  max-height: 100%;
+}
+
+html.pu-phone .pu-market-stall {
+  height: 52px;
+  margin: 0 6px 6px;
+}
+
+html.pu-phone .pu-market-wallet {
+  bottom: 4px;
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-market-belt {
+  gap: var(--ui-gap) var(--ui-gap-lg);
+  margin-bottom: var(--ui-gap);
+  padding: 8px 10px;
+}
+
+html.pu-phone .pu-market-belt h3,
+html.pu-phone .pu-market-packbox h3 {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-market-slots {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-market-slot,
+html.pu-phone .pu-market-slot .pu-item-socket {
+  --d: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.pu-phone .pu-market-slotn {
+  min-width: 20px;
+  height: 20px;
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-market-beltrules,
+html.pu-phone .pu-market-beltnote {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-market-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-market-item {
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+html.pu-phone .pu-market-itemhead {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-market-tag,
+html.pu-phone .pu-market-why {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-market-owned {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-market-equip {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+  font-size: var(--ui-font-btn);
+}
+
+html.pu-phone .pu-market-desc {
+  font-size: var(--ui-font-body);
+  line-height: 1.3;
+}
+
+html.pu-phone .pu-market-row {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-market-buys {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-market-buys .pu-plank.small {
+  min-width: 56px;
+  font-size: var(--ui-font-btn-sm);
+}
+
+html.pu-phone .pu-crystal-amt.on-plank {
+  font-size: 1em;
+}
+
+html.pu-phone .pu-market-packs {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-market-packtext {
+  font-size: var(--ui-font-body);
+}
+
+/* World map Market button badges */
+html.pu-phone .pu-market-count {
+  font-size: var(--ui-font-caption);
+  right: -4px;
+  top: -4px;
+}
+
+html.pu-phone .pu-market-new {
+  font-size: var(--ui-font-caption);
+  left: -6px;
+  top: -4px;
+}
+
+/* Briefing belt chip */
+html.pu-phone .pu-beltchip-slots {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-beltchip-slot,
+html.pu-phone .pu-beltchip-slot .pu-item-socket {
+  --d: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.pu-phone .pu-beltchip-uses {
+  min-width: 20px;
+  height: 20px;
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-beltchip-off {
+  font-size: var(--ui-font-label);
+}
+
+/* Belt picker sheet */
+html.pu-phone .pu-beltpick {
+  width: 100%;
+}
+
+html.pu-phone .pu-beltpick-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--ui-gap);
+  margin: var(--ui-gap) 0;
+}
+
+html.pu-phone .pu-beltpick-item {
+  min-height: 54px;
+  gap: var(--ui-gap);
+  font-size: var(--ui-font-body);
+  padding: 8px 10px;
+}
+
+html.pu-phone .pu-beltpick-item .pu-item-socket {
+  --d: 40px;
+}
+
+html.pu-phone .pu-beltpick-n {
+  width: 24px;
+  height: 24px;
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-beltpick-foot {
+  gap: var(--ui-gap-lg);
+}

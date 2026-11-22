@@ -939,3 +939,275 @@
 .pu-reduce-motion .pu-hnode.available .pu-hnode-medal {
   animation: none;
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-hero-points {
+  font-size: var(--ui-font-body);
+  padding: 0.2em 0.7em;
+}
+
+html.pu-phone .pu-hero-chip .pu-badge,
+html.pu-phone .pu-hero-sel .pu-badge,
+html.pu-phone .pu-hero-tree .pu-badge {
+  font-size: var(--ui-font-caption);
+  min-width: 20px;
+  height: 20px;
+}
+
+/* Briefing hero chip */
+html.pu-phone .pu-hero-chip {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-chip-pick {
+  min-width: var(--ui-tap);
+  min-height: var(--ui-tap);
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-chip-face {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+}
+
+html.pu-phone .pu-hero-chip-tree.pu-round {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+  min-width: 44px;
+  min-height: 44px;
+}
+
+html.pu-phone .pu-hero-chip-tree-icon {
+  width: max(var(--ui-icon), 58%);
+  height: max(var(--ui-icon), 58%);
+}
+
+/* Hero select: horizontal roster bar on top + spacious 2-col art & info below */
+html.pu-phone .pu-hero-sel {
+  width: 100%;
+  height: 100%;
+}
+
+html.pu-phone .pu-hero-sel .pu-sheet-body {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: var(--ui-pad);
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-sel-grid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  grid-template-columns: minmax(110px, 0.45fr) minmax(0, 1.55fr);
+  gap: var(--ui-gap) var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-hero-roster {
+  grid-column: 1 / -1;
+  flex-direction: row;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-tab {
+  min-width: var(--ui-tap);
+  min-height: var(--ui-tap);
+  padding: 2px;
+}
+
+html.pu-phone .pu-hero-tab .pu-hero-face {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+}
+
+html.pu-phone .pu-hero-art {
+  height: 190px;
+}
+
+html.pu-phone .pu-hero-info {
+  gap: 6px;
+}
+
+html.pu-phone .pu-hero-name {
+  font-size: var(--ui-font-title);
+}
+
+html.pu-phone .pu-hero-sub,
+html.pu-phone .pu-hero-stats,
+html.pu-phone .pu-hero-unlock {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-hero-unlock small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-hero-skill {
+  font-size: var(--ui-font-body);
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-skill-icon {
+  width: 36px;
+  height: 36px;
+}
+
+html.pu-phone .pu-hero-skill-text small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-hero-actions {
+  flex: none;
+  gap: var(--ui-gap-lg);
+  margin-top: 0;
+  padding-top: var(--ui-gap);
+  border-top: 2px dashed rgba(122, 85, 50, 0.3);
+}
+
+/* Hero skill tree: full-size >= 44px nodes, >= 8px gaps, >= 14px detail card, scrollable */
+html.pu-phone .pu-hero-tree {
+  width: 100%;
+  height: 100%;
+}
+
+html.pu-phone .pu-hero-tree-top {
+  gap: var(--ui-gap);
+  margin-bottom: var(--ui-gap);
+  padding-top: 8px;
+  padding-right: 12px;
+}
+
+html.pu-phone .pu-hero-tree-tabs {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-tab.small {
+  min-width: var(--ui-tap);
+  min-height: var(--ui-tap);
+  padding: 2px;
+}
+
+html.pu-phone .pu-hero-tab.small .pu-hero-face {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+}
+
+html.pu-phone .pu-hero-tree-head {
+  flex: 1 1 280px;
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-hero-tree-face {
+  width: 44px;
+  height: 44px;
+}
+
+html.pu-phone .pu-hero-tree-who .pu-hero-name {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-hero-tree-pts {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-hero-tree-pts small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-hero-tree-main,
+html.pu-phone .pu-hero-tree-main[data-layout='across'] {
+  grid-template-columns: minmax(0, 1fr) minmax(230px, 0.42fr);
+  gap: var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-hero-tree-grid {
+  --n: 10.5px;
+  --nt: 10.5px;
+  --m: 48px;
+  gap: 10px 8px;
+}
+
+html.pu-phone .pu-hero-tree-grid[data-layout='across'] {
+  gap: 10px 8px;
+}
+
+html.pu-phone .pu-hero-tree-grid[data-layout='across'] .pu-hero-branch {
+  gap: 8px;
+}
+
+html.pu-phone .pu-hero-tree-grid[data-layout='across'] .pu-hero-branch-head {
+  flex: 0 0 86px;
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-hero-branch-head {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-hero-branch-icon {
+  width: 24px;
+  height: 24px;
+}
+
+html.pu-phone .pu-hnode-wrap {
+  padding-top: 10px;
+}
+
+html.pu-phone .pu-hero-tree-grid[data-layout='across'] .pu-hnode-wrap {
+  padding-top: 0;
+}
+
+html.pu-phone .pu-hnode {
+  min-width: 48px;
+  min-height: 48px;
+  width: auto;
+  padding: 2px;
+  gap: 3px;
+}
+
+html.pu-phone .pu-hnode.cap .pu-hnode-medal {
+  width: 56px;
+  height: 56px;
+}
+
+html.pu-phone .pu-hnode-name {
+  font-size: var(--ui-font-caption);
+  line-height: 1.15;
+}
+
+html.pu-phone .pu-hnode-cost img {
+  width: 12px;
+  height: 12px;
+}
+
+html.pu-phone .pu-hero-node-detail {
+  font-size: var(--ui-font-body);
+  gap: var(--ui-gap);
+  padding: 10px 12px;
+}
+
+html.pu-phone .pu-hero-node-title {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-hero-node-title small {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-hero-node-desc,
+html.pu-phone .pu-hero-node-hint {
+  font-size: var(--ui-font-body);
+  line-height: 1.32;
+}
+
+html.pu-phone .pu-hero-node-why {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-hero-node-foot {
+  gap: var(--ui-gap);
+}

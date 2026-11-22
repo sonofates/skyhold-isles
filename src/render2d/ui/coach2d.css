@@ -150,3 +150,41 @@
     font-size: 11px;
   }
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-coach {
+  width: min(390px, 56vw);
+  top: max(6px, var(--safe-t));
+  padding: 6px 12px;
+}
+
+html.pu-phone .pu-coach-head {
+  gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-coach-n {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-coach-title {
+  font-size: max(15px, var(--ui-font-label));
+}
+
+html.pu-phone .pu-coach-text {
+  font-size: var(--ui-font-body);
+  line-height: 1.32;
+}
+
+html.pu-phone .pu-coach-skip {
+  min-width: var(--ui-tap);
+  min-height: var(--ui-tap);
+  padding: 0 10px;
+  font-size: var(--ui-font-btn-sm);
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-coach {
+    width: min(280px, 44vw);
+    left: 40%;
+  }
+}

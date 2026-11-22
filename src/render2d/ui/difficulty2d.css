@@ -345,3 +345,45 @@
 .pu-diff-badge.easy {
   color: #2f6a2c;
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-brief-actions:has(> .pu-diff) {
+  column-gap: var(--ui-gap-lg);
+  row-gap: 4px;
+  margin-top: 0;
+  padding-top: var(--ui-gap);
+}
+
+html.pu-phone .pu-diff-row {
+  gap: 14px;
+}
+
+html.pu-phone .pu-diff-opt {
+  --ph: var(--ui-tap);
+  min-height: var(--ui-tap);
+  min-width: 78px;
+  padding: 0 8px;
+  font-size: var(--ui-font-btn-sm);
+}
+
+html.pu-phone .pu-diff-desc {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-diff-badge {
+  font-size: max(var(--ui-font-caption), var(--fs, 12px));
+}
+
+@media (max-width: 740px) {
+  html.pu-phone .pu-brief-actions:has(> .pu-diff) {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--ui-gap);
+  }
+
+  html.pu-phone .pu-diff-opt {
+    min-width: 70px;
+    padding: 0 6px;
+  }
+}

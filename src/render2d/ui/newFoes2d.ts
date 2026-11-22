@@ -125,14 +125,19 @@ export function mountNewFoeToast(portrait: (type: EnemyType) => string | null): 
         if (!show) placeKey = '';
       }
       if (!show) return;
-      const pk = `${types.join(',')}|${Math.round(slot.x)},${Math.round(slot.y)},${Math.round(slot.w)},${Math.round(slot.h)}|${Math.round(maxW)}`;
+      const phone = document.documentElement.classList.contains('pu-phone');
+      const useSlot = phone
+        ? { ...slot, w: Math.max(slot.w, Math.min(320, Math.round(window.innerWidth * 0.48))), h: Math.max(slot.h, 180) }
+        : slot;
+      const useMaxW = phone ? Math.max(maxW, useSlot.w) : maxW;
+      const pk = `${types.join(',')}|${Math.round(useSlot.x)},${Math.round(useSlot.y)},${Math.round(useSlot.w)},${Math.round(useSlot.h)}|${Math.round(useMaxW)}`;
       if (pk === placeKey) return;
       placeKey = pk;
-      box.classList.toggle('narrow', slot.w < NARROW_SLOT);
+      box.classList.toggle('narrow', useSlot.w < NARROW_SLOT);
       // A small slot (phones): the second foe's tip goes first, then the first one's, before the
       // toast would shrink below a readable size (both stay in the Codex).
       const tips = Array.from(box.querySelectorAll<HTMLElement>('.pu-newfoe-tip')).reverse();
-      const docked = dockCard(box, slot, maxW, tips, 0.85);
+      const docked = dockCard(box, useSlot, useMaxW, tips, phone ? 0.99 : 0.85);
       scale = docked.scale;
       dockedBox = docked.box;
     },

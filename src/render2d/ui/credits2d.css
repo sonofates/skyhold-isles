@@ -49,3 +49,30 @@
   font-size: calc(var(--s) * 1.45);
   font-weight: 700;
 }
+
+/* ---- phone UI tokens (html.pu-phone) ---- */
+html.pu-phone .pu-credits {
+  width: 100%;
+}
+
+html.pu-phone .pu-credits-col {
+  gap: var(--ui-gap-lg);
+  padding: var(--ui-pad) var(--ui-gap-lg);
+}
+
+html.pu-phone .pu-credits-sec {
+  gap: 6px;
+}
+
+html.pu-phone .pu-credits-head {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-credits-line {
+  font-size: var(--ui-font-body);
+  line-height: 1.35;
+}
+
+html.pu-phone .pu-credits-thanks {
+  font-size: var(--ui-font-heading);
+}

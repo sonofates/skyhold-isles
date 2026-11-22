@@ -118,9 +118,9 @@ export function auditPage(opts) {
   };
   const hit = (a, b) => Math.min(a.x1, b.x1) - Math.max(a.x0, b.x0) > 0.5 && Math.min(a.y1, b.y1) - Math.max(a.y0, b.y0) > 0.5;
 
-  // With a board open (an overlay), only the board counts: what lies under the dim backdrop is not read.
-  const overlays = Array.from(document.querySelectorAll('.pu-overlay')).filter((e) => visible(e));
-  const roots = overlays.length ? overlays : Array.from(document.querySelectorAll(o.roots)).filter((r) => !r.parentElement?.closest(o.roots));
+  // With a board open (an overlay), only the topmost board counts: what lies under the dim backdrop is not read.
+  const overlays = Array.from(document.querySelectorAll('.pu-overlay')).filter((e) => visible(e) && !e.classList.contains('closing'));
+  const roots = overlays.length ? [overlays[overlays.length - 1]] : Array.from(document.querySelectorAll(o.roots)).filter((r) => !r.parentElement?.closest(o.roots));
   const texts = [];
   for (const root of roots) {
     if (!visible(root)) continue;

@@ -43,3 +43,18 @@
   line-height: calc(var(--s) * 1.7);
   white-space: nowrap;
 }
+
+html.pu-phone .pu-hero-lvl {
+  font-size: var(--ui-font-caption);
+  min-width: 22px;
+  height: 22px;
+}
+
+html.pu-phone .pu-hero-xp {
+  height: 20px;
+}
+
+html.pu-phone .pu-hero-xp-text {
+  font-size: var(--ui-font-caption);
+  line-height: 20px;
+}

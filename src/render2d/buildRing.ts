@@ -260,6 +260,7 @@ class RingTooltip {
   infoBox: Rect | null = null;
   private content: TipContent | null = null;
   private lastU = 1;
+  private lastPhone = false;
   w = 220;
   h = 140;
 
@@ -297,19 +298,20 @@ class RingTooltip {
     void Promise.all([paintedUiTexture(art, 'pip-empty'), paintedUiTexture(art, 'pip-filled')]).then(([empty, filled]) => {
       if (!empty || !filled) return;
       this.pipTex = { empty, filled };
-      if (this.content) this.set(this.content, this.lastU);
+      if (this.content) this.set(this.content, this.lastU, this.lastPhone);
     });
   }
 
   /** Lays the content out for scale `u`; sets w / h. */
-  set(c: TipContent, u: number): void {
+  set(c: TipContent, u: number, phone = false): void {
     this.content = c;
     this.lastU = u;
-    const k = Math.max(0.62, Math.min(1.35, u));
+    this.lastPhone = phone;
+    const k = Math.max(phone ? 0.92 : 0.62, Math.min(1.35, u));
     const W = Math.round(236 * k);
     const pad = Math.round(W * 0.085);
-    const fTitle = Math.round(Math.max(15, 21 * k));
-    const fBody = Math.round(Math.max(12, 14.5 * k));
+    const fTitle = Math.round(Math.max(phone ? 16 : 15, 21 * k));
+    const fBody = Math.round(Math.max(phone ? 14 : 12, 14.5 * k));
     setInkSize(this.title, fTitle);
     setText(this.title, c.title);
     setInkSize(this.role, fBody);
@@ -353,7 +355,7 @@ class RingTooltip {
     y += noRole ? -fBody * 1.3 : fBody * 0.6;
     this.desc.visible = !!c.desc;
     if (c.desc) {
-      const fDesc = Math.round(Math.max(12, 13.5 * k));
+      const fDesc = Math.round(Math.max(phone ? 14 : 12, 13.5 * k));
       setInkSize(this.desc, fDesc);
       this.desc.style.wordWrapWidth = W - pad * 2;
       this.desc.style.lineHeight = Math.round(fDesc * 1.22);
@@ -1042,7 +1044,7 @@ export class BuildRing {
   }
 
   private placeTip(c: TipContent): void {
-    this.tooltip.set(c, this.u);
+    this.tooltip.set(c, this.u, !this.desktop);
     const p = placeTooltip(this.box, this.tooltip.w, this.tooltip.h, this.screenW, this.screenH, this.insets, 10, 6, this.avoid);
     this.tooltip.root.position.set(p.x, p.y);
     this.tooltip.root.visible = true;
