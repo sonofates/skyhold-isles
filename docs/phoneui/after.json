@@ -1,0 +1,1776 @@
+{
+  "total": 0,
+  "byKind": {},
+  "byScreen": {
+    "title": {
+      "total": 0,
+      "byKind": {}
+    },
+    "map": {
+      "total": 0,
+      "byKind": {}
+    },
+    "brief": {
+      "total": 0,
+      "byKind": {}
+    },
+    "workshop": {
+      "total": 0,
+      "byKind": {}
+    },
+    "brief-locked": {
+      "total": 0,
+      "byKind": {}
+    },
+    "brief-modes": {
+      "total": 0,
+      "byKind": {}
+    },
+    "herosel": {
+      "total": 0,
+      "byKind": {}
+    },
+    "heroes": {
+      "total": 0,
+      "byKind": {}
+    },
+    "heroes-node": {
+      "total": 0,
+      "byKind": {}
+    },
+    "logbook": {
+      "total": 0,
+      "byKind": {}
+    },
+    "daily": {
+      "total": 0,
+      "byKind": {}
+    },
+    "logbook-feats": {
+      "total": 0,
+      "byKind": {}
+    },
+    "market": {
+      "total": 0,
+      "byKind": {}
+    },
+    "beltpick": {
+      "total": 0,
+      "byKind": {}
+    },
+    "store": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-general": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-audio": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-graphics": {
+      "total": 0,
+      "byKind": {}
+    },
+    "credits": {
+      "total": 0,
+      "byKind": {}
+    },
+    "settings-controls": {
+      "total": 0,
+      "byKind": {}
+    },
+    "story": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-ring": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-tower": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-spec-hint": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-foe": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-spec-card": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-coach": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-newfoe": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-codex": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-pause": {
+      "total": 0,
+      "byKind": {}
+    },
+    "hud-codex-spec": {
+      "total": 0,
+      "byKind": {}
+    },
+    "end-won": {
+      "total": 0,
+      "byKind": {}
+    },
+    "end-lost": {
+      "total": 0,
+      "byKind": {}
+    }
+  },
+  "results": [
+    {
+      "key": "beltpick-667x375-en",
+      "name": "beltpick",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "beltpick-667x375-tr",
+      "name": "beltpick",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "beltpick-844x390-en",
+      "name": "beltpick",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "beltpick-844x390-tr",
+      "name": "beltpick",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "beltpick-932x430-en",
+      "name": "beltpick",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "beltpick-932x430-tr",
+      "name": "beltpick",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-667x375-en",
+      "name": "brief",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-667x375-tr",
+      "name": "brief",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-844x390-en",
+      "name": "brief",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-844x390-tr",
+      "name": "brief",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-932x430-en",
+      "name": "brief",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-932x430-tr",
+      "name": "brief",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-locked-667x375-en",
+      "name": "brief-locked",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-locked-667x375-tr",
+      "name": "brief-locked",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-locked-844x390-en",
+      "name": "brief-locked",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-locked-844x390-tr",
+      "name": "brief-locked",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-locked-932x430-en",
+      "name": "brief-locked",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-locked-932x430-tr",
+      "name": "brief-locked",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-modes-667x375-en",
+      "name": "brief-modes",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-modes-667x375-tr",
+      "name": "brief-modes",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-modes-844x390-en",
+      "name": "brief-modes",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-modes-844x390-tr",
+      "name": "brief-modes",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-modes-932x430-en",
+      "name": "brief-modes",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "brief-modes-932x430-tr",
+      "name": "brief-modes",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "credits-667x375-en",
+      "name": "credits",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "credits-667x375-tr",
+      "name": "credits",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "credits-844x390-en",
+      "name": "credits",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "credits-844x390-tr",
+      "name": "credits",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "credits-932x430-en",
+      "name": "credits",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "credits-932x430-tr",
+      "name": "credits",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "daily-667x375-en",
+      "name": "daily",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "daily-667x375-tr",
+      "name": "daily",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "daily-844x390-en",
+      "name": "daily",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "daily-844x390-tr",
+      "name": "daily",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "daily-932x430-en",
+      "name": "daily",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "daily-932x430-tr",
+      "name": "daily",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-lost-667x375-en",
+      "name": "end-lost",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-lost-667x375-tr",
+      "name": "end-lost",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-lost-844x390-en",
+      "name": "end-lost",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-lost-844x390-tr",
+      "name": "end-lost",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-lost-932x430-en",
+      "name": "end-lost",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-lost-932x430-tr",
+      "name": "end-lost",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-won-667x375-en",
+      "name": "end-won",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-won-667x375-tr",
+      "name": "end-won",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-won-844x390-en",
+      "name": "end-won",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-won-844x390-tr",
+      "name": "end-won",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-won-932x430-en",
+      "name": "end-won",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "end-won-932x430-tr",
+      "name": "end-won",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-667x375-en",
+      "name": "heroes",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-667x375-tr",
+      "name": "heroes",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-844x390-en",
+      "name": "heroes",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-844x390-tr",
+      "name": "heroes",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-932x430-en",
+      "name": "heroes",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-932x430-tr",
+      "name": "heroes",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-node-667x375-en",
+      "name": "heroes-node",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-node-667x375-tr",
+      "name": "heroes-node",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-node-844x390-en",
+      "name": "heroes-node",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-node-844x390-tr",
+      "name": "heroes-node",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-node-932x430-en",
+      "name": "heroes-node",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "heroes-node-932x430-tr",
+      "name": "heroes-node",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "herosel-667x375-en",
+      "name": "herosel",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "herosel-667x375-tr",
+      "name": "herosel",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "herosel-844x390-en",
+      "name": "herosel",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "herosel-844x390-tr",
+      "name": "herosel",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "herosel-932x430-en",
+      "name": "herosel",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "herosel-932x430-tr",
+      "name": "herosel",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-667x375-en",
+      "name": "hud",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-667x375-tr",
+      "name": "hud",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-844x390-en",
+      "name": "hud",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-844x390-tr",
+      "name": "hud",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-932x430-en",
+      "name": "hud",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-932x430-tr",
+      "name": "hud",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-coach-667x375-en",
+      "name": "hud-coach",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-coach-667x375-tr",
+      "name": "hud-coach",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-coach-844x390-en",
+      "name": "hud-coach",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-coach-844x390-tr",
+      "name": "hud-coach",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-coach-932x430-en",
+      "name": "hud-coach",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-coach-932x430-tr",
+      "name": "hud-coach",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-667x375-en",
+      "name": "hud-codex",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-667x375-tr",
+      "name": "hud-codex",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-844x390-en",
+      "name": "hud-codex",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-844x390-tr",
+      "name": "hud-codex",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-932x430-en",
+      "name": "hud-codex",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-932x430-tr",
+      "name": "hud-codex",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-spec-667x375-en",
+      "name": "hud-codex-spec",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-spec-667x375-tr",
+      "name": "hud-codex-spec",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-spec-844x390-en",
+      "name": "hud-codex-spec",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-spec-844x390-tr",
+      "name": "hud-codex-spec",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-spec-932x430-en",
+      "name": "hud-codex-spec",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-codex-spec-932x430-tr",
+      "name": "hud-codex-spec",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-foe-667x375-en",
+      "name": "hud-foe",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-foe-667x375-tr",
+      "name": "hud-foe",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-foe-844x390-en",
+      "name": "hud-foe",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-foe-844x390-tr",
+      "name": "hud-foe",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-foe-932x430-en",
+      "name": "hud-foe",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-foe-932x430-tr",
+      "name": "hud-foe",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-newfoe-667x375-en",
+      "name": "hud-newfoe",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-newfoe-667x375-tr",
+      "name": "hud-newfoe",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-newfoe-844x390-en",
+      "name": "hud-newfoe",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-newfoe-844x390-tr",
+      "name": "hud-newfoe",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-newfoe-932x430-en",
+      "name": "hud-newfoe",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-newfoe-932x430-tr",
+      "name": "hud-newfoe",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-pause-667x375-en",
+      "name": "hud-pause",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-pause-667x375-tr",
+      "name": "hud-pause",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-pause-844x390-en",
+      "name": "hud-pause",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-pause-844x390-tr",
+      "name": "hud-pause",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-pause-932x430-en",
+      "name": "hud-pause",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-pause-932x430-tr",
+      "name": "hud-pause",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-ring-667x375-en",
+      "name": "hud-ring",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-ring-667x375-tr",
+      "name": "hud-ring",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-ring-844x390-en",
+      "name": "hud-ring",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-ring-844x390-tr",
+      "name": "hud-ring",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-ring-932x430-en",
+      "name": "hud-ring",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-ring-932x430-tr",
+      "name": "hud-ring",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-card-667x375-en",
+      "name": "hud-spec-card",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-card-667x375-tr",
+      "name": "hud-spec-card",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-card-844x390-en",
+      "name": "hud-spec-card",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-card-844x390-tr",
+      "name": "hud-spec-card",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-card-932x430-en",
+      "name": "hud-spec-card",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-card-932x430-tr",
+      "name": "hud-spec-card",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-hint-667x375-en",
+      "name": "hud-spec-hint",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-hint-667x375-tr",
+      "name": "hud-spec-hint",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-hint-844x390-en",
+      "name": "hud-spec-hint",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-hint-844x390-tr",
+      "name": "hud-spec-hint",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-hint-932x430-en",
+      "name": "hud-spec-hint",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-spec-hint-932x430-tr",
+      "name": "hud-spec-hint",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-tower-667x375-en",
+      "name": "hud-tower",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-tower-667x375-tr",
+      "name": "hud-tower",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-tower-844x390-en",
+      "name": "hud-tower",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-tower-844x390-tr",
+      "name": "hud-tower",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-tower-932x430-en",
+      "name": "hud-tower",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "hud-tower-932x430-tr",
+      "name": "hud-tower",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-667x375-en",
+      "name": "logbook",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-667x375-tr",
+      "name": "logbook",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-844x390-en",
+      "name": "logbook",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-844x390-tr",
+      "name": "logbook",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-932x430-en",
+      "name": "logbook",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-932x430-tr",
+      "name": "logbook",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-feats-667x375-en",
+      "name": "logbook-feats",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-feats-667x375-tr",
+      "name": "logbook-feats",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-feats-844x390-en",
+      "name": "logbook-feats",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-feats-844x390-tr",
+      "name": "logbook-feats",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-feats-932x430-en",
+      "name": "logbook-feats",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "logbook-feats-932x430-tr",
+      "name": "logbook-feats",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "map-667x375-en",
+      "name": "map",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "map-667x375-tr",
+      "name": "map",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "map-844x390-en",
+      "name": "map",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "map-844x390-tr",
+      "name": "map",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "map-932x430-en",
+      "name": "map",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "map-932x430-tr",
+      "name": "map",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "market-667x375-en",
+      "name": "market",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "market-667x375-tr",
+      "name": "market",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "market-844x390-en",
+      "name": "market",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "market-844x390-tr",
+      "name": "market",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "market-932x430-en",
+      "name": "market",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "market-932x430-tr",
+      "name": "market",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-audio-667x375-en",
+      "name": "settings-audio",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-audio-667x375-tr",
+      "name": "settings-audio",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-audio-844x390-en",
+      "name": "settings-audio",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-audio-844x390-tr",
+      "name": "settings-audio",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-audio-932x430-en",
+      "name": "settings-audio",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-audio-932x430-tr",
+      "name": "settings-audio",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-controls-667x375-en",
+      "name": "settings-controls",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-controls-667x375-tr",
+      "name": "settings-controls",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-controls-844x390-en",
+      "name": "settings-controls",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-controls-844x390-tr",
+      "name": "settings-controls",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-controls-932x430-en",
+      "name": "settings-controls",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-controls-932x430-tr",
+      "name": "settings-controls",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-general-667x375-en",
+      "name": "settings-general",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-general-667x375-tr",
+      "name": "settings-general",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-general-844x390-en",
+      "name": "settings-general",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-general-844x390-tr",
+      "name": "settings-general",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-general-932x430-en",
+      "name": "settings-general",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-general-932x430-tr",
+      "name": "settings-general",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-graphics-667x375-en",
+      "name": "settings-graphics",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-graphics-667x375-tr",
+      "name": "settings-graphics",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-graphics-844x390-en",
+      "name": "settings-graphics",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-graphics-844x390-tr",
+      "name": "settings-graphics",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-graphics-932x430-en",
+      "name": "settings-graphics",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "settings-graphics-932x430-tr",
+      "name": "settings-graphics",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "store-667x375-en",
+      "name": "store",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "store-667x375-tr",
+      "name": "store",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "store-844x390-en",
+      "name": "store",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "store-844x390-tr",
+      "name": "store",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "store-932x430-en",
+      "name": "store",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "store-932x430-tr",
+      "name": "store",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "story-667x375-en",
+      "name": "story",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "story-667x375-tr",
+      "name": "story",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "story-844x390-en",
+      "name": "story",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "story-844x390-tr",
+      "name": "story",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "story-932x430-en",
+      "name": "story",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "story-932x430-tr",
+      "name": "story",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "title-667x375-en",
+      "name": "title",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "title-667x375-tr",
+      "name": "title",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "title-844x390-en",
+      "name": "title",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "title-844x390-tr",
+      "name": "title",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "title-932x430-en",
+      "name": "title",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "title-932x430-tr",
+      "name": "title",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "workshop-667x375-en",
+      "name": "workshop",
+      "size": "667x375",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "workshop-667x375-tr",
+      "name": "workshop",
+      "size": "667x375",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "workshop-844x390-en",
+      "name": "workshop",
+      "size": "844x390",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "workshop-844x390-tr",
+      "name": "workshop",
+      "size": "844x390",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "workshop-932x430-en",
+      "name": "workshop",
+      "size": "932x430",
+      "lang": "en",
+      "count": 0,
+      "violations": []
+    },
+    {
+      "key": "workshop-932x430-tr",
+      "name": "workshop",
+      "size": "932x430",
+      "lang": "tr",
+      "count": 0,
+      "violations": []
+    }
+  ]
+}

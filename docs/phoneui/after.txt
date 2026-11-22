@@ -1,0 +1,40 @@
+Phone UI Audit: 204 runs (en+tr x 932x430, 844x390, 667x375)
+Total violations: 0 {}
+
+Per-screen totals:
+  title                   0  {}
+  map                     0  {}
+  brief                   0  {}
+  workshop                0  {}
+  brief-locked            0  {}
+  brief-modes             0  {}
+  herosel                 0  {}
+  heroes                  0  {}
+  heroes-node             0  {}
+  logbook                 0  {}
+  daily                   0  {}
+  logbook-feats           0  {}
+  market                  0  {}
+  beltpick                0  {}
+  store                   0  {}
+  settings-general        0  {}
+  settings-audio          0  {}
+  settings-graphics       0  {}
+  credits                 0  {}
+  settings-controls       0  {}
+  story                   0  {}
+  hud                     0  {}
+  hud-ring                0  {}
+  hud-tower               0  {}
+  hud-spec-hint           0  {}
+  hud-foe                 0  {}
+  hud-spec-card           0  {}
+  hud-coach               0  {}
+  hud-newfoe              0  {}
+  hud-codex               0  {}
+  hud-pause               0  {}
+  hud-codex-spec          0  {}
+  end-won                 0  {}
+  end-lost                0  {}
+
+Details:
