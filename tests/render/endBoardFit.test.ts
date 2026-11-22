@@ -20,6 +20,7 @@ const VIEWS: readonly [string, number, number, Insets][] = [
   ['1366x768', 1366, 768, NO_INSETS],
   ['1280x800', 1280, 800, NO_INSETS],
   ['1280x720', 1280, 720, NO_INSETS],
+  ['932x430', 932, 430, NO_INSETS],
   ['915x412', 915, 412, NO_INSETS],
   ['844x390', 844, 390, NO_INSETS],
   ['844x390 notch', 844, 390, { top: 0, right: 47, bottom: 21, left: 47 }],
@@ -68,8 +69,8 @@ describe('end board text vs buttons', () => {
         const room = v.hero ? Math.round(f * 0.8) * 2.3 - 1 : 3;
         expect(stack.captionY + m.captionH / 2 + room, tag).toBeLessThanOrEqual(btnTop + 1e-6);
         if (stack.ruleVisible) expect(stack.ruleY + m.ruleH / 2 + (v.hero ? f * 2.6 : room), tag).toBeLessThanOrEqual(btnTop + 1e-6);
-        // The rule line sits under the caption, never on it.
-        if (stack.ruleVisible) expect(stack.ruleY - m.ruleH / 2, tag).toBeGreaterThanOrEqual(stack.captionY + m.captionH / 2 - f * 0.3);
+        // The rule line sits strictly under the caption, never overlapping it.
+        if (stack.ruleVisible) expect(stack.ruleY - m.ruleH / 2, tag).toBeGreaterThanOrEqual(stack.captionY + m.captionH / 2 + 0.4);
         // A lowered button row keeps its labels on the parchment's foot; the row never rises.
         if (stack.btnY > L.buttons[0].y) expect(stack.btnY + btnR * 1.38 + m.labelH / 2, tag).toBeLessThanOrEqual(L.panel.y + L.panel.h * (END_FRAME.innerBottom + 0.02) + 1e-6);
         expect(stack.btnY, tag).toBeGreaterThanOrEqual(L.buttons[0].y);

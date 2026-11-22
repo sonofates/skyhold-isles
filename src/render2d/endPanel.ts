@@ -556,13 +556,13 @@ export class EndPanel {
     } else {
       const cx = P.x + P.w / 2;
       // Between the ribbon and the parchment's inner top (END_FRAME.ribbonMid .. innerTop); stay clear
-      // of both the ribbon title and the middle star.
+      // of both the ribbon title (on defeat, also its descenders like 'g' in "Yenilgi") and the middle star.
       const defaultCy = P.y + P.h * (END_FRAME.ribbonMid + (END_FRAME.innerTop - END_FRAME.ribbonMid) * 0.6);
-      const minCy = L.title.y + L.fontTitle * 0.5 + h / 2 + 2;
-      cy = defaultCy;
+      const minCy = L.title.y + (this.summary?.won ? L.fontTitle * 0.5 : Math.max(L.fontTitle * 0.58, this.title.height * 0.48)) + h / 2 + 2;
+      cy = Math.max(minCy, defaultCy);
       if (this.summary?.won) {
         const midStarTop = L.stars[1].y - L.starR * 1.15;
-        cy = Math.max(minCy, Math.min(defaultCy, midStarTop - h / 2 - 2));
+        cy = Math.max(minCy, Math.min(cy, midStarTop - h / 2 - 2));
       }
       x0 = cx - w / 2;
     }
