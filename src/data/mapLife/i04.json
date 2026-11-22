@@ -1,0 +1,41 @@
+{
+  "island": "i04",
+  "wind": {
+    "mask": "life/i04-sway.webp",
+    "dir": [0.89, 0.45],
+    "strength": 2.1,
+    "gustPeriod": 5.5,
+    "gustSpeed": 220,
+    "breezeFreq": 1.35,
+    "sheen": 0.048
+  },
+  "clouds": {
+    "count": 3,
+    "alpha": 0.12,
+    "speed": 40,
+    "tint": "#163042",
+    "sizeRange": [540, 820]
+  },
+  "birds": {
+    "flockSize": [3, 6],
+    "interval": [19, 36],
+    "initialDelay": 2.6,
+    "speed": 94,
+    "tint": "#3d3326",
+    "scale": 18,
+    "shadowOffset": [30, 46],
+    "shadowAlpha": 0.15
+  },
+  "butterflies": {
+    "count": 6,
+    "colors": ["#f4ffe0", "#d8f5a2", "#fff5c0", "#ffffff"],
+    "size": 11.5,
+    "zones": [
+      { "x": 1040, "y": 82, "radius": 56 },
+      { "x": 1280, "y": 88, "radius": 58 },
+      { "x": 710, "y": 470, "radius": 64 },
+      { "x": 1595, "y": 470, "radius": 66 },
+      { "x": 600, "y": 755, "radius": 62 }
+    ]
+  }
+}
