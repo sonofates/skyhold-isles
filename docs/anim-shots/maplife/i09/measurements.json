@@ -1,0 +1,68 @@
+{
+  "island": "i09",
+  "hasWind": true,
+  "liveLife": {
+    "island": "i09",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": false,
+    "tier": "high",
+    "time": 3.87,
+    "swayReady": true,
+    "activeClouds": 3,
+    "activeBirds": 5,
+    "activeButterflies": 8,
+    "flocksSpawned": 1
+  },
+  "shotLife": {
+    "island": "i09",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": false,
+    "tier": "high",
+    "time": 4.07,
+    "swayReady": true,
+    "activeClouds": 3,
+    "activeBirds": 5,
+    "activeButterflies": 8,
+    "flocksSpawned": 1
+  },
+  "liveAmbient": {
+    "island": "i09",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "time": 7.52,
+    "activeParticles": 29,
+    "particleCap": 44,
+    "crackSegments": 0,
+    "flames": 0,
+    "glows": 15,
+    "zones": 5
+  },
+  "pixelDiff": {
+    "before": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 0.312,
+      "pct_gt15": 0.553,
+      "mean_drgb": 0.42
+    },
+    "after": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 1.086,
+      "pct_gt15": 6.112,
+      "mean_drgb": 4.84
+    }
+  },
+  "reducedDisabled": true,
+  "lowDisabled": true,
+  "errors": []
+}

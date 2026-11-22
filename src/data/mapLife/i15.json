@@ -1,0 +1,19 @@
+{
+  "island": "i15",
+  "wind": {
+    "mask": "life/i15-sway.webp",
+    "dir": [0.82, 0.57],
+    "strength": 1.45,
+    "gustPeriod": 7.0,
+    "gustSpeed": 155,
+    "breezeFreq": 0.95,
+    "sheen": 0.0
+  },
+  "clouds": {
+    "count": 2,
+    "alpha": 0.085,
+    "speed": 26,
+    "tint": "#0c1429",
+    "sizeRange": [620, 920]
+  }
+}

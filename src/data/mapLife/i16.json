@@ -1,0 +1,10 @@
+{
+  "island": "i16",
+  "clouds": {
+    "count": 3,
+    "alpha": 0.11,
+    "speed": 34,
+    "tint": "#1a110e",
+    "sizeRange": [580, 900]
+  }
+}
