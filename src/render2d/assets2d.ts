@@ -184,6 +184,8 @@ export interface HeroArtRuntime {
 }
 
 const textureCache = new Map<string, Promise<Texture | null>>();
+/** Last load failure per texture URL (shown in the boot error so device-only failures are diagnosable). */
+const loadErrors = new Map<string, string>();
 
 /**
  * Loads a texture, or null when the file is missing / not an image (never throws). `mips`: build a
@@ -208,13 +210,18 @@ function tryTexture(url: string, mips = false): Promise<Texture | null> {
       for (let attempt = 0; attempt < LOAD_RETRIES; attempt++) {
         try {
           const tex = await Assets.load<Texture>(mips ? { src: url, data: { autoGenerateMipmaps: true } } : url);
+          if (!tex) loadErrors.set(url, `${attempt + 1}: Assets.load returned ${String(tex)}`);
           return tex ?? null;
-        } catch {
+        } catch (err) {
+          loadErrors.set(url, `${attempt + 1}: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`.slice(0, 160));
           // Only probe failures. Missing optional art (including Vite's 200 HTML fallback)
           // should resolve immediately, while transient failures still get the existing retries.
           if (attempt + 1 === LOAD_RETRIES) break;
           const head = await fetch(url, { method: 'HEAD' }).catch(() => null);
-          if (head?.status === 404 || head?.headers.get('content-type')?.includes('text/html')) return null;
+          if (head?.status === 404 || head?.headers.get('content-type')?.includes('text/html')) {
+            loadErrors.set(url, `${loadErrors.get(url) ?? ''} | HEAD ${head.status} ${head.headers.get('content-type') ?? ''}`.slice(0, 220));
+            return null;
+          }
           await sleep(RETRY_BASE_MS * (attempt + 1));
         }
       }
@@ -743,7 +750,10 @@ export async function loadArt(
     track(heroId ? loadHeroArt(manifest, base, heroId, present, notes) : Promise.resolve(null)),
   ]);
   bootPhase('load-textures-and-sheets');
-  if (!mapRes) throw new Error(`map image failed to load: ${mapFile}`);
+  if (!mapRes) {
+    const why = [...loadErrors].filter(([u]) => u.includes(mapKey)).map(([u, e]) => `${u.split('/').pop()} → ${e}`).join(' ; ');
+    throw new Error(`map image failed to load: ${mapFile}${why ? ` (${why})` : ''}`);
+  }
   const map = mapRes.texture;
   present.add(manifest.maps[mapRes.key]);
   const overlays: Record<string, Texture> = {};
