@@ -18,7 +18,7 @@
  * choice to Normal, picking Easy clears the challenges).
  */
 import type { ChallengeId } from '../../data/challenges.ts';
-import { DIFFICULTIES, DIFFICULTY_IDS, type DifficultyId } from '../../data/difficulty.ts';
+import { DIFFICULTIES, DIFFICULTY_IDS, startingGoldForDifficulty, type DifficultyId } from '../../data/difficulty.ts';
 import { STAR_RULES } from '../../data/stars.ts';
 import { challengeDesc, challengeName, difficultyName, islandName, islandSubtitle } from '../../i18n/data.ts';
 import { lower, t } from '../../i18n/index.ts';
@@ -103,11 +103,13 @@ export function showBriefing(
   const goal3 = lost3 === 0 ? t('brief.goalNoLoss') : t('brief.goalLose', { n: lost3 });
   // Painted difficulty jewel in front of the name.
   const gem = el('span', 'pu-gem pu-ink', {}, img(gemUrl(lvl.difficulty), '', 'pu-gem-img'), difficultyName(lvl.difficulty));
+  const goldText = el('span', '');
+  const goldRec = el('span', 'pu-rec pu-ink pu-brief-gold', { 'data-testid': 'brief2d-gold', title: t('brief.startGoldTitle') }, img(KIT.gold, '', 'pu-gem-img'), goldText);
   const info = el(
     'div',
     'pu-brief-info',
     {},
-    el('div', 'pu-brief-row', {}, gem, el('span', 'pu-rec pu-ink', {}, glyph('wave'), t('brief.waves', { n: lvl.waves.length }))),
+    el('div', 'pu-brief-row', {}, gem, el('span', 'pu-rec pu-ink', {}, glyph('wave'), t('brief.waves', { n: lvl.waves.length })), goldRec),
     el('div', 'pu-brief-row pu-brief-goal', {}, starsRow(st.stars), el('span', 'pu-ink-soft', {}, st.stars === 3 ? t('brief.perfect') : t('brief.goal3', { goal: goal3 }))),
   );
   if (st.unlocked && st.clears > 0) {
@@ -206,6 +208,13 @@ export function showBriefing(
     }
     diffBox?.classList.toggle('muted', endless);
     diffBox?.setAttribute('data-diff', shown);
+    const startGold = startingGoldForDifficulty(lvl.startingGold, shown);
+    const goldDiff = startGold - lvl.startingGold;
+    goldText.textContent =
+      goldDiff === 0
+        ? t('brief.startGold', { g: startGold })
+        : t('brief.startGoldDelta', { g: startGold, delta: goldDiff > 0 ? `+${goldDiff}` : `−${-goldDiff}` });
+    goldRec.dataset.diff = goldDiff === 0 ? 'normal' : shown;
     if (diffDesc) {
       // Normal is the island as designed: no rule line (its rule is the plank's tooltip).
       diffDesc.textContent = endless ? t('diff.normalOnly') : shown === 'normal' ? '' : difficultyRuleText(shown);

@@ -183,10 +183,11 @@ export class MapView {
     const y0 = f.offsetY;
     const x1 = x0 + iw * s;
     const y1 = y0 + ih * s;
-    // A band on an axis the painting covers is the pan's reach past the edge: the mirrored edge
-    // fills it. Only a band on an axis the painting can't cover (an extreme aspect) is framed.
-    const coverX = iw * s >= sw - 0.5;
-    const coverY = ih * s >= sh - 0.5;
+    // A band on an axis the painting covers — or a narrow margin opened by plot-clear camera fit —
+    // is filled seamlessly with the mirrored edge art. Only a wide band (extreme aspects like
+    // portrait or 32:9) opens the painted wooden frame.
+    const coverX = iw * s >= sw - 0.5 || f.bandLeft + f.bandRight <= sw * 0.34;
+    const coverY = ih * s >= sh - 0.5 || f.bandTop + f.bandBottom <= sh * 0.34;
     const reach = [coverX && f.bandLeft > 0.5, coverX && f.bandRight > 0.5, coverY && f.bandTop > 0.5, coverY && f.bandBottom > 0.5];
     this.layoutEdges(reach);
     const bandOpen = [f.bandLeft > 0.5 && !reach[0], f.bandRight > 0.5 && !reach[1], f.bandTop > 0.5 && !reach[2], f.bandBottom > 0.5 && !reach[3]];

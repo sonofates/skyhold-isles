@@ -572,7 +572,9 @@ export function endLayout(
 ): EndLayout {
   const availW = w - insets.left - insets.right - 24;
   const availH = h - insets.top - insets.bottom - 24;
-  const pw = Math.min(availW * 0.92, availH * aspect, h * 0.64 * aspect);
+  // Short landscape screens (phones) use a taller share so stars, caption, star-rule and buttons stay legible and clear.
+  const heightShare = h <= 520 && w > h ? 0.78 : 0.64;
+  const pw = Math.min(availW * 0.92, availH * aspect, h * heightShare * aspect);
   const ph = pw / aspect;
   const px = insets.left + (w - insets.left - insets.right - pw) / 2;
   const py = insets.top + (h - insets.top - insets.bottom - ph) / 2;
@@ -756,17 +758,18 @@ export function endBoardFit(L: EndLayout, m: EndBoardText): EndBoardFit {
   const rowY = m.won ? L.summary.y : m.victoryBoard ? (L.stars[1].y + L.summary.y) / 2 + f * 0.6 : L.stars[1].y + L.starR * 0.4;
   // Labels sit 1.38 R under the button centres and must stay on the parchment's foot.
   const maxBtnY = P.y + P.h * (END_FRAME.innerBottom + 0.02) - 2 - btnR * 1.38 - m.labelH / 2;
+  const minRuleGap = m.ruleH > 0 ? (m.captionH + m.ruleH) / 2 : 0;
   const stackFor = (Lx: EndLayout): EndStack =>
     endTextStack({
       rowY,
       // Row icons are 1.5 f tall: keep a small gap under the stars (a defeat / Endless board shows
       // none, its lines may rise to the stars' line).
       minRowY: Math.min(rowY, m.won ? endStarsBottom(Lx) + f * 0.95 : Lx.stars[1].y),
-      captionOff: m.won ? f * 1.3 : f * 1.7,
+      captionOff: m.won ? f * 1.25 : f * 1.7,
       captionH: m.captionH,
       ruleH: m.ruleH,
-      ruleOff: f * 0.95,
-      ruleOffMin: f * 0.8,
+      ruleOff: Math.max(f * 1.02, minRuleGap + Math.max(2, f * 0.08)),
+      ruleOffMin: Math.max(f * 0.8, minRuleGap + 0.5),
       // Hero row: a 1.84 f portrait between the text and the buttons; the rule line only stays
       // with a roomier band (phones drop it there, as before).
       room: m.hero ? f * 2 : Math.max(3, f * 0.3),
