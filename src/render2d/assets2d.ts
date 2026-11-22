@@ -1,6 +1,6 @@
 import { bootPhase } from './bootTrace.ts';
 import { Capacitor } from '@capacitor/core';
-import { Assets, loadTextures, Rectangle, Texture, type TextureSource } from 'pixi.js';
+import { Assets, loadTextures, path as pixiPath, Rectangle, Texture, type TextureSource } from 'pixi.js';
 import type { TowerType } from '../core/types.ts';
 import { alphaFeetAnchor } from './alphaBox.ts';
 import { enemyHasArt, mulTint, pickTier, resolveEnemyArt, resolveTowerTiers } from './artResolve.ts';
@@ -199,6 +199,19 @@ const loadErrors = new Map<string, string>();
  * Decode on the main thread in the native shell; the web keeps the faster worker path.
  */
 if (Capacitor.isNativePlatform() && loadTextures.config) loadTextures.config.preferWorkers = false;
+/**
+ * Pixi resolves root-relative URLs ("/art2d/…") against `path.rootname(document.baseURI)`, which
+ * only keeps the host for http(s): under `capacitor://localhost/2d.html` it returns "capacitor://"
+ * and every texture is requested from `capacitor://art2d/…` (seen on a real iPhone: all art failed).
+ * Treat any `scheme://host/…` base like http so the host survives.
+ */
+if (Capacitor.isNativePlatform()) {
+  const rootname = pixiPath.rootname.bind(pixiPath);
+  pixiPath.rootname = (p: string): string => {
+    const m = /^([a-z][a-z0-9+.-]*:\/\/[^/?#]+)/i.exec(pixiPath.toPosix(p));
+    return m && !pixiPath.isUrl(p) && !p.startsWith('file:') ? `${m[1]}/` : rootname(p);
+  };
+}
 
 function tryTexture(url: string, mips = false): Promise<Texture | null> {
   const cacheKey = mips ? `${url}#mips` : url;
