@@ -1,0 +1,56 @@
+{
+  "island": "i14",
+  "hasWind": false,
+  "liveLife": {
+    "island": "i14",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": false,
+    "tier": "high",
+    "time": 5.415,
+    "swayReady": false,
+    "activeClouds": 2,
+    "activeBirds": 4,
+    "activeButterflies": 0,
+    "flocksSpawned": 1
+  },
+  "shotLife": {
+    "island": "i14",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": false,
+    "tier": "high",
+    "time": 5.715,
+    "swayReady": false,
+    "activeClouds": 2,
+    "activeBirds": 4,
+    "activeButterflies": 0,
+    "flocksSpawned": 1
+  },
+  "liveAmbient": null,
+  "pixelDiff": {
+    "before": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 0.222,
+      "pct_gt15": 0.255,
+      "mean_drgb": 0.42
+    },
+    "after": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 0.949,
+      "pct_gt15": 2.045,
+      "mean_drgb": 2.32
+    }
+  },
+  "reducedDisabled": true,
+  "lowDisabled": true,
+  "errors": []
+}
