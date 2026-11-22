@@ -1,0 +1,47 @@
+{
+  "island": "i19",
+  "viewport": [
+    2000,
+    991
+  ],
+  "liveLife": {
+    "island": "i19",
+    "built": true,
+    "enabled": true,
+    "paused": false,
+    "smallBake": false,
+    "tier": "high",
+    "time": 3.917,
+    "swayReady": true,
+    "activeClouds": 3,
+    "activeBirds": 4,
+    "activeButterflies": 8,
+    "flocksSpawned": 1
+  },
+  "liveAmbient": null,
+  "checks": {
+    "pauseFrozen": true,
+    "reducedDisabled": true
+  },
+  "pixelDiff": {
+    "before": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 2.219,
+      "pct_gt15": 3.135,
+      "mean_drgb": 2.91
+    },
+    "after": {
+      "shape": [
+        991,
+        2000
+      ],
+      "pct_gt30": 3.783,
+      "pct_gt15": 8.434,
+      "mean_drgb": 5.88
+    }
+  },
+  "errors": []
+}

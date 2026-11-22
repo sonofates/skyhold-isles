@@ -1,0 +1,20 @@
+{
+  "island": "i22",
+  "clouds": {
+    "count": 2,
+    "alpha": 0.07,
+    "speed": 22,
+    "tint": "#162033",
+    "sizeRange": [600, 900]
+  },
+  "birds": {
+    "flockSize": [2, 3],
+    "interval": [25, 44],
+    "initialDelay": 2.2,
+    "speed": 102,
+    "tint": "#2b2438",
+    "scale": 14,
+    "shadowOffset": [20, 32],
+    "shadowAlpha": 0.10
+  }
+}
