@@ -1,0 +1,70 @@
+Phone UI Audit: 222 runs (en+tr x 932x430, 844x390, 667x375)
+Total violations: 0 {}
+
+Per-screen totals:
+  title                   0  {}
+  map                     0  {}
+  brief-fresh             0  {}
+  brief                   0  {}
+  brief-modes             0  {}
+  brief-locked            0  {}
+  herosel                 0  {}
+  workshop                0  {}
+  heroes                  0  {}
+  logbook-feats           0  {}
+  heroes-node             0  {}
+  logbook                 0  {}
+  daily                   0  {}
+  store                   0  {}
+  market                  0  {}
+  beltpick                0  {}
+  settings-general        0  {}
+  settings-graphics       0  {}
+  settings-audio          0  {}
+  settings-controls       0  {}
+  credits                 0  {}
+  story-3beat             0  {}
+  story                   0  {}
+  hud                     0  {}
+  hud-ring                0  {}
+  hud-spec-hint           0  {}
+  hud-tower               0  {}
+  hud-spec-card           0  {}
+  hud-foe                 0  {}
+  hud-coach               0  {}
+  hud-newfoe              0  {}
+  hud-codex               0  {}
+  hud-codex-spec          0  {}
+  hud-pause               0  {}
+  hud-confirm             0  {}
+  end-won                 0  {}
+  end-lost                0  {}
+
+Panel fill metrics (932x430 tr):
+  beltpick              620x372  fill= 85.7% (static) div.pu-sheet.pu-meta.pu-beltpick
+  brief                 840x359  fill= 74.4% (static) div.pu-sheet.pu-brief.has-modes
+  brief-fresh           599x284  fill= 82.9% (static) div.pu-sheet.pu-brief
+  brief-locked          398x257  fill= 89.4% (static) div.pu-sheet.pu-brief
+  brief-modes           840x373  fill= 75.9% (static) div.pu-sheet.pu-brief.has-modes
+  credits               580x396  fill= 84.5% (scroll) div.pu-sheet.pu-meta.pu-credits
+  daily                 610x271  fill= 71.2% (static) div.pu-sheet.red.pu-meta
+  heroes                850x396  fill= 97.9% (scroll) div.pu-sheet.pu-meta.pu-hero-tree
+  heroes-node           850x396  fill= 97.9% (scroll) div.pu-sheet.pu-meta.pu-hero-tree
+  herosel               720x396  fill= 89.8% (scroll) div.pu-sheet.pu-meta.pu-hero-sel
+  hud-codex             840x396  fill= 97.5% (scroll) div.pu-sheet.pu-meta.pu-codex
+  hud-codex-spec        840x396  fill= 97.6% (scroll) div.pu-sheet.pu-meta.pu-codex
+  hud-confirm           460x181  fill= 79.6% (static) div.pu-sheet.pu-confirm
+  hud-spec-card         820x396  fill= 97.9% (scroll) div.pu-sheet.pu-meta.pu-spec
+  logbook               820x396  fill= 97.8% (scroll) div.pu-sheet.pu-meta
+  logbook-feats         820x396  fill= 97.8% (scroll) div.pu-sheet.pu-meta
+  market                820x396  fill= 98.7% (scroll) div.pu-sheet.pu-meta.pu-market
+  settings-audio        660x302  fill= 97.6% (static) div.pu-sheet.pu-meta.pu-settings
+  settings-controls     660x396  fill= 15.7% (scroll) div.pu-sheet.pu-meta.pu-settings
+  settings-general      660x396  fill= 98.3% (scroll) div.pu-sheet.pu-meta.pu-settings
+  settings-graphics     660x396  fill= 98.3% (scroll) div.pu-sheet.pu-meta.pu-settings
+  store                 465x231  fill= 81.6% (static) div.pu-sheet.pu-meta.pu-store
+  story                 700x359  fill= 66.8% (static) div.pu-sheet.pu-story
+  story-3beat           810x373  fill= 85.3% (static) div.pu-sheet.pu-story
+  workshop              840x396  fill= 97.9% (scroll) div.pu-sheet.pu-meta
+
+Details:
