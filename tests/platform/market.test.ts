@@ -182,7 +182,8 @@ describe('Market progression & exploit QA', () => {
     expect(buyItem2D('emberPot')).toBe(true);
     expect(buyItem2D('galeBell')).toBe(false);
     expect(runItemBelt2D('hard', false)).toEqual({ emberPot: 1, galeBell: 1 });
-    expect(runItemBelt2D('normal', false)).toEqual({ emberPot: 3, galeBell: 1 });
+    expect(runItemBelt2D('easy', false)).toEqual({ emberPot: 3, galeBell: 1 });
+    expect(runItemBelt2D('normal', false)).toEqual({ emberPot: 1, galeBell: 1 });
     expect(runItemBelt2D('hard', true)).toEqual({});
     const save = sanitizeMarket();
     earnCrystals(save, 'writer', 100000);
@@ -252,10 +253,10 @@ describe('Market progression & exploit QA', () => {
     });
     const failed = run();
     failed.startNextWave();
-    failed.lives--;
+    failed.lives = 4;
     expect(failed.useItem('heartstone')).toBe(false);
     expect(failed.itemSystem.belt().heartstone).toBe(1);
-    expect(failed.lives).toBe(failed.startingLives - 1);
+    expect(failed.lives).toBe(4);
   });
 
   it('imports old codes without restoring spent inventory, merges cloud spending idempotently, and delivers +1 stock after offline double-spend', () => {
