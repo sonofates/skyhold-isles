@@ -83,7 +83,7 @@ export function beltChip(opts: BeltChipOptions = {}): BeltChip {
         });
         grid.append(b);
       }
-      const head = el('div', 'pu-meta-note pu-ink-soft', {}, t('market.loadoutHint', { n: MARKET_RULES.slots }), ' ', el('b', 'pu-ink', {}, t('market.capLine', { n: MARKET_RULES.useCap.normal, hard: MARKET_RULES.useCap.hard })));
+      const head = el('div', 'pu-meta-note pu-ink-soft', {}, t('market.loadoutHint', { n: MARKET_RULES.slots }), ' ', el('b', 'pu-ink', {}, t('market.capLine', MARKET_RULES.useCap)));
       const foot = el('div', 'pu-beltpick-foot', {});
       if (note) foot.append(el('span', 'pu-market-beltnote bad', {}, note));
       if (opts.onMarket) {

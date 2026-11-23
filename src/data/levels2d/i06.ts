@@ -3,7 +3,11 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i06.json';
 
 export const I06 = campaignIsland(LEVEL_6, layout, {
-  startingGold: 280,
+  formations: {
+    'The Leviathan': { boss: { hpScale: 0.6 } },
+    'Maelstrom': { flyer: { count: 12 } },
+  },
+  startingGold: 285,
   enemyHpScale: 1.3623,
   waveHpGrowth: 0.306,
   flyingGroups: { countScale: 0.65, intervalScale: 1.2 },

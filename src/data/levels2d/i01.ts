@@ -3,6 +3,9 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i01.json';
 
 export const I01 = campaignIsland(LEVEL_1, layout, {
+  formations: {
+    'Iron Knock': { brute: { elite: true, hpScale: 2.4 } },
+  },
   startingGold: 205,
   enemyHpScale: 1.144,
   waveHpGrowth: 0.08,

@@ -47,11 +47,11 @@ export const I18 = {
       group('golem', 4, 1.5, 2),
     ] },
     { name: 'Air Shaft', clearBonus: 40, groups: [
-      group('carrier', 2, 1.7), group('draftwing', 6, 0.48, 1.8),
+      group('carrier', 1, 1.7), group('draftwing', 6, 0.48, 1.8),
       group('hexer', 4, 1.15, 1), group('brute', 8, 0.8, 4.6),
     ] },
     { name: 'Ringing Clay', clearBonus: 42, groups: [
-      { ...group('kilnback', 8, 1.1), elite: true }, group('reedpiper', 3, 1.3, 1.2),
+      { ...group('kilnback', 7, 1.1), elite: true }, group('reedpiper', 3, 1.3, 1.2),
       group('blinker', 7, 0.62, 3.7), group('warden', 3, 1.7, 4.4),
     ] },
     { name: 'Glass Cascade', clearBonus: 44, groups: [

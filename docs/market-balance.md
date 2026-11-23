@@ -1,5 +1,7 @@
 # Market Item Balance & Campaign Economy (`sim:items`)
 
+The tables below record the first Market tuning pass. Current caps, belt results and per-island comparisons are in [Normal campaign rebalance v2](rebalance-normal-v2.md).
+
 `scripts/itemSim.ts` (`npm run sim:items`) evaluates single-use Market items and Sky Crystal progression across all 25 2D islands (`l1c`, `i01`–`i24`) and all three difficulties (`easy`, `normal`, `hard`) on top of the existing `campaignKit` / `balanceSim` progression driver.
 
 ```bash
@@ -19,7 +21,7 @@ npm run sim:items -- --loadout=a,b,c      # override 3-item belt (defaults to to
   - **Hard** enters each island with the corresponding Normal entry kit (modelling players attempting Hard ribbons as islands unlock).
   - **`campaign`** runs the greedy specialization build order (`balanceBuildOrder(level, 'greedy')`) alongside `driveScriptedHero` and `driveGlobalAbilities` (Meteor + Overcharge).
   - **`weak`** runs the struggling ~70% build order (`balanceBuildOrder(level, 'weak')`) with the same entry kit.
-- **Difficulty item caps** come from `MARKET_RULES.useCap`: up to **3** charges per equipped slot on Easy/Normal (max 9 casts/island) and **1** charge per equipped slot on Hard (max 3 casts/island).
+- **Difficulty item caps in this historical run** allowed up to **3** charges per equipped slot on Easy/Normal (max 9 casts/island) and **1** charge per equipped slot on Hard (max 3 casts/island).
 - **Sensible wave-focused item policy** (`driveItems` in `scripts/itemSim.ts`):
   - Inspects the itemless baseline run to identify the hardest waves (waves that leaked lives or pushed past 85% ground progress, plus waves around defeat) so limited charges are reserved for genuine danger windows rather than wasted on trivial skirmishes or already-flawless runs.
   - `heartstone`: cast when `missingLives >= 5` or in lethal danger (`lives <= 6`, or `<= 12` on the final wave). Restored lives never inflate star ratings (`computeStars` counts every leaked life).

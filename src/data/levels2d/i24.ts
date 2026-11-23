@@ -79,7 +79,7 @@ export const I24 = {
     { name: 'The Quay Breaks', clearBonus: 43, groups: [
       { ...group('brute', 8, 0.99, 0, 1), elite: true },
       group('healer', 3, 1.23, 0.6, 1),
-      { ...group('burrower', 5, 0.77, 2.1, 2), elite: true },
+      { ...group('burrower', 3, 0.77, 2.1, 2), elite: true },
       group('draftwing', 7, 0.5, 4.6),
     ] },
     { name: 'The Wick Catches', clearBonus: 45, groups: [
@@ -95,12 +95,12 @@ export const I24 = {
       { ...group('blinker', 8, 0.64, 5.6, 1), elite: true },
     ] },
     { name: 'First Light', clearBonus: 70, groups: [
-      { ...group('tempest', 1, 1), elite: true },
-      { ...group('kilnback', 8, 1.06, 8, 2), elite: true },
+      { ...group('tempest', 1, 1), elite: true, hpScale: 2 },
+      { ...group('kilnback', 6, 1.06, 8, 2), elite: true },
       group('reedpiper', 4, 1.25, 9.5, 2),
       { ...group('bellrunner', 13, 0.53, 12, 1), elite: true },
-      group('draftwing', 6, 0.5, 17),
-      { ...group('golem', 4, 0.85, 12, 2), elite: true },
+      group('draftwing', 3, 0.5, 17),
+      { ...group('golem', 1, 0.85, 12, 2), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

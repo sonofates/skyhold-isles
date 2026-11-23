@@ -3,6 +3,9 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i12.json';
 
 export const I12 = campaignIsland(LEVEL_12, layout, {
+  formations: {
+    'Hexfire Legion': { brute: { hpScale: 1.4 } },
+  },
   startingGold: 360,
   enemyHpScale: 2.307,
   waveHpGrowth: 0.21,

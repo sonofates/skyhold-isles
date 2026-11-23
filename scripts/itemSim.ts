@@ -3,13 +3,14 @@
  *
  * Usage:
  *   npm run sim:items                        full item balance + economy report & target checks
+ *   npm run sim:items -- --normal-belt       only the paired and progressing Normal item probes
  *   npm run sim:items -- --md                Markdown tables for docs/market-balance.md
  *   npm run sim:items -- --levels=l1c,i14    filter islands (keeps full campaign entry progression)
  *   npm run sim:items -- --loadout=a,b,c     override 3-item belt (defaults to top-3 by marginal value/crystal)
  *   npm run sim:items -- --workers=1         single-threaded execution
  */
 import os from 'node:os';
-import { isMainThread, parentPort, Worker, workerData } from 'node:worker_threads';
+import { isMainThread, Worker } from 'node:worker_threads';
 import { EventBus } from '../src/core/eventBus.ts';
 import { computeMeteorDamage } from '../src/data/abilities.ts';
 import { BALANCE } from '../src/data/balance.ts';
@@ -22,6 +23,7 @@ import {
   ITEM_IDS,
   MARKET_RULES,
   isItemId,
+  heartstoneCeiling,
   type ItemCounts,
   type ItemId,
 } from '../src/data/market.ts';
@@ -70,6 +72,7 @@ export interface ItemRunOutcome {
   readonly profile: Profile;
   readonly outcome: 'ongoing' | 'won' | 'lost';
   readonly finalLives: number;
+  readonly heroXp: number;
   readonly effectiveLives: number;
   readonly restoredLives: number;
   readonly startingLives: number;
@@ -237,7 +240,7 @@ function driveItems(
 
   // 1. Heartstone: restore lost lives when full heal value is reached, or in lethal danger.
   if ((belt.heartstone ?? 0) > 0 && world.lives < world.startingLives) {
-    const missing = world.startingLives - world.lives;
+    const missing = heartstoneCeiling(world.startingLives, world.mods.marketDifficulty) - world.lives;
     const urgent = world.lives <= 6 || (wave === totalWaves && world.lives <= 12);
     if (missing >= ITEMS.heartstone.lives || urgent) {
       world.useItem('heartstone');
@@ -439,6 +442,7 @@ export function executeItemSimJob(spec: ItemRunSpec): ItemRunOutcome {
       profile: spec.profile,
       outcome: res.outcome,
       finalLives: res.finalLives,
+      heroXp: res.heroXp,
       effectiveLives: res.finalLives,
       restoredLives: 0,
       startingLives: res.startingLives,
@@ -551,7 +555,7 @@ export function executeItemSimJob(spec: ItemRunSpec): ItemRunOutcome {
       driveGlobalAbilities(world, kit);
       if (state !== 'betweenWaves') driveItems(world, rt, queue);
     } else if (tick % 15 === 0 && (world.itemSystem.belt().heartstone ?? 0) > 0) {
-      if (world.lives < world.startingLives && (world.startingLives - world.lives >= ITEMS.heartstone.lives || world.lives <= 6)) {
+      if (world.lives < world.startingLives && (heartstoneCeiling(world.startingLives, world.mods.marketDifficulty) - world.lives >= ITEMS.heartstone.lives || world.lives <= 6)) {
         world.useItem('heartstone');
       }
     }
@@ -583,6 +587,7 @@ export function executeItemSimJob(spec: ItemRunSpec): ItemRunOutcome {
     profile: spec.profile,
     outcome: world.outcome,
     finalLives: world.lives,
+    heroXp: world.heroSystem.runXp,
     effectiveLives,
     restoredLives: world.itemSystem.restoredLives,
     startingLives: world.startingLives,
@@ -594,13 +599,6 @@ export function executeItemSimJob(spec: ItemRunSpec): ItemRunOutcome {
     totalCasts,
     crystalsSpent,
   };
-}
-
-if (!isMainThread) {
-  const specs = workerData as readonly ItemRunSpec[];
-  const results = specs.map(executeItemSimJob);
-  parentPort?.postMessage(results);
-  process.exit(0);
 }
 
 async function runSpecsParallel(specs: readonly ItemRunSpec[], maxWorkers: number): Promise<ItemRunOutcome[]> {
@@ -616,8 +614,7 @@ async function runSpecsParallel(specs: readonly ItemRunSpec[], maxWorkers: numbe
     buckets.map(
       (bucket) =>
         new Promise<ItemRunOutcome[]>((resolve, reject) => {
-          const worker = new Worker(new URL(import.meta.url), {
-            execArgv: process.execArgv,
+          const worker = new Worker(new URL('./lib/itemWorker.mjs', import.meta.url), {
             workerData: bucket,
           });
           worker.once('message', (msg: ItemRunOutcome[]) => resolve(msg));
@@ -825,6 +822,46 @@ function fmtRun(r: ItemRunOutcome): string {
   return `W ${r.finalLives}/${r.startingLives}${healTag} ${r.awardedStars}★`;
 }
 
+/** A fixed rescue, economy and damage belt, stocked to the live per-slot cap. Keep the kit
+ * paired for the marginal comparison, then let the belt player spend its own earned stars. */
+function normalBeltProbe(levels: readonly LevelDef[], entries: readonly EntryProgression[], selected: ReadonlySet<string>) {
+  const belt = { heartstone: MARKET_RULES.useCap.normal, skyPurse: MARKET_RULES.useCap.normal, emberPot: MARKET_RULES.useCap.normal };
+  let xp = 0;
+  let stars = 0;
+  let bareLoss = 0;
+  let pairedLoss = 0;
+  let progressingLoss = 0;
+  let wins = 0;
+  console.log('Normal first-clear belt (Heartstone, Sky Purse, Ember Pot). Net lives lost after healing:');
+  console.log('Island  no belt  same kit  own progression  leaks  heals  stars  casts');
+  for (const [levelIndex, level] of levels.entries()) {
+    const entry = entries[levelIndex];
+    const spec = { levelIndex, jobId: 0, difficulty: 'normal', profile: 'campaign', belt } as const;
+    const paired = executeItemSimJob({ ...spec, xp: entry.xp, stars: entry.stars,
+      baselineOutcome: entry.greedyResult.outcome, baselineWaves: entry.greedyResult.waves });
+    const kit = campaignKit(xp, stars);
+    const sameKit = kit.heroLevel === entry.kit.heroLevel && stars === entry.stars;
+    const forecast = sameKit ? entry.greedyResult : runLevelBalanceSim(level, 'greedy', balanceBuildOrder(level, 'greedy'), kit);
+    const result = sameKit ? paired : executeItemSimJob({ ...spec, xp, stars, baselineOutcome: forecast.outcome, baselineWaves: forecast.waves });
+    const base = entry.greedyResult.startingLives - entry.greedyResult.finalLives;
+    const same = paired.startingLives - paired.finalLives;
+    const own = result.startingLives - result.finalLives;
+    if (selected.has(level.id)) console.log([level.id, base, same, own, own + result.restoredLives, result.restoredLives,
+      result.awardedStars, result.totalCasts].join('\t'));
+    bareLoss += base;
+    pairedLoss += same;
+    progressingLoss += own;
+    if (paired.outcome === 'won' && result.outcome === 'won') wins++;
+    xp += result.heroXp;
+    stars += result.awardedStars;
+  }
+  if (levels.length === LEVELS_2D.length && selected.size === levels.length) {
+    const ok = wins === levels.length && bareLoss > 0 && [pairedLoss, progressingLoss].every(n => n >= 0.60 * bareLoss && n < bareLoss);
+    console.log(`${ok ? 'PASS' : 'FAIL'}  Normal belt clears ${wins}/${levels.length} on both profiles and retains ≥60% of net lives lost: ${pairedLoss}/${bareLoss} paired, ${progressingLoss}/${bareLoss} with its own XP and stars`);
+    if (!ok) process.exitCode = 1;
+  }
+}
+
 async function main(): Promise<void> {
   const arg = (key: string): string | undefined =>
     process.argv.find((a) => a.startsWith(`--${key}=`))?.slice(key.length + 3);
@@ -849,8 +886,10 @@ async function main(): Promise<void> {
   }
 
   // Step 1: Compute sequential first-clear entry progressions (25 Easy + 25 Normal).
-  const easyEntries = buildFirstClearEntries(levels, 'easy');
   const normalEntries = buildFirstClearEntries(levels, 'normal');
+  normalBeltProbe(levels, normalEntries, selectedSet);
+  if (process.argv.includes('--normal-belt')) return;
+  const easyEntries = buildFirstClearEntries(levels, 'easy');
 
   let nextJobId = 1;
   const selectedIndices: number[] = [];
@@ -885,6 +924,7 @@ async function main(): Promise<void> {
               profile: p,
               outcome: res.outcome,
               finalLives: res.finalLives,
+              heroXp: res.heroXp,
               effectiveLives: res.finalLives,
               restoredLives: 0,
               startingLives: res.startingLives,
@@ -1040,7 +1080,7 @@ async function main(): Promise<void> {
   // Step 5: Print Item Balance Report.
   console.log(`=== Skyhold Isles Market Item & Economy Simulator ===`);
   console.log(
-    `3-item belt policy loadout: [${chosenLoadout.join(', ')}] (Easy/Normal cap=${MARKET_RULES.useCap.normal}, Hard cap=${MARKET_RULES.useCap.hard})\n`,
+    `3-item belt policy loadout: [${chosenLoadout.join(', ')}] (Easy cap=${MARKET_RULES.useCap.easy}, Normal cap=${MARKET_RULES.useCap.normal}, Hard cap=${MARKET_RULES.useCap.hard})\n`,
   );
 
   console.log(
@@ -1229,6 +1269,13 @@ async function main(): Promise<void> {
         if (!ok) process.exitCode = 1;
       };
 
+      const normalBelt = LEVELS_2D.map(level => beltMap.get(`${level.id}:normal:campaign`)!);
+      const netLoss = normalBelt.reduce((total, run) => total + run.startingLives - run.finalLives, 0);
+      const baseLoss = normalEntries.reduce((total, { greedyResult: run }) => total + run.startingLives - run.finalLives, 0);
+      check(
+        normalBelt.every(run => run.outcome === 'won') && netLoss >= 0.6 * baseLoss && netLoss < baseLoss,
+        `Selected Normal belt clears the campaign and retains ≥60% of net lives lost: ${netLoss}/${baseLoss}`,
+      );
       check(
         weakNormalBeltWins >= weakNormalBaseWins + 3 && weakEasyBeltWins > weakEasyBaseWins,
         `Items turn struggling losses into wins: weak Normal ${weakNormalBaseWins}/25 -> ${weakNormalBeltWins}/25, weak Easy ${weakEasyBaseWins}/25 -> ${weakEasyBeltWins}/25`,

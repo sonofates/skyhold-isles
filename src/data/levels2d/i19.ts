@@ -16,7 +16,7 @@ export const I19 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1019,
-  startingGold: 365,
+  startingGold: 360,
   enemyHpScale: 1.7346,
   waveHpGrowth: 0.1,
   waves: [
@@ -41,7 +41,7 @@ export const I19 = {
     ] },
     { name: 'The High Bough', clearBonus: 31, groups: [
       group('runner', 15, 0.35, 0, 1),
-      group('draftwing', 10, 0.54, 1.8),
+      group('draftwing', 7, 0.54, 1.8),
       group('blinker', 5, 0.7, 4),
     ] },
     { name: 'The Low Bough', clearBonus: 34, groups: [

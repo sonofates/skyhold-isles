@@ -102,7 +102,7 @@ export const LEVEL_L1C: LevelDef = {
       name: 'Rush Hour',
       clearBonus: 34,
       groups: [
-        { enemyType: 'brute', count: 4, spawnInterval: 1.5, startDelay: 0, lane: 1 },
+        { enemyType: 'brute', count: 4, spawnInterval: 1.5, startDelay: 0, lane: 1, hpScale: 1.75 },
         { enemyType: 'runner', count: 12, spawnInterval: 0.55, startDelay: 2, lane: 0 },
         { enemyType: 'grunt', count: 8, spawnInterval: 0.75, startDelay: 5, lane: 1 },
       ],

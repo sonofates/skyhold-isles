@@ -16,7 +16,7 @@ export const I22 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1171,
-  startingGold: 350,
+  startingGold: 380,
   enemyHpScale: 1.8952,
   waveHpGrowth: 0.1,
   waves: [
@@ -92,7 +92,7 @@ export const I22 = {
       { ...group('kilnback', 9, 1.08, 0.3, 1), elite: true },
       group('reedpiper', 4, 1.28, 1.1, 1),
       group('blinker', 9, 0.59, 5.1),
-      { ...group('golem', 8, 0.8, 6, 1), elite: true },
+      { ...group('golem', 3, 0.8, 6, 1), elite: true, hpScale: 1.8 },
     ] },
   ],
   scriptedBuildOrder: [

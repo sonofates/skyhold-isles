@@ -31,7 +31,7 @@ export interface DifficultyDef {
 export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDef>> = {
   easy: {
     id: 'easy',
-    patch: { enemyHpMul: 0.65, enemySpeedMul: 0.92, startGoldMul: 1.25, bonusLives: 5 },
+    patch: { marketDifficulty: 'easy', enemyHpMul: 0.65, enemySpeedMul: 0.92, startGoldMul: 1.25, bonusLives: 5 },
     maxStars: 1,
     allowsChallenges: false,
   },
@@ -44,7 +44,7 @@ export const DIFFICULTIES: Readonly<Record<DifficultyId, DifficultyDef>> = {
   hard: {
     id: 'hard',
     patch: {
-      itemUseCap: MARKET_RULES.useCap.hard,
+      marketDifficulty: 'hard', itemUseCap: MARKET_RULES.useCap.hard,
       enemyHpMul: 1.09,
       startGoldMul: 0.87, startGoldBonus: -250, killGoldMul: 1.3,
       abilityCooldownMul: 1.25, heroRespawnMul: 1.25,

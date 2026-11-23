@@ -7,7 +7,10 @@ export const I14 = campaignIsland(LEVEL_14, layout, {
   waves: replaceWaveEnemy(LEVEL_14, 'Salt Wind', 'healer', 'reedpiper', {
     lane: 2, startDelay: 5.6, spawnInterval: 2.4,
   }),
-  startingGold: 295,
+  formations: {
+    'Aegis Dune': { warden: { count: 4 }, healer: { count: 2 }, flyer: { count: 14 } },
+  },
+  startingGold: 360,
   enemyHpScale: 3.2809,
   waveHpGrowth: 0.0768,
   flyingGroups: { hpScale: 0.55, intervalScale: 1.2 },

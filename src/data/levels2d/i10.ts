@@ -4,6 +4,10 @@ import layout from './i10.json';
 
 export const I10 = campaignIsland(LEVEL_10, layout, {
   waves: replaceWaveEnemy(LEVEL_10, 'Skitter Flood', 'flyer', 'flyer', { count: 9 }),
+  formations: {
+    'Earthshaker': { flyer: { count: 12 } },
+    'The Confluence': { boss: { hpScale: 2.5 } },
+  },
   startingGold: 360,
   enemyHpScale: 1.0533,
   waveHpGrowth: 0.2,

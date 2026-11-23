@@ -82,12 +82,16 @@ function verdict(rows: Row[]): void {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
     if (!ok) process.exitCode = 1;
   }
-  check(easy.length === 25 && comfortable.length > rows.length / 2,
-    `Easy campaign clears all 25 islands, most with ≥12 lives: ${easy.length}/25 wins, ${comfortable.length}/25 with ≥12`);
-  check(weakEasy.length > one.length / 2, `Easy weak clears most of chapter one: ${weakEasy.length}/${one.length}`);
+  check(easy.length === 25 && comfortable.length === rows.length,
+    `Easy campaign clears all 25 islands, each with ≥12 lives: ${easy.length}/25 wins, ${comfortable.length}/25 with ≥12`);
+  check(weakEasy.length >= 14, `Easy weak clears at least 14 chapter-one islands: ${weakEasy.length}/${one.length}`);
   check(Object.keys(DIFFICULTIES.normal.patch).length === 0 && normal.length === rows.length,
     `Normal uses the island tuning and clears the campaign: ${normal.length}/${rows.length}`);
-  check(hardOne.length > one.length / 2, `Hard campaign clears most of chapter one: ${hardOne.length}/${one.length}`);
+  const twos = normal.filter(r => r.stars === 2).length;
+  const threes = normal.filter(r => r.stars === 3).length;
+  check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),
+    `Normal first clears earn mostly 2★ and at most 40% 3★: ${twos} two-star, ${threes} three-star`);
+  check(hardOne.length >= 9 && hardOne.length <= 11, `Hard campaign clears 9–11 islands in chapter one: ${hardOne.length}/${one.length}`);
   check(Math.abs(hardTwo.length - two.length / 2) <= 1,
     `Hard campaign clears about half of chapter two: ${hardTwo.length}/${two.length} (target 3–5)`);
   check(hard.length > 0 && narrow.length === hard.length,
