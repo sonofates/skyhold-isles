@@ -4,6 +4,9 @@ import layout from './i04.json';
 
 export const I04 = campaignIsland(LEVEL_4, layout, {
   waves: replaceWaveEnemy(LEVEL_4, 'Terrace Siege', 'flyer', 'flyer', { count: 16 }),
+  formations: {
+    'Emerald Dreadnoughts': { boss: { hpScale: 1.6 } },
+  },
   startingGold: 265,
   enemyHpScale: 1.167,
   waveHpGrowth: 0.18,

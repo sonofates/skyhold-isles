@@ -42,9 +42,9 @@ export const I21 = {
     { name: 'The Winch Sticks', clearBonus: 32, groups: [
       group('warden', 3, 1.54),
       group('hexer', 3, 1.39, 1.0),
-      group('golem', 4, 1.21, 2.8),
+      { ...group('golem', 4, 1.21, 2.8), hpScale: 1.5 },
       group('healer', 2, 1.47, 4.4),
-      { ...group('kilnback', 15, 0.82, 1.4), elite: true },
+      { ...group('kilnback', 7, 0.82, 1.4), elite: true },
     ] },
     { name: 'Across the Chalk', clearBonus: 34, groups: [
       group('carrier', 2, 2.65),

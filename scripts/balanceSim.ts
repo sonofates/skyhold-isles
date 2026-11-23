@@ -10,7 +10,6 @@ import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
-import { STAR_RULES } from '../src/data/stars.ts';
 import { getTowerTierStats, specializationsFor } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers, workshopStarsSpent } from '../src/data/workshop.ts';
 import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
@@ -416,15 +415,13 @@ function printResult(label: string, res: SimRunResult, level: LevelDef): void {
 
 /** First-clear targets in campaign order, expressed in lives LOST including Bastion's lives. */
 function islandLossWindow(index: number): readonly [number, number] {
-  if (index <= 2) return [0, 2];
-  if (index === 6) return [6, 10]; // Crescent Lagoon fields three bosses across two waves.
-  if (index <= 7) return [0, 5];
-  if (index <= 12) return [2, 7];
-  if (index <= 14) return [8, 12];
-  if (index <= 16) return [9, 13];
-  if (index <= 20) return [11, 16];
-  if (index <= 23) return [13, 18];
-  return [15, 19];
+  if (index <= 1) return [1, 3];
+  if (index <= 5) return [2, 6];
+  if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
+  if (index <= 10) return [4, 8];
+  if (index <= 16) return [6, 11];
+  if (index <= 20) return [7, 12];
+  return [9, 14];
 }
 
 function runScript(map: LevelDef, kind: ScriptKind, kit?: CampaignKit): SimRunResult {
@@ -460,6 +457,7 @@ function printKitDetail(level: LevelDef, kit: CampaignKit, xpAtEntry: number[], 
 export function evaluateBalance(
   levelFilter: ReadonlySet<string> | null,
   verbose: boolean,
+  probeCampaignVariance = false,
 ): { summary: string[]; failures: string[]; robustLines: string[] } {
   /** Greedy (competent build script) lives-left window per difficulty label. */
   const GREEDY_LIVES: Record<LevelDef['difficulty'], readonly [number, number]> = {
@@ -501,6 +499,7 @@ export function evaluateBalance(
   const xpAtEntry: number[] = [];
   let xp = 0;
   let stars = 0;
+  let previousLoss = 0;
   for (const entry of balanceEntries()) {
     const { level, label } = entry;
     const index = LEVELS_2D.indexOf(level);
@@ -513,6 +512,11 @@ export function evaluateBalance(
       xpAtEntry.push(xp);
       xp += greedyRes.heroXp;
       stars += greedyRes.stars;
+      const lost = greedyRes.startingLives - greedyRes.finalLives;
+      if (selected && index !== 17 && previousLoss - lost > 3) {
+        failures.push(`${label} loses ${lost} lives after ${previousLoss} on the preceding island`);
+      }
+      previousLoss = lost;
     }
     if (!selected) continue;
     if (verbose) printResult(label, greedyRes, level);
@@ -531,7 +535,7 @@ export function evaluateBalance(
     const start = greedyRes.startingLives;
     const [minLost, maxLost] = islandLossWindow(index);
     const [gMin, gMax] = kit ? [start - maxLost, start - minLost] : GREEDY_LIVES[level.difficulty];
-    if (robust) {
+    if (robust && !kit) {
       // Informational: greedy lives when every enemy HP is scaled by +-1.5% / +-3% (knife-edge detector).
       const cells: string[] = [];
       for (const k of [0.97, 0.985, 1.0, 1.015, 1.03]) {
@@ -597,9 +601,28 @@ export function evaluateBalance(
         ` | Bran L${kit.heroLevel}, Workshop ${workshopStarsSpent(kit.ranks)}/${entryStars} stars spent` +
         `\n    no kit (info): greedy ${formatLoss(greedyBase)}, weak ${formatLoss(weakBase)}`;
       if (process.argv.includes('--kit-detail')) printKitDetail(level, kit, xpAtEntry, entryStars);
-      const easierIsland = minLost <= STAR_RULES[level.difficulty].threeStarMaxLost;
-      if (easierIsland !== (greedyRes.stars === 3)) {
-        failures.push(`${label} greedy earned ${greedyRes.stars} stars (expected ${easierIsland ? '3' : '1-2'})`);
+      if (index <= 1 && weakBase.outcome !== 'won') failures.push(`${label} weak must clear with towers alone`);
+      if (probeCampaignVariance || robust) {
+        const variants = new Map<string, SimRunResult>([['default', greedyRes]]);
+        for (const hp of [0.97, 0.985, 1.015, 1.03]) {
+          variants.set(`HP×${hp}`, runScript({ ...level, enemyHpScale: (level.enemyHpScale ?? 1) * hp }, 'greedy', kit));
+        }
+        for (const seed of [1, 727]) {
+          const seeded = { ...kit, seed };
+          variants.set(`seed ${seed}`, runScript(level, 'greedy', seeded));
+        }
+        for (const hero of HERO_IDS) {
+          const unlock = HERO_DEFS[hero].unlock;
+          if (unlock.kind !== 'islandsCleared' || index < unlock.count) continue;
+          variants.set(hero, runScript(level, 'greedy', campaignKit(xpAtEntry[index] - xpAtEntry[unlock.count], entryStars, hero)));
+        }
+        if (balanceBuildOrder(level, 'greedy').some(action => action.action === 'specialize')) {
+          variants.set('base towers', runLevelBalanceSim(level, 'greedy', level.scriptedBuildOrder ?? [], kit));
+        }
+        for (const [variant, result] of variants) {
+          if (result.outcome !== 'won') failures.push(`${label} Normal ${variant} did not clear`);
+        }
+        robustLines.push(`${label} ${[...variants].map(([name, r]) => `${name}=${formatLoss(r)}`).join(' | ')}`);
       }
       if (weakRes.outcome === 'ongoing') failures.push(`${label} weak hit the simulation tick limit`);
       if (index <= 2 && (weakRes.outcome !== 'won' || weakRes.stars < 2)) {
@@ -756,7 +779,7 @@ function main(): void {
         }),
       )
     : null;
-  const { summary, failures, robustLines } = evaluateBalance(levelFilter, true);
+  const { summary, failures, robustLines } = evaluateBalance(levelFilter, true, true);
   const workshop = evaluateWorkshopMax(levelFilter);
   failures.push(...workshop.failures);
   const endless = evaluateEndlessSanity(levelFilter);
@@ -777,7 +800,7 @@ function main(): void {
   for (const line of workshop.lines) console.log(line);
   console.log('');
   if (robustLines.length > 0) {
-    console.log('=== Robustness (greedy lives vs enemy HP scale; informational) ===');
+    console.log('=== Robustness (Normal campaign lives lost across HP, seeds, heroes and build orders) ===');
     for (const line of robustLines) console.log(line);
     console.log('');
   }

@@ -539,6 +539,8 @@ function sanitizeReplayModifiers(raw: unknown): RunModifiers {
     abilitiesDisabled: r.abilitiesDisabled === true,
     itemsDisabled: r.itemsDisabled === true,
     itemUseCap: optNum(r.itemUseCap),
+    // Older recordings used full keep repairs and only the explicit per-slot cap.
+    marketDifficulty: r.marketDifficulty === 'normal' || r.marketDifficulty === 'hard' ? r.marketDifficulty : 'easy',
     championWaves: r.championWaves === true,
     heroRespawnMul: optNum(r.heroRespawnMul),
   };

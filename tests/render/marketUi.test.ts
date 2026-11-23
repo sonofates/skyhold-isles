@@ -27,7 +27,7 @@ import { KIT_PLAQUE_SLOTS, NO_INSETS } from '../../src/render2d/uiLayout.ts';
 
 const all = (n: number): Record<ItemId, number> => Object.fromEntries(ITEM_IDS.map((id) => [id, n])) as Record<ItemId, number>;
 const wallet = (crystals: number, inv: Partial<Record<ItemId, number>> = {}, loadout: ItemId[] = []): MarketWallet => ({ crystals, inventory: { ...all(0), ...inv }, loadout });
-const RUN: BeltRunState = { disabled: false, preFirstWave: false, ended: false, paused: false, replaying: false, lives: 15, startingLives: 20, enemies: 4 };
+const RUN: BeltRunState = { disabled: false, preFirstWave: false, ended: false, paused: false, replaying: false, lives: 15, livesUntilNextUse: 0, heartstoneCeiling: 20, enemies: 4 };
 
 describe('Market view-model', () => {
   it('prices, stock and the belt come from the wallet and src/data/market.ts', () => {
@@ -38,7 +38,7 @@ describe('Market view-model', () => {
     expect(v.cards[0]).toMatchObject({ id: 'emberPot', owned: 2, slot: 0, canEquip: false });
     expect(v.slots).toEqual(['emberPot', 'heartstone', null]);
     expect(v.slotCount).toBe(MARKET_RULES.slots);
-    expect(v.useCap).toEqual({ normal: MARKET_RULES.useCap.normal, hard: MARKET_RULES.useCap.hard });
+    expect(v.useCap).toEqual(MARKET_RULES.useCap);
     expect(v.cards.find((c) => c.id === 'frostLantern')!.canEquip).toBe(true);
   });
 
@@ -81,6 +81,7 @@ describe('item belt rules', () => {
   });
 
   it('state: off modes and replays, the end, used up, before the first horn, pointless casts', () => {
+    expect(beltSlotState('emberPot', 1, { ...RUN, livesUntilNextUse: 1 })).toBe('reserve');
     expect(beltSlotState('emberPot', 3, { ...RUN, disabled: true })).toBe('disabled');
     expect(beltSlotState('emberPot', 3, { ...RUN, replaying: true })).toBe('disabled');
     expect(beltSlotState('emberPot', 3, { ...RUN, ended: true })).toBe('over');
@@ -102,7 +103,7 @@ describe('item belt rules', () => {
     const self = beltView(['heartstone', 'skyPurse', 'galeBell'], { heartstone: 1, skyPurse: 1, galeBell: 1 }, {}, RUN);
     expect(self.map(beltPress)).toEqual(['cast', 'cast', 'cast']);
     expect(beltView(['emberPot'], { emberPot: 3 }, {}, { ...RUN, disabled: true })[0]).toMatchObject({ uses: 0, state: 'disabled' });
-    for (const s of ['ready', 'disabled', 'waiting', 'empty', 'full', 'noFoes', 'over', 'paused'] as const) {
+    for (const s of ['ready', 'disabled', 'waiting', 'reserve', 'empty', 'full', 'noFoes', 'over', 'paused'] as const) {
       const key = beltStateKey({ state: s, owned: 1 });
       expect(EN[key as keyof typeof EN], key).toBeTruthy();
       expect(TR[key as keyof typeof TR], key).toBeTruthy();

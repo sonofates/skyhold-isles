@@ -24,8 +24,10 @@ import {
 } from '../../src/sim/world.ts';
 
 const dt = BALANCE.fixedDt;
+// Multi-cast effect and replay cases exercise the fully stocked Easy belt.
+const fullBelt = combineRunModifiers({ marketDifficulty: 'easy' });
 function world(belt: ItemCounts, options: SimWorldOptions = {}) {
-  const w = new SimWorld(LEVEL_L1C, new EventBus(), { itemBelt: belt, ...options });
+  const w = new SimWorld(LEVEL_L1C, new EventBus(), { modifiers: fullBelt, itemBelt: belt, ...options });
   expect(w.grid.isPlotMode).toBe(true);
   w.startNextWave();
   return w;
@@ -137,6 +139,40 @@ describe('plot-map Market items', () => {
     expect(tempest.slowRatio).toBe(0);
   });
 
+  it.each(['normal', 'hard'] as const)('unlocks extra belt uses at five and ten leaked lives on %s', difficulty => {
+    const spend = vi.fn(() => true);
+    const w = world({ emberPot: 1, skyPurse: 1, galeBell: 1 }, {
+      modifiers: withDifficulty(NEUTRAL_RUN_MODIFIERS, difficulty), spendItem: spend,
+    });
+    expect(w.useItem('emberPot', 0, 0)).toBe(true);
+    w.lives -= 4;
+    expect(w.useItem('skyPurse')).toBe(false);
+    expect(w.itemSystem.livesUntilNextUse(w)).toBe(1);
+    w.lives--;
+    expect(w.useItem('skyPurse')).toBe(true);
+    spawn(w, 'brute', 6);
+    w.lives -= 4;
+    expect(w.useItem('galeBell')).toBe(false);
+    w.lives--;
+    expect(w.useItem('galeBell')).toBe(true);
+    expect(spend).toHaveBeenCalledTimes(3);
+  });
+
+  it.each(['normal', 'hard'] as const)('Heartstone repairs up to half the keep on %s, including Bastion', difficulty => {
+    const modifiers = withDifficulty(workshopModifiers({ bastion: 1 }), difficulty);
+    const w = world({ heartstone: 3 }, { modifiers });
+    const limit = Math.ceil(w.startingLives / 2);
+    w.lives = limit;
+    expect(w.useItem('heartstone')).toBe(false);
+    expect(w.itemSystem.belt().heartstone).toBe(1);
+    w.lives -= 2;
+    const stars = w.computeStars();
+    expect(w.useItem('heartstone')).toBe(true);
+    expect(w.lives).toBe(limit);
+    expect(w.itemSystem.restoredLives).toBe(2);
+    expect(w.computeStars()).toBe(stars);
+  });
+
   it('heals only missing lives and keeps all leaks in the star calculation (heartstone can never raise stars)', () => {
     const debit = vi.fn(() => true);
     const w = world({ heartstone: 3 }, { spendItem: debit });
@@ -184,7 +220,7 @@ describe('plot-map Market items', () => {
 
   it('cloudguard snaps three soldiers onto a road, blocks temporarily, expires cleanly without blocking forever, and fallen guards stay down', () => {
     const events = new EventBus();
-    const w = new SimWorld(LEVEL_L1C, events, { itemBelt: { cloudguard: 2 } });
+    const w = new SimWorld(LEVEL_L1C, events, { modifiers: fullBelt, itemBelt: { cloudguard: 2 } });
     const monitor = new InvariantMonitor(w, events);
     w.startNextWave();
     const e = spawn(w, 'grunt', 6);
@@ -252,7 +288,7 @@ describe('plot-map Market items', () => {
   it('galeBell pushes lane, flying, boss, and burrowed foes along their own paths, floors at 0, and never goes off-path or behind spawn', () => {
     const level = LEVELS_2D.find((l) => l.layout2d!.paths.length > 1)!;
     const events = new EventBus();
-    const w = new SimWorld(level, events, { itemBelt: { galeBell: 3 } });
+    const w = new SimWorld(level, events, { modifiers: fullBelt, itemBelt: { galeBell: 3 } });
     const monitor = new InvariantMonitor(w, events);
     w.startNextWave();
 
@@ -311,7 +347,7 @@ describe('plot-map Market items', () => {
   it('enforces pre-wave lock matching abilities, all disabled modes (challenges, Endless start & continuation), caps, zero stock, and victory/defeat locks', () => {
     // 1. Pre-first-wave lock matches canUseAbilities() across all 6 items.
     const pre = new SimWorld(LEVEL_L1C, new EventBus(), {
-      itemBelt: { skyPurse: 2, heartstone: 2, emberPot: 2 },
+      modifiers: fullBelt, itemBelt: { skyPurse: 2, heartstone: 2, emberPot: 2 },
       spendItem: vi.fn(() => true),
     });
     expect(pre.canUseAbilities()).toBe(false);
@@ -368,7 +404,7 @@ describe('plot-map Market items', () => {
     expect(defeated.useItem('skyPurse')).toBe(false);
     expect(defeated.lives).toBe(0);
 
-    // 5. Slot caps, per-difficulty caps (Easy/Normal 3, Hard 1), junk-key sanitization, and 0 inventory.
+    // 5. Slot caps, per-difficulty caps (Easy 3, Normal/Hard 1), junk-key sanitization, and 0 inventory.
     expect(
       cleanBelt({ junkA: 9, junkB: 9, junkC: 9, emberPot: 9, skyPurse: 0, galeBell: 4, heartstone: 2 }),
     ).toEqual({
@@ -381,8 +417,8 @@ describe('plot-map Market items', () => {
     expect(hard.useItem('skyPurse')).toBe(true);
     expect(hard.useItem('skyPurse')).toBe(false);
     const normalCap = world({ skyPurse: 99 }, { modifiers: withDifficulty(NEUTRAL_RUN_MODIFIERS, 'normal') });
-    expect(normalCap.itemSystem.belt().skyPurse).toBe(3);
-    for (let k = 0; k < 3; k++) expect(normalCap.useItem('skyPurse')).toBe(true);
+    expect(normalCap.itemSystem.belt().skyPurse).toBe(MARKET_RULES.useCap.normal);
+    expect(normalCap.useItem('skyPurse')).toBe(true);
     expect(normalCap.useItem('skyPurse')).toBe(false);
     const zeroStock = world({ skyPurse: 0 });
     expect(zeroStock.useItem('skyPurse')).toBe(false);
@@ -393,7 +429,7 @@ describe('plot-map Market items', () => {
     const events1 = new EventBus();
     const beltA = { skyPurse: 2, cloudguard: 2, emberPot: 2 };
     const w = new SimWorld(LEVEL_L1C, events1, {
-      itemBelt: beltA,
+      modifiers: fullBelt, itemBelt: beltA,
       heroId: 'bran',
       heroLevel: 5,
       seed: 4242,
@@ -436,6 +472,12 @@ describe('plot-map Market items', () => {
     expect(replay).not.toBeNull();
     expect(replay.commands.filter((e) => e.command.kind === 'useItem')).toHaveLength(4);
 
+    const legacy = JSON.parse(serialized);
+    delete legacy.modifiers.marketDifficulty;
+    const legacyPlayer = new SimReplayPlayer(w.level, parseSimReplay(JSON.stringify(legacy))!);
+    expect(legacyPlayer.runToEnd().matchesHash).toBe(true);
+    legacyPlayer.dispose();
+
     const player = new SimReplayPlayer(w.level, replay);
     expect(player.runToEnd().matchesHash).toBe(true);
     // Timeline scrubbing backward & forward reproduces intermediate and final hashes identically.
@@ -452,7 +494,7 @@ describe('plot-map Market items', () => {
       heroId: 'bran',
       heroLevel: 5,
       seed: 4242,
-      itemBelt: recorded.itemBelt,
+      modifiers: fullBelt, itemBelt: recorded.itemBelt,
     });
     const cursor = new ReplayCursor(recorded);
     cursor.applyDue(playback, 0);
@@ -465,7 +507,7 @@ describe('plot-map Market items', () => {
 
     // Second belt covering frostLantern, galeBell, and heartstone also replays bit-for-bit.
     const w2 = new SimWorld(LEVEL_L1C, new EventBus(), {
-      itemBelt: { frostLantern: 2, galeBell: 2, heartstone: 2 },
+      modifiers: fullBelt, itemBelt: { frostLantern: 2, galeBell: 2, heartstone: 2 },
       recordCommands: true,
     });
     w2.startNextWave();

@@ -17,7 +17,7 @@ export const I17 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 887,
-  startingGold: 350,
+  startingGold: 320,
   enemyHpScale: 2.0128,
   waveHpGrowth: 0.095,
   waves: [
@@ -59,7 +59,7 @@ export const I17 = {
       group('boss', 1, 1, 0, 1), group('warden', 3, 1.7, 1.2, 1),
       group('bellrunner', 15, 0.45, 1.6), group('draftwing', 5, 0.5, 6.2),
       group('golem', 4, 1.3, 8),
-      { ...group('golem', 12, 0.85, 4, 1), elite: true },
+      { ...group('golem', 8, 0.85, 4, 1), elite: true, hpScale: 0.8 },
     ] },
   ],
   scriptedBuildOrder: [

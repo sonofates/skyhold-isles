@@ -3,6 +3,10 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i02.json';
 
 export const I02 = campaignIsland(LEVEL_2, layout, {
+  formations: {
+    'Spring Tide': { flyer: { count: 13 } },
+    'Dreadnought Fleet': { boss: { hpScale: 1.5 } },
+  },
   startingGold: 300,
   enemyHpScale: 1.741,
   waveHpGrowth: 0.162,

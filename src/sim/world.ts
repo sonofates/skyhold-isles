@@ -1,5 +1,5 @@
 import { ItemSystem } from './itemSystem.ts';
-import { ITEMS, type ItemCounts, type ItemId } from '../data/market.ts';
+import { ITEMS, MARKET_RULES, type ItemCounts, type ItemId } from '../data/market.ts';
 import type { EventBus } from '../core/eventBus.ts';
 import { ObjectPool } from '../core/pool.ts';
 import type { AbilityId, HeroId, HeroSkillSlot, TargetingMode, TowerMvpSummary, TowerType } from '../core/types.ts';
@@ -174,7 +174,7 @@ export class SimWorld {
     const opts = isRunModifiers(modsOrOptions) ? options : modsOrOptions;
     // Champion Host rewrites the story waves (a copy; the shared level data stays untouched).
     const level = mods.championWaves ? championLevel(baseLevel) : baseLevel;
-    this.itemSystem = new ItemSystem(opts?.itemBelt, opts?.spendItem, mods.itemUseCap);
+    this.itemSystem = new ItemSystem(opts?.itemBelt, opts?.spendItem, Math.min(mods.itemUseCap, MARKET_RULES.useCap[mods.marketDifficulty]));
     this.level = level;
     this.events = events;
     this.mods = mods;

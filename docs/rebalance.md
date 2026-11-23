@@ -1,5 +1,7 @@
 # 2D campaign rebalance
 
+This report records the first campaign tuning pass. See [Normal campaign rebalance v2](rebalance-normal-v2.md) for the current curve.
+
 On the live island tuning (`301da3d`), greedy Bran earned 3★ on all 25 islands and lost four lives in total. With the retune, the same player wins all 25 and earns 3★ on 12. Average lives lost rise from 4.6 in chapter one (including Meadow Crossing) to 15.1 in chapter two. Weak wins all three onboarding islands and loses all 20 Heroic and Master islands.
 
 ## First-clear profile

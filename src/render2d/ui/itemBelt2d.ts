@@ -15,7 +15,7 @@
  * Casting goes through `game.useItem` (recorded, debits the belt and the save); the rules stay in the
  * sim (src/sim/itemSystem.ts). FX: itemFx.ts, from the sim's events.
  */
-import type { ItemCounts, ItemId } from '../../data/market.ts';
+import { heartstoneCeiling, type ItemCounts, type ItemId } from '../../data/market.ts';
 import { itemDesc, itemName } from '../../i18n/data.ts';
 import { t, type MsgKey } from '../../i18n/index.ts';
 import { haptics } from '../../platform/haptics.ts';
@@ -426,7 +426,8 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
       paused: game.stepper.paused,
       replaying: game.replaying,
       lives: w.lives,
-      startingLives: w.startingLives,
+      livesUntilNextUse: w.itemSystem.livesUntilNextUse(w),
+      heartstoneCeiling: heartstoneCeiling(w.startingLives, w.mods.marketDifficulty),
       enemies: w.enemyPool.getActiveCount(),
     };
   };

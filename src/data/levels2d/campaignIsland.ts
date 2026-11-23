@@ -15,6 +15,8 @@ interface PlotTuning {
   waveHpGrowth: number;
   hexRadius?: number;
   waves?: LevelDef['waves'];
+  /** Final formation values on the painted route, keyed by wave name and enemy type. */
+  formations?: Readonly<Record<string, Partial<Record<EnemyType, Partial<Omit<WaveGroupDef, 'enemyType'>>>>>>;
   flyingGroups?: FlyingGroupTuning;
   /** Campaign build site "col,row" → index in the baked layout's plots. */
   sites: Readonly<Record<string, number>>;
@@ -52,7 +54,7 @@ export function replaceWaveEnemy(
 
 /** Keep each campaign purchase, upgrade and targeting order on the corresponding painted plot. */
 export function campaignIsland(source: LevelDef, json: Level2DJson, tuning: PlotTuning): LevelDef {
-  const { sites, flyingGroups, waves = source.waves, ...balance } = tuning;
+  const { sites, flyingGroups, formations, waves = source.waves, ...balance } = tuning;
   const layout2d = parseLevel2D(json);
   function onPlots(actions: readonly ScriptedBuildAction[] = []): ScriptedBuildAction[] {
     return actions.map((action) => {
@@ -65,6 +67,7 @@ export function campaignIsland(source: LevelDef, json: Level2DJson, tuning: Plot
     });
   }
 
+  const paintedWaves = flyingGroups ? tuneFlyingGroups(waves, flyingGroups) : waves;
   return {
     ...source,
     ...gridSizeFor(layout2d),
@@ -74,7 +77,10 @@ export function campaignIsland(source: LevelDef, json: Level2DJson, tuning: Plot
     flightPath: [],
     layout2d,
     ...balance,
-    waves: flyingGroups ? tuneFlyingGroups(waves, flyingGroups) : waves,
+    waves: formations ? paintedWaves.map(wave => {
+      const changes = formations[wave.name ?? ''];
+      return changes ? { ...wave, groups: wave.groups.map(g => ({ ...g, ...changes[g.enemyType] })) } : wave;
+    }) : paintedWaves,
     scriptedBuildOrder: onPlots(source.scriptedBuildOrder),
     weakBuildOrder: onPlots(source.weakBuildOrder),
   };

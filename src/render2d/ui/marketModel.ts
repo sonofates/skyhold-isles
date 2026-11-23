@@ -51,7 +51,7 @@ export interface MarketView {
   readonly slots: readonly (ItemId | null)[];
   readonly slotCount: number;
   readonly beltFull: boolean;
-  readonly useCap: { readonly normal: number; readonly hard: number };
+  readonly useCap: typeof MARKET_RULES.useCap;
 }
 
 export function buyBlock(wallet: Pick<MarketWallet, 'crystals' | 'inventory'>, id: ItemId, n = 1): BuyBlock {
@@ -85,7 +85,7 @@ export function marketView(wallet: MarketWallet): MarketView {
     slots,
     slotCount,
     beltFull,
-    useCap: { normal: MARKET_RULES.useCap.normal, hard: MARKET_RULES.useCap.hard },
+    useCap: MARKET_RULES.useCap,
   };
 }
 
@@ -120,7 +120,7 @@ export function usesFor(difficulty: DifficultyId, owned: number): number {
 
 // --- in-run belt -------------------------------------------------------------------------------
 
-export type BeltState = 'ready' | 'disabled' | 'waiting' | 'empty' | 'full' | 'noFoes' | 'over' | 'paused';
+export type BeltState = 'ready' | 'disabled' | 'waiting' | 'reserve' | 'empty' | 'full' | 'noFoes' | 'over' | 'paused';
 
 export interface BeltRunState {
   /** Items off for this run (challenges, Daily, Endless; or abilities off). */
@@ -131,7 +131,8 @@ export interface BeltRunState {
   readonly paused: boolean;
   readonly replaying: boolean;
   readonly lives: number;
-  readonly startingLives: number;
+  readonly livesUntilNextUse: number;
+  readonly heartstoneCeiling: number;
   /** Living enemies on the field (Gale Bell needs one). */
   readonly enemies: number;
 }
@@ -164,7 +165,8 @@ export function beltSlotState(id: ItemId, uses: number, run: BeltRunState): Belt
   if (uses <= 0) return 'empty';
   if (run.preFirstWave) return 'waiting';
   if (run.paused) return 'paused';
-  if (id === 'heartstone' && run.lives >= run.startingLives) return 'full';
+  if (run.livesUntilNextUse > 0) return 'reserve';
+  if (id === 'heartstone' && run.lives >= run.heartstoneCeiling) return 'full';
   if (id === 'galeBell' && run.enemies <= 0) return 'noFoes';
   return 'ready';
 }
@@ -186,6 +188,8 @@ export function beltStateKey(s: Pick<BeltSlotView, 'state' | 'owned'>): string {
       return 'market.disabled';
     case 'waiting':
       return 'item.waiting';
+    case 'reserve':
+      return 'item.reserve';
     case 'empty':
       return s.owned <= 0 ? 'item.outOfStock' : 'item.empty';
     case 'full':

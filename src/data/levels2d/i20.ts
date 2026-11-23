@@ -85,7 +85,7 @@ export const I20 = {
       group('boss', 1, 1, 0, 1),
       { ...group('kilnback', 8, 1.29, 0.6, 2), elite: true },
       group('reedpiper', 4, 1.37, 1.3, 2),
-      { ...group('splitter', 7, 0.81, 2.6), elite: true },
+      { ...group('splitter', 5, 0.81, 2.6), elite: true },
       group('draftwing', 6, 0.5, 6.2),
       { ...group('burrower', 5, 0.6, 7, 2), elite: true },
     ] },

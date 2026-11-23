@@ -64,6 +64,8 @@ side counts as Normal; two legacy saves stay legacy).
 
 ## Campaign simulation
 
+Current per-island results are in [Normal campaign rebalance v2](rebalance-normal-v2.md). The table below records the earlier difficulty pass.
+
 The primary columns use the greedy tower order, Bran and his level-appropriate skills, Workshop
 purchases, Meteor and Overcharge. The simulator uses the same combat driver and first-clear kit
 as `sim:balance`. Chapter one includes Meadow Crossing through i16. Chapter two spans i17–i24.
@@ -81,7 +83,7 @@ as `sim:balance`. Chapter one includes Meadow Crossing through i16. Chapter two 
 
 In the table, `W 3/22 1★` means the keep survived with three of its 22 lives and the player
 received one star. `L @14` means defeat on wave 14. Win stars include the Easy reward cap.
-Regenerate the table with `npm run sim:difficulty -- --md`. A filtered run such as
+Generate the current table with `npm run sim:difficulty -- --md`. A filtered run such as
 `npm run sim:difficulty -- --levels=i24` reconstructs the same entry inventories.
 
 | Island | campaign easy | campaign normal | campaign hard | weak easy | weak normal | weak hard | bare easy | bare normal | bare hard |

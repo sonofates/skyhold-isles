@@ -27,10 +27,17 @@ export const ITEMS = {
 
 export const MARKET_RULES = {
   starterCrystals: 28, starterCount: 1, inventoryCap: 99, slots: 3,
-  useCap: { easy: 3, normal: 3, hard: 1 },
+  useCap: { easy: 3, normal: 1, hard: 1 },
+  livesLostPerExtraUse: { easy: 0, normal: 5, hard: 5 },
+  heartstoneCeiling: { easy: 1, normal: 0.5, hard: 0.5 },
   baseWin: 14, perStar: 4, firstClear: 20, repeatMultiplier: 0.35, dailyBonus: 18,
   difficulty: { easy: 0.75, normal: 1, hard: 1.35 },
 } as const;
+
+/** Highest life total a Heartstone can repair on this difficulty, including Bastion. */
+export function heartstoneCeiling(startingLives: number, difficulty: DifficultyId): number {
+  return Math.ceil(startingLives * MARKET_RULES.heartstoneCeiling[difficulty]);
+}
 
 export function winCrystals(stars: number, firstClear: boolean, difficulty: DifficultyId, countedDaily = false): number {
   const awarded = Number.isFinite(stars) ? Math.min(3, Math.max(1, Math.floor(stars))) : 1;

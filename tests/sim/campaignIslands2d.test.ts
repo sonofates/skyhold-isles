@@ -40,8 +40,30 @@ const formations = [
   { id: 'i16', wave: 'Gatecrash', slot: 2, from: 'brute', patch: { enemyType: 'kilnback' } },
 ] as const;
 
+// Painted-route adjustments apply after the shared air tuning.
+const paintedFormations = [
+  { id: 'i01', wave: 'Iron Knock', slot: 1, from: 'brute', patch: { elite: true, hpScale: 2.4 } },
+  { id: 'i02', wave: 'Spring Tide', slot: 2, from: 'flyer', patch: { count: 13 } },
+  { id: 'i02', wave: 'Dreadnought Fleet', slot: 4, from: 'boss', patch: { hpScale: 1.5 } },
+  { id: 'i04', wave: 'Emerald Dreadnoughts', slot: 4, from: 'boss', patch: { hpScale: 1.6 } },
+  { id: 'i05', wave: 'Gale Force', slot: 2, from: 'flyer', patch: { hpScale: 0.85 } },
+  { id: 'i05', wave: 'Harvest Dreadnought', slot: 5, from: 'boss', patch: { hpScale: 1.3 } },
+  { id: 'i05', wave: 'Harvest Dreadnought', slot: 3, from: 'flyer', patch: { count: 28 } },
+  { id: 'i06', wave: 'The Leviathan', slot: 4, from: 'boss', patch: { hpScale: 0.6 } },
+  { id: 'i06', wave: 'Maelstrom', slot: 0, from: 'flyer', patch: { count: 12 } },
+  { id: 'i07', wave: 'Fortress Breaker', slot: 3, from: 'boss', patch: { hpScale: 1.4 } },
+  { id: 'i09', wave: 'Twin Warlords', slot: 3, from: 'boss', patch: { hpScale: 1.35, spawnInterval: 4.5 } },
+  { id: 'i10', wave: 'Earthshaker', slot: 3, from: 'flyer', patch: { count: 12 } },
+  { id: 'i10', wave: 'The Confluence', slot: 0, from: 'boss', patch: { hpScale: 2.5 } },
+  { id: 'i11', wave: 'Golden Freight', slot: 0, from: 'golem', patch: { hpScale: 1.45 } },
+  { id: 'i12', wave: 'Hexfire Legion', slot: 0, from: 'brute', patch: { hpScale: 1.4 } },
+  { id: 'i14', wave: 'Aegis Dune', slot: 0, from: 'warden', patch: { count: 4 } },
+  { id: 'i14', wave: 'Aegis Dune', slot: 2, from: 'healer', patch: { count: 2 } },
+  { id: 'i14', wave: 'Aegis Dune', slot: 3, from: 'flyer', patch: { count: 14 } },
+] as const;
+
 const air: Partial<Record<string, { hp?: number; count?: number; interval?: number }>> = {
-  i03: { hp: 0.75 }, i06: { count: 0.65, interval: 1.2 }, i07: { hp: 0.65 },
+  i03: { hp: 0.75 }, i06: { count: 0.65, interval: 1.2 }, i07: { hp: 0.58 },
   i08: { hp: 0.4, interval: 1.5 }, i11: { hp: 0.15 }, i13: { hp: 0.35 },
   i14: { hp: 0.55, interval: 1.2 }, i15: { hp: 0.8, interval: 1.75 }, i16: { hp: 0.5, interval: 1.5 },
 };
@@ -59,7 +81,8 @@ describe.each(ids)('%s campaign plot map', (id) => {
     expect(level.layout2d).toEqual(layout);
     const overrides = formations.filter(formation => formation.id === id);
     const tuning = air[id];
-    if (overrides.length || tuning) {
+    const painted = paintedFormations.filter(formation => formation.id === id);
+    if (overrides.length || tuning || painted.length) {
       const expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
       for (const { wave, slot, from, patch } of overrides) {
         const group = expected.find(w => w.name === wave)!.groups[slot];
@@ -74,6 +97,11 @@ describe.each(ids)('%s campaign plot map', (id) => {
             if (tuning.interval !== undefined) group.spawnInterval *= tuning.interval;
           }
         }
+      }
+      for (const { wave, slot, from, patch } of painted) {
+        const group = expected.find(w => w.name === wave)!.groups[slot];
+        expect(group.enemyType).toBe(from);
+        Object.assign(group, patch);
       }
       expect(level.waves).toEqual(expected);
     } else {

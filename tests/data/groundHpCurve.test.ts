@@ -34,14 +34,24 @@ const baseline = [
   ['i24', 1.965, 5.814709],
 ] as const;
 
+// Named finale formations have their own HP on top of the story curve.
+const finaleHp: Record<string, Record<string, number>> = {
+  i02: { boss: 1.5 }, i04: { boss: 1.6 }, i05: { boss: 1.3 },
+  i10: { boss: 2.5 },
+  i17: { 'golem:1': 0.8 }, i22: { golem: 1.8 }, i24: { tempest: 2 },
+};
+
 it.each(baseline)('%s keeps its first and last story wave ground HP within ten percent', (id, first, last) => {
   const level = LEVELS_2D.find(island => island.id === id)!;
   const waves = new WaveSystem(level, new EventBus());
   for (const [wave, expected] of [[1, first], [level.waves.length, last]]) {
     waves.skipToWave(wave);
     const scales = new Set<number>();
-    waves.update(Infinity, () => 1, (type, scale, _elite, _lane, groupScale) => {
-      if (!ENEMY_DEFS[type].flying) scales.add(scale * groupScale);
+    waves.update(Infinity, () => 1, (type, scale, _elite, lane, groupScale) => {
+      if (ENEMY_DEFS[type].flying) return;
+      const formation = wave === level.waves.length ? finaleHp[id] : undefined;
+      expect(groupScale).toBe(formation?.[`${type}:${lane}`] ?? formation?.[type] ?? 1);
+      scales.add(scale);
     }, () => {}, () => {});
     expect(scales.size, `ground spawns on wave ${wave}`).toBeGreaterThan(0);
     for (const scale of scales) {

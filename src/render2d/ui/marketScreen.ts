@@ -99,7 +99,7 @@ export function openMarket(opts: MarketScreenOptions = {}): Sheet {
       {},
       el('span', '', {}, t('market.loadoutHint', { n: MARKET_RULES.slots })),
       ' ',
-      el('span', 'pu-market-cap', { 'data-testid': 'market2d-cap' }, t('market.capLine', { n: MARKET_RULES.useCap.normal, hard: MARKET_RULES.useCap.hard })),
+      el('span', 'pu-market-cap', { 'data-testid': 'market2d-cap' }, t('market.capLine', MARKET_RULES.useCap)),
     ),
     beltNote,
   );

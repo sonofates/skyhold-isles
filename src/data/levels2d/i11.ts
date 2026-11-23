@@ -3,7 +3,10 @@ import { campaignIsland } from './campaignIsland.ts';
 import layout from './i11.json';
 
 export const I11 = campaignIsland(LEVEL_11, layout, {
-  startingGold: 255,
+  formations: {
+    'Golden Freight': { golem: { hpScale: 1.45 } },
+  },
+  startingGold: 265,
   enemyHpScale: 1.9624,
   waveHpGrowth: 0.235,
   flyingGroups: { hpScale: 0.15 },

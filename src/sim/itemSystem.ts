@@ -1,6 +1,6 @@
 import { computeMeteorDamage } from '../data/abilities.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
-import { ITEMS, MARKET_RULES, isItemId, type ItemCounts, type ItemId } from '../data/market.ts';
+import { ITEMS, MARKET_RULES, isItemId, heartstoneCeiling, type ItemCounts, type ItemId } from '../data/market.ts';
 import type { EnemyEntity } from './entities.ts';
 import type { LevelDef } from '../data/levels/types.ts';
 import { worldToGridCoord } from './grid.ts';
@@ -66,6 +66,7 @@ export class ItemSystem {
   readonly initial: Readonly<ItemCounts>;
   private readonly remaining: ItemCounts;
   private healed = 0;
+  private casts = 0;
   get restoredLives(): number { return this.healed; }
   private readonly spend?: (id: ItemId) => boolean;
 
@@ -77,21 +78,29 @@ export class ItemSystem {
 
   belt(): ItemCounts { return { ...this.remaining }; }
 
+  /** Further supplies become available as the keep takes damage. Healing preserves eligibility. */
+  livesUntilNextUse(world: SimWorld): number {
+    const lost = world.startingLives - world.lives + this.healed;
+    return Math.max(0, this.casts * MARKET_RULES.livesLostPerExtraUse[world.mods.marketDifficulty] - lost);
+  }
+
   use(world: SimWorld, id: ItemId, x = NaN, z = NaN, onAccepted?: () => void): boolean {
     if (!isItemId(id)) return false;
     const charges = this.remaining[id] ?? 0;
-    if (!charges || world.mods.itemsDisabled || world.mods.abilitiesDisabled || world.waveSystem.isEndless ||
+    if (!charges || this.livesUntilNextUse(world) > 0 || world.mods.itemsDisabled || world.mods.abilitiesDisabled || world.waveSystem.isEndless ||
         world.outcome !== 'ongoing' || world.waveSystem.state === 'preFirstWave') return false;
     const target = ITEMS[id].target;
     const road = { x: 0, z: 0, yaw: 0 };
     if (target !== 'self' && !onMap(world.level, x, z)) return false;
     if (target === 'road' && !world.soldierSystem.findRoadPoint(x, z, ITEMS.cloudguard.snapRadius, x, z, road)) return false;
-    if (id === 'heartstone' && world.lives >= world.startingLives) return false;
+    const repairLimit = heartstoneCeiling(world.startingLives, world.mods.marketDifficulty);
+    if (id === 'heartstone' && world.lives >= repairLimit) return false;
     const enemies = itemTargets(world, id, x, z);
     if ((id === 'frostLantern' || id === 'galeBell') && !enemies.length) return false;
     // All rejection paths precede the synchronous debit and all renderer notifications.
     if (this.spend && !this.spend(id)) return false;
     this.remaining[id] = charges - 1;
+    this.casts++;
     onAccepted?.();
     const castPoint = target === 'road' ? { x: road.x, z: road.z } : { x, z };
     world.events.emit('itemCast', { id, remaining: charges - 1, ...(target === 'self' ? {} : castPoint) });
@@ -150,16 +159,18 @@ export class ItemSystem {
         world.soldierSystem.spawnCloudguard(road, wave);
         break;
       case 'heartstone': {
-        const heal = Math.min(ITEMS.heartstone.lives, world.startingLives - world.lives);
+        const heal = Math.min(ITEMS.heartstone.lives, repairLimit - world.lives);
         world.lives += heal;
         this.healed += heal;
         world.events.emit('economyChanged', { gold: world.gold, lives: world.lives });
         break;
       }
-      case 'skyPurse':
-        world.gold += Math.round(world.level.startingGold * ITEMS.skyPurse.startingGoldFraction + wave * ITEMS.skyPurse.goldPerWave);
+      case 'skyPurse': {
+        const purse = ITEMS.skyPurse;
+        world.gold += Math.round(world.level.startingGold * purse.startingGoldFraction + wave * purse.goldPerWave);
         world.events.emit('economyChanged', { gold: world.gold, lives: world.lives });
         break;
+      }
     }
     return true;
   }
