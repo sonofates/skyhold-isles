@@ -41,6 +41,7 @@ const SCREENS = [
   ['settings-graphics', '?screen=settings&settab=graphics', true],
   ['settings-controls', '?screen=settings&settab=controls', true],
   ['store', '?screen=store&iapmock=1', true],
+  ['market', '?screen=market', true],
   // In a run: the story book before the battle, the Codex board from the HUD.
   ['story', '?level=i02&story=intro', false, { wait: '.pu-story', storyFresh: true }],
   ['codex', '?level=i02&hero=bran', true, { wait: '[data-testid="codex2d-open"]', click: '[data-testid="codex2d-open"]' }],

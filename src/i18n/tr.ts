@@ -657,6 +657,8 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'touch.ability': 'Bir yeteneğe, sonra haritaya ya da bir kuleye dokun',
   'touch.cancel': 'Vazgeçmek için yeteneğe yeniden dokun',
   'touch.pan': 'Haritayı biraz kaydırmak için zemini tek parmakla sürükle',
+  'touch.panPhone': 'Haritayı kaydırmak için zemini tek parmakla sürükle',
+  'touch.zoom': 'Yakınlaşmak ya da uzaklaşmak için iki parmakla sıkıştır',
   'fps.counter': '{n} FPS',
 
   // --- abilities (in-game bar) ---------------------------------------------------------------

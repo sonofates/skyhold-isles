@@ -651,6 +651,8 @@ export const EN = {
   'touch.ability': 'Tap an ability, then the map or a tower',
   'touch.cancel': 'Tap the ability again to cancel',
   'touch.pan': 'Drag the ground with one finger to slide the map a little',
+  'touch.panPhone': 'Drag the ground with one finger to move the map',
+  'touch.zoom': 'Pinch with two fingers to zoom in or out',
   'fps.counter': '{n} FPS',
 
   // --- abilities (in-game bar) ---------------------------------------------------------------
