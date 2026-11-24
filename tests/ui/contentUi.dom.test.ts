@@ -65,12 +65,14 @@ describe.skipIf(!hasDom)('content UI (DOM)', () => {
 
   it('codex: silhouettes until met, then names; tabs and detail work', async () => {
     const { CodexScreen } = await import('../../src/ui/content/codexScreen.ts');
+    const { allEnemyEntries } = await import('../../src/ui/content/codexData.ts');
+    const foes = allEnemyEntries().length;
     const seen = new Set<string>(['enemy:grunt']);
     const codex = new CodexScreen(fresh(), { isSeen: (id) => seen.has(id), onClose: () => undefined });
     codex.open('enemies');
     const tiles = root.querySelectorAll('.cx-tile');
-    expect(tiles).toHaveLength(16); // 15 foes + elites
-    expect(root.querySelectorAll('.cx-tile.is-locked')).toHaveLength(15);
+    expect(tiles).toHaveLength(foes + 1); // every foe + elites
+    expect(root.querySelectorAll('.cx-tile.is-locked')).toHaveLength(foes); // all but the grunt, elites included
     expect(root.querySelector('[data-testid="codex-tile-grunt"] .cx-tile-name')?.textContent).toBe('Raider Grunt');
     expect(root.querySelector('[data-testid="codex-tile-boss"] .cx-tile-name')?.textContent).toBe('???');
     expect(root.querySelector('.cx-d-name')?.textContent).toBe('Raider Grunt');
