@@ -17,17 +17,17 @@
    "x": 385,
    "y": 300,
    "gate": {
-    "prop": "cave-e",
+    "prop": "shard-grotto-e",
     "facing": "E",
     "front": {
      "art": "map-i25-layered-gate-A",
      "rect": [
-      281.0,
-      212.0,
-      140.0,
-      117.0
+      305.5,
+      200.5,
+      113.0,
+      118.0
      ],
-     "baseY": 329.83
+     "baseY": 318.81
     }
    }
   },
@@ -36,17 +36,17 @@
    "x": 385,
    "y": 554,
    "gate": {
-    "prop": "cave-e",
+    "prop": "shard-grotto-e",
     "facing": "E",
     "front": {
      "art": "map-i25-layered-gate-B",
      "rect": [
-      281.0,
-      466.0,
-      140.0,
-      117.0
+      305.5,
+      454.5,
+      113.0,
+      118.0
      ],
-     "baseY": 583.83
+     "baseY": 572.81
     }
    }
   }

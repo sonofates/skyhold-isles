@@ -17,17 +17,17 @@
    "x": 380,
    "y": 335,
    "gate": {
-    "prop": "cave-e",
+    "prop": "ore-kiln-e",
     "facing": "E",
     "front": {
      "art": "map-i26-layered-gate-A",
      "rect": [
-      241.0,
-      246.5,
-      176.5,
+      284.0,
+      239.5,
+      133.5,
       118.0
      ],
-     "baseY": 364.81
+     "baseY": 357.85
     }
    }
   },
@@ -36,17 +36,17 @@
    "x": 1430,
    "y": 230,
    "gate": {
-    "prop": "cave-w",
+    "prop": "ore-kiln-w",
     "facing": "W",
     "front": {
      "art": "map-i26-layered-gate-B",
      "rect": [
-      1393.0,
-      141.5,
-      176.5,
+      1398.0,
+      138.5,
+      133.5,
       118.0
      ],
-     "baseY": 259.81
+     "baseY": 256.92
     }
    }
   }

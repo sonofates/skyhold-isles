@@ -17,17 +17,17 @@
    "x": 375,
    "y": 258,
    "gate": {
-    "prop": "cave-e",
+    "prop": "reed-weir-e",
     "facing": "E",
     "front": {
      "art": "map-i27-layered-gate-A",
      "rect": [
-      216.0,
-      161.0,
-      197.5,
-      117.0
+      287.5,
+      164.5,
+      128.5,
+      118.0
      ],
-     "baseY": 278.77
+     "baseY": 282.6
     }
    }
   },
@@ -36,17 +36,17 @@
    "x": 378,
    "y": 611,
    "gate": {
-    "prop": "cave-e",
+    "prop": "reed-weir-e",
     "facing": "E",
     "front": {
      "art": "map-i27-layered-gate-B",
      "rect": [
-      219.0,
-      514.0,
-      197.5,
-      117.0
+      288.5,
+      519.5,
+      128.5,
+      118.0
      ],
-     "baseY": 631.77
+     "baseY": 637.58
     }
    }
   }

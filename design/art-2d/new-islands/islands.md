@@ -1,6 +1,20 @@
 # New island paintings
 
-The terrain plates, four-object scenery atlases, road materials and story panels use the built-in image generator. The first atlas object is the island landmark. The road compositor places it with the gates and reserves its footprint during plot placement.
+The built-in image generator painted the terrain plates, gate atlas, scenery, road materials and story panels. Each terrain plate carries its large margin landmark and two smaller vignettes. The compositor seats the enemy gates, adds the original scenery and lays the approved roads over the painting. The biome kit’s land mask keeps scatter off architecture, cliffs and water.
+
+## Shared terrain prompt
+
+Paint one full-bleed 2.167∶1 Skyhold Isles terrain plate. Use the island layout guide for placement. Pink marks both roads, the space for each tower and its pad, and the gate footprints. Paint continuous walkable turf or earth over every marking. Use i17, i18, i16 and i14 as references for painting scale, edge architecture and brushwork. Bird’s-eye near-orthographic view, layered matte gouache, dry-brushed edges, thin broken sepia accents, warm upper-left sun and short lower-right contact shadows. Group details into silhouettes that read at phone size. Omit roads, gates, towers, pads, labels, borders and the guide itself.
+
+## Enemy gate atlas prompt
+
+Paint three complete, isolated miniatures in one wide row on transparency. Use the previous east-facing gate silhouettes as references for the camera and doorway orientation. Keep each opening opaque, dark and free of crossbars. Show the sill and the right-facing doorway where enemies step onto the road. Give each entrance a distinct roofline and materials. Use the terrain lighting and gouache edges. Leave clear gutters between objects.
+
+1. Grow aquamarine storm-glass ribs out of indigo slate around the first opening. Brace the shards with bronze clamps and crown the grotto with a small lightning rod.
+2. Build the second entrance as an ore kiln in red firebrick with blue-black iron bands, two capped vents and orange light through a side grate. Keep the open mouth in shadow.
+3. Roof the river weir in golden bundled reeds. Set the teal plank sides on stone feet and frame the open gable with timber jambs, lashed eaves and a loop of rope.
+
+The three cutouts ship in the highlands, ember and tidal biome kits. The compositor mirrors the kiln to face i26’s westbound approach.
 
 ## i25 · Galeglass Orrery
 
@@ -8,7 +22,7 @@ The two roads clasp the instrument like the open jaws of a caliper. Its keeper m
 
 ### Terrain
 
-Original Skyhold Isles game environment terrain painting of a storm-swept highland charting lawn, soft lichen green over cool bluish shale, silver oats, lavender cloudbanks just beyond a broken dark slate rim at the extreme left, lower right and top. Grey spires at far left edge. Very wide panoramic 2.17:1 landscape, bird’s-eye near-orthographic view straight down. A single enormous flat usable plateau fills the whole central 84% of the frame including the entire top centre. Margin detail occupies ONLY outer 8%. Hand-painted storybook gouache, broad chunky silhouettes, delicate drybrush accents, overhead warm upper-left light. Keep the central ground softly mottled, continuous and low contrast. Full bleed, no horizon, buildings, roads, trails, gates, circles, plots, UI, text or borders.
+Paint a lichen-green floating headland over luminous lavender cloud. Expose jagged blue slate along the rim with distant floating crags and faceted storm-glass spires. In the upper-right clearing, centre a broad open survey arcade around 76% across and 29% down. Stone piers carry a bronze elevation quadrant and a suspended aquamarine lens. Let the stairs and their shadows meet the shale. Leave space for the brass armillary at centre. Set two marked survey stones on the left cliff and a wind-worn tripod beacon on the upper-left outcrop. Break up the meadow with half-buried paving, silver oats, heather and mica in broad sweeps of sage, honey and rain-shadow teal.
 
 ### Scenery
 
@@ -32,7 +46,7 @@ Two mine approaches feed a stepped haul road. The lift is stranded with the last
 
 ### Terrain
 
-Original Skyhold Isles game environment terrain painting of an amber mesa haul-yard, broad pale ochre loess and dusty sage-green wiry grass patches with rusty red sandstone strata exposed only around the outermost perimeter; a slender vertical chasm of orange mist hugging the far right edge; dark violet distant tablelands at lower corners. Very wide panoramic 2.17:1 landscape, bird’s-eye near-orthographic view straight down. A single enormous flat usable plateau fills the whole central 84% of the frame including the entire top centre. Margin detail occupies ONLY outer 8%. Hand-painted storybook gouache, broad chunky silhouettes, delicate drybrush accents, overhead warm upper-left light. Keep the central ground softly mottled, continuous and low contrast. Full bleed, no horizon, buildings, roads, trails, gates, circles, plots, UI, text or borders.
+Paint a stepped canyon mesa. Make the playable yard medium-dark blue-grey slag and umber, with patches of worn firebrick, charcoal dust, scuffed gravel and ash drifts. In the lower-left pocket, around 24% across and 69% down, build a timber-and-iron lift with winding drums, a hanging ore bucket and an attached brick engine shed. Open its firebox toward the viewer. Put twin capped furnace chimneys on the upper-left bench and a blue-glass cooling trough on the right rim. Show the drop beneath the gantry with deep plum shadows and thin orange ember cracks between terrace faces. The pale ochre haul road will be composited across this yard.
 
 ### Scenery
 
@@ -40,7 +54,7 @@ Original Skyhold Isles game scenery atlas, a SINGLE HORIZONTAL ROW of exactly fo
 
 ### Road
 
-Square seamless road surface material for the Skyhold Isles painted strategy map. Straight down orthographic, continuous honey-ochre compressed furnace grit and broad rusty red sandstone chips with pale elongated scrape marks, light dusty ochre average value. Two metres across. Small grouped shapes, gouache and drybrush, soft upper-left light, low contrast, tactile. Fill entire square. No verges, borders, perspective, people, letters or decoration.
+Paint a square seamless tile of sun-bleached ochre haul road to read against charcoal slag at phone scale. Work chipped, pale firebricks into compacted golden mineral dust in uneven staggered runs. Add occasional terracotta edges, iron-wheel scuffs and quiet sandy gaps. Use grouped, low-contrast gouache strokes, thin sepia accents and diffuse upper-left light. Fill the tile edge to edge. Omit verges, bends, lane markings and objects.
 
 ### Intro
 
@@ -56,7 +70,7 @@ The towpaths fold back along a wick-making ground. A ferry waits for the long br
 
 ### Terrain
 
-Original Skyhold Isles game environment terrain painting of a grassy ferry strand on a floating estuary island, warm celery turf and pear-green salt meadow flat and open, tiny cream thrift at the extreme margins, painterly turquoise water and white eddies confined to the outermost right and bottom edges, old low timber pilings at very far left. Very wide panoramic 2.17:1 landscape, bird’s-eye near-orthographic view straight down. A single enormous flat usable plateau fills the whole central 84% of the frame including the entire top centre. Margin detail occupies ONLY outer 8%. Hand-painted storybook gouache, broad chunky silhouettes, delicate drybrush accents, overhead warm upper-left light. Keep the central ground softly mottled, continuous and low contrast. Full bleed, no horizon, buildings, roads, trails, gates, circles, plots, UI, text or borders.
+Paint a willow-green strand edged by a teal river on the left, right and lower bank. Follow the bank with a narrow sandy towpath and pilings. In the right pocket, around 88% across and 42% down, build a reed-thatched wick loft with a red-spoked winding wheel. Hang long ivory skeins on heavy drying frames above a wooden wharf. Let the river show between its piers and tie an ochre punt at the landing. Plant short staggered orchard rows along the upper bank. Put bundled flax and a wicker creel beside a short jetty on the middle-left bank. Across the meadow paint half-buried cobbles, stubble, sand drifts, thrift, reed beds and alder roots.
 
 ### Scenery
 
