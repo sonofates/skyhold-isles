@@ -110,10 +110,22 @@
   animation: none;
 }
 
+/* Phones: one compact card at a time (featToast2d.ts), top-left, so the victory ribbon's title in
+   the middle stays readable. */
+html.pu-phone .pu-feat-toasts {
+  left: max(8px, var(--safe-l, 0px));
+  transform: none;
+}
+
 html.pu-phone .pu-feat-toast {
-  width: min(320px, 46vw);
-  padding: 8px 12px;
+  width: min(250px, 34vw);
+  padding: 6px 10px;
   gap: var(--ui-gap);
+}
+
+html.pu-phone .pu-feat-toast .pu-seal {
+  width: 40px;
+  height: 40px;
 }
 
 html.pu-phone .pu-feat-toast-kicker {
