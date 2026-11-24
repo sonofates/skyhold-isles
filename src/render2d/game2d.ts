@@ -113,6 +113,11 @@ export interface Game2DHooks {
   modifiers?: RunModifiers;
   /** Selected hero configuration passed to SimWorld (`null` / `undefined` = no hero). */
   hero?: HeroInitConfig | null;
+  /**
+   * Re-reads the hero for a live (re)start, so Retry after a level-up plays at the new level.
+   * Replays never call it: they reuse the hero their run was recorded with.
+   */
+  refreshHero?: () => HeroInitConfig | null;
   /** Start SimWorld in Endless mode from wave 1 (`startEndlessFromStart()`), keeping normal defeat flow. */
   startEndless?: boolean;
   itemBelt?: () => ItemCounts;
@@ -275,6 +280,10 @@ export class Game2D {
   private replayCursor: ReplayCursor | null = null;
   /** The last finished live run, ready to be watched. */
   lastReplay: RunReplay | null = null;
+  /** Hero the current live run started with, and the one `lastReplay` was recorded with. */
+  private liveHero: HeroInitConfig | null | undefined;
+  private replayHero: HeroInitConfig | null | undefined;
+  private liveRuns = 0;
   /** The end board of that run (restored when the replay ends or is left). */
   private lastEnd: ReturnType<EndPanel['snapshot']> = null;
   /** Did the last replay reproduce its run exactly (null = not finished)? */
@@ -545,7 +554,11 @@ export class Game2D {
     this.refreshSettings();
     this.events = new EventBus();
     this.unbindHaptics = bindHaptics(this.events);
-    const heroCfg = this.hooks.hero;
+    if (!replay) {
+      // The first run uses the hero resolved at load; a Retry re-reads the save (XP from the last run).
+      this.liveHero = this.liveRuns++ > 0 && this.hooks.refreshHero ? this.hooks.refreshHero() : this.hooks.hero;
+    }
+    const heroCfg = replay ? this.replayHero : this.liveHero;
     this.world = new SimWorld(
       this.level,
       this.events,
@@ -1186,7 +1199,10 @@ export class Game2D {
         if (!this.replayMatched) console.warn('[replay] the replay did not reproduce the run', runFingerprint(world, this.ticks), this.replayCursor.replay.end);
         this.showEnd();
       } else {
-        if (this.recorder) this.lastReplay = this.recorder.finish(world, this.ticks);
+        if (this.recorder) {
+          this.lastReplay = this.recorder.finish(world, this.ticks);
+          this.replayHero = this.liveHero;
+        }
         this.endShown = true;
         this.closeRing();
         const won = world.outcome === 'won';
