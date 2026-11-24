@@ -6,7 +6,7 @@ import type { Circle } from '../../src/render2d/playfield.ts';
 import { KIT_PLAQUE_SLOTS, NO_INSETS, type Rect } from '../../src/render2d/uiLayout.ts';
 
 /** The reach task's screens: desktops, small windows, phone landscape and portrait. */
-const SIZES: readonly [number, number][] = [[2000, 991], [1920, 1080], [1440, 900], [1366, 768], [1280, 720], [800, 600], [844, 390], [932, 430], [390, 844]];
+const SIZES: readonly [number, number][] = [[2000, 991], [1920, 1080], [1440, 900], [1366, 768], [1280, 720], [1280, 800], [800, 600], [844, 390], [932, 430], [390, 844]];
 const OPTS: HudDockOptions = { plaqueAspect: 1024 / 294, plaqueSlots: KIT_PLAQUE_SLOTS, bannerAspect: 512 / 152, hero: true };
 
 function circleHits(cx: number, cy: number, r: number, b: Rect): boolean {
@@ -82,7 +82,7 @@ describe('every tower plot can be panned clear of the HUD (fullBleed.ts reachRan
     expect(bad).toEqual([]);
   }, 300_000);
 
-  it('no plot is covered by any HUD piece at the default view across all 25 islands and viewports', () => {
+  it('no plot is covered by any HUD piece at the default view across all islands and viewports', () => {
     const bad: string[] = [];
     for (const k of CASES) {
       const hit = coveredPlotIndices(k.plots, { scale: k.scale, offsetX: k.fitX, offsetY: k.fitY }, Object.values(dockPieces(k.dock)));
