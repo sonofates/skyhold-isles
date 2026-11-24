@@ -116,6 +116,7 @@ describe('IAP store adapter: web & Steam no-op', () => {
     legacyTruncStorage.setItem(IAP_SAVE_KEY, '["full_unlock","starter_pa');
     const mobileStore = createIapStore({
       platform: createMobilePlatform('ios'),
+      mode: 'native',
       storage: legacyTruncStorage,
     });
     expect(mobileStore.owned('full_unlock')).toBe(true);
@@ -301,14 +302,40 @@ describe('IAP store adapter: native RevenueCat bridge', () => {
       nativeBridge: unconfiguredBridge,
     });
 
-    expect(store.mode).toBe('native');
+    // No key = no store: the free-version gate must not lock islands behind an unbuyable product.
+    expect(store.mode).toBe('noop');
     expect(unconfiguredBridge.isConfigured()).toBe(false);
     expect(await store.products()).toEqual([]);
     const res = await store.purchase('full_unlock');
     expect(res.ok).toBe(false);
     expect(res.status).toBe('unavailable');
     const restoreRes = await store.restore();
-    expect(restoreRes.ok).toBe(false);
+    expect(restoreRes.restored).toEqual([]);
+    expect(isUnlocked('i06', store.entitlements())).toBe(false);
+  });
+
+  it('an explicit native mode still uses the bridge even when it reports unconfigured', async () => {
+    const store = createIapStore({
+      platform: createMobilePlatform('ios'),
+      storage: createMemStorage(),
+      mode: 'native',
+      nativeBridge: createRevenueCatBridge({ mobilePlatform: 'ios', apiKeys: { ios: '', android: '' } }),
+    });
+    expect(store.mode).toBe('native');
+    expect((await store.restore()).ok).toBe(false);
+  });
+
+  it('mobile builds without RevenueCat keys keep every island playable (no store soft-lock)', async () => {
+    const { storeEnabled, canPlayIsland } = await import('../../src/render2d/ui/store2d.ts');
+    const platform = createMobilePlatform('android');
+    const store = createIapStore({ platform, storage: createMemStorage() });
+    setPlatformAdapter(platform);
+    try {
+      expect(storeEnabled(store)).toBe(false);
+      for (const id of ['l1c', 'i05', 'i06', 'i16', 'i24']) expect(canPlayIsland(id, store)).toBe(true);
+    } finally {
+      setPlatformAdapter(null);
+    }
   });
 
   it('maps native StoreProducts, CustomerInfo entitlements, user cancellation, and restorePurchases', async () => {
@@ -501,7 +528,7 @@ describe('Free-version scope gate (FREE_ISLANDS + isUnlocked) & catalogue invari
     const storage = createMemStorage();
     storage.setItem(IAP_SAVE_KEY, '{"version":1,"entitlements":["full_unlock"');
     const mobilePlatform = createMobilePlatform('ios');
-    const store = createIapStore({ platform: mobilePlatform, storage });
+    const store = createIapStore({ platform: mobilePlatform, mode: 'native', storage });
     expect(store.owned('full_unlock')).toBe(true);
     expect(isUnlocked('i24', store.entitlements())).toBe(true);
 
