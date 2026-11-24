@@ -472,4 +472,25 @@ describe('mobile crystal receipts & IAP grant idempotency', () => {
     const resetSave = loadProgress2D().market!;
     expect(resetSave.purchaseLedger).toEqual({ 'receipt-1': 0, 'receipt-2': 0 });
   });
+
+  it('a second reset after a crystal purchase keeps the real progress backup (receipt tombstones are not progress)', () => {
+    const won = recordRunResult2D({ levelId: 'l1c', won: true, stars: 3, livesRemaining: 20, waveReached: 10 });
+    expect(won.win).not.toBeNull();
+    expect(deliverPacks2D([{ pack: 'crystals_large', transactionId: 'tx-1' }])).toBe(true);
+    resetProgress2D();
+    const backupKey = 'skyhold_isles_progress2d_reset_backup';
+    const first = disk.get(backupKey);
+    expect(first).toBeDefined();
+    expect(JSON.parse(first!).progress.bestStars[0]).toBe(3);
+    // The reset save holds only { 'tx-1': 0 }: resetting again must not replace the backup.
+    expect(loadProgress2D().market!.purchaseLedger).toEqual({ 'tx-1': 0 });
+    resetProgress2D();
+    expect(disk.get(backupKey)).toBe(first);
+    // An import over a reset save also leaves an existing import backup alone.
+    const importKey = 'skyhold_isles_progress2d_import_backup';
+    disk.set(importKey, first!);
+    expect(importSaveCode2D(exportSaveCode2D()).ok).toBe(true);
+    expect(disk.get(importKey)).toBe(first);
+  });
 });
+
