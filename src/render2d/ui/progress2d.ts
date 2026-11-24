@@ -1455,11 +1455,6 @@ export function importSaveCode2D(
 }
 
 /**
- * Erases the 2D isles save and the story flags (Settings → reset), backing up non-empty 2D
- * progress to `PROGRESS_2D_RESET_BACKUP_KEY` first. Never overwrites a real backup with an empty save.
- * The 3D campaign save is untouched.
- */
-/**
  * Backup guard: real progress, not counting the zero-crystal purchase receipts a reset keeps (so a
  * pack is never delivered twice). A reset save holds only those, and must not overwrite a backup.
  */
@@ -1470,6 +1465,11 @@ function worthBackingUp2D(p: ProgressData): boolean {
   return hasAnyProgress({ ...p, market: { ...p.market!, purchaseLedger: paid } });
 }
 
+/**
+ * Erases the 2D isles save and the story flags (Settings → reset), backing up non-empty 2D
+ * progress to `PROGRESS_2D_RESET_BACKUP_KEY` first. Never overwrites a real backup with an empty save.
+ * The 3D campaign save is untouched.
+ */
 export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
   resetGen2D++;
   const platform = getPlatform();

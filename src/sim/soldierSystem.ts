@@ -99,13 +99,13 @@ export function blockedLateralOffset(uid: number, halfWidth = BLOCK_LATERAL_MAX)
   return (u * 2 - 1) * halfWidth;
 }
 
-/** Samples `path` at `dist`, extrapolating backward along the start tangent when `dist < 0`. */
 /** Every soldier of the squad is dead (a closure-free loop: this runs per tick per banner). */
 function squadAllDead(squad: readonly SoldierEntity[]): boolean {
   for (let i = 0; i < squad.length; i++) if (squad[i].state !== 'dead') return false;
   return true;
 }
 
+/** Samples `path` at `dist`, extrapolating backward along the start tangent when `dist < 0`. */
 function samplePathWithBackoff(path: CompiledPath, dist: number, out: Vec3): number {
   if (dist >= 0) return path.sample(dist, out);
   const yaw = path.sample(0, out);
