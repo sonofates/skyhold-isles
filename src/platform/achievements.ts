@@ -1,5 +1,6 @@
 import type { HeroId, ProgressData } from '../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
+import { CAMPAIGN_ORDER, CHAPTERS } from '../data/chapters.ts';
 import { ENDLESS_TIERS, endlessWavesCleared } from '../data/endlessMutators.ts';
 import { HERO_DEFS, HERO_IDS, HERO_MAX_LEVEL, heroLevelFromXp } from '../data/heroes.ts';
 import { LEVELS, type LevelDef } from '../data/levels/index.ts';
@@ -10,7 +11,7 @@ import { getPlatform, type PlatformAdapter } from './platform.ts';
 
 /**
  * Steam achievement catalog derived from Feats (`src/game/feats.ts`), difficulty star goals
- * (`src/data/stars.ts`), island challenges (`src/data/challenges.ts`), Chapter Two (`i17`–`i24`),
+ * (`src/data/stars.ts`), island challenges (`src/data/challenges.ts`), Chapter 3 (`i17`–`i24` + `i27`),
  * heroes (`src/data/heroes.ts`), Hard ribbons (`src/data/difficulty.ts`), Endless medals
  * (`src/data/endlessMutators.ts`), and Daily Squall streaks (`src/data/daily.ts`).
  *
@@ -45,17 +46,9 @@ function toUpperSnake(camel: string): string {
     .toUpperCase();
 }
 
-const CHAPTER_TWO_ISLAND_IDS: readonly string[] = [
-  'i17',
-  'i18',
-  'i19',
-  'i20',
-  'i21',
-  'i22',
-  'i23',
-  'i24',
-];
-const CHAPTER_TWO_SET: ReadonlySet<string> = new Set<string>(CHAPTER_TWO_ISLAND_IDS);
+/** Chapter 3, "Bell & Lantern Isles" (src/data/chapters.ts): i17-i23, i27, i24. */
+const CHAPTER_THREE_ISLAND_IDS: readonly string[] = CHAPTERS.find((c) => c.id === 'ch3')?.islands ?? [];
+const CHAPTER_THREE_SET: ReadonlySet<string> = new Set<string>(CHAPTER_THREE_ISLAND_IDS);
 const FINALE_BOSS_ISLAND_ID = 'i24';
 
 function safeNonNegInt(val: unknown): number {
@@ -349,45 +342,45 @@ const challengeAchievements: readonly SteamAchievementDef[] = [
 
 const chapterAchievements: readonly SteamAchievementDef[] = [
   {
-    id: 'CHAPTER_TWO_LANDING',
+    id: 'CHAPTER_THREE_LANDING',
     name: 'Cloudbell Arrival',
-    description: 'Clear your first Chapter Two island',
+    description: 'Clear your first Chapter 3 island',
     category: 'chapter',
     isEarned: (progress, levels) => {
       for (let i = 0; i < levels.length; i++) {
-        if (CHAPTER_TWO_SET.has(levels[i].id) && isIslandClearedAt(progress, i)) return true;
+        if (CHAPTER_THREE_SET.has(levels[i].id) && isIslandClearedAt(progress, i)) return true;
       }
       return false;
     },
   },
   {
-    id: 'CHAPTER_TWO_CLEARED',
+    id: 'CHAPTER_THREE_CLEARED',
     name: 'Outer Archipelago Charted',
-    description: `Clear all ${CHAPTER_TWO_ISLAND_IDS.length} Chapter Two islands`,
+    description: `Clear all ${CHAPTER_THREE_ISLAND_IDS.length} Chapter 3 islands`,
     category: 'chapter',
     isEarned: (progress, levels) => {
       let matched = 0;
       for (let i = 0; i < levels.length; i++) {
-        if (!CHAPTER_TWO_SET.has(levels[i].id)) continue;
+        if (!CHAPTER_THREE_SET.has(levels[i].id)) continue;
         matched++;
         if (!isIslandClearedAt(progress, i)) return false;
       }
-      return matched === CHAPTER_TWO_ISLAND_IDS.length;
+      return matched === CHAPTER_THREE_ISLAND_IDS.length;
     },
   },
   {
-    id: 'CHAPTER_TWO_THREE_STARS',
+    id: 'CHAPTER_THREE_THREE_STARS',
     name: 'Lanterns Relit',
-    description: 'Earn 3 stars on every Chapter Two island',
+    description: 'Earn 3 stars on every Chapter 3 island',
     category: 'chapter',
     isEarned: (progress, levels) => {
       let matched = 0;
       for (let i = 0; i < levels.length; i++) {
-        if (!CHAPTER_TWO_SET.has(levels[i].id)) continue;
+        if (!CHAPTER_THREE_SET.has(levels[i].id)) continue;
         matched++;
         if (safeBestStarsAt(progress, i) < 3) return false;
       }
-      return matched === CHAPTER_TWO_ISLAND_IDS.length;
+      return matched === CHAPTER_THREE_ISLAND_IDS.length;
     },
   },
   {
@@ -404,12 +397,12 @@ const chapterAchievements: readonly SteamAchievementDef[] = [
 
 const fullCampaignThreeStarAchievements: readonly SteamAchievementDef[] = [
   {
-    id: 'STARS_ALL_25_ISLANDS',
+    id: 'STARS_ALL_ISLANDS',
     name: 'Constellation Complete',
-    description: 'Earn 3 stars on all 25 Skyhold islands',
+    description: `Earn 3 stars on all ${CAMPAIGN_ORDER.length} Skyhold islands`,
     category: 'stars',
     isEarned: (progress, levels) => {
-      if (levels.length < 25) return false;
+      if (levels.length < CAMPAIGN_ORDER.length) return false;
       for (let i = 0; i < levels.length; i++) {
         if (safeBestStarsAt(progress, i) < 3) return false;
       }
@@ -427,7 +420,7 @@ const heroAchievements: readonly SteamAchievementDef[] = [
     isEarned: (progress, levels) =>
       (progress.heroes !== undefined ||
         (progress as unknown as { readonly h?: unknown }).h !== undefined ||
-        levels.some((l) => CHAPTER_TWO_SET.has(l.id))) &&
+        levels.some((l) => CHAPTER_THREE_SET.has(l.id))) &&
       HERO_IDS.every((id) => isHeroUnlockedOnSave(progress, id, levels)),
   },
   ...HERO_IDS.flatMap((heroId): SteamAchievementDef[] => {

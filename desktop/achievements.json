@@ -140,19 +140,19 @@
     "description": "Master every island (3 stars and all challenge badges on every island)"
   },
   {
-    "id": "CHAPTER_TWO_LANDING",
+    "id": "CHAPTER_THREE_LANDING",
     "name": "Cloudbell Arrival",
-    "description": "Clear your first Chapter Two island"
+    "description": "Clear your first Chapter 3 island"
   },
   {
-    "id": "CHAPTER_TWO_CLEARED",
+    "id": "CHAPTER_THREE_CLEARED",
     "name": "Outer Archipelago Charted",
-    "description": "Clear all 8 Chapter Two islands"
+    "description": "Clear all 9 Chapter 3 islands"
   },
   {
-    "id": "CHAPTER_TWO_THREE_STARS",
+    "id": "CHAPTER_THREE_THREE_STARS",
     "name": "Lanterns Relit",
-    "description": "Earn 3 stars on every Chapter Two island"
+    "description": "Earn 3 stars on every Chapter 3 island"
   },
   {
     "id": "BOSS_I24_CLEARED",
@@ -160,9 +160,9 @@
     "description": "Defeat the Tempest Colossus and clear Lastlight Head"
   },
   {
-    "id": "STARS_ALL_25_ISLANDS",
+    "id": "STARS_ALL_ISLANDS",
     "name": "Constellation Complete",
-    "description": "Earn 3 stars on all 25 Skyhold islands"
+    "description": "Earn 3 stars on all 28 Skyhold islands"
   },
   {
     "id": "HERO_ALL_ROSTER",

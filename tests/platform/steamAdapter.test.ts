@@ -576,15 +576,15 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     fresh25.heroes = createFreshHeroSaveData();
     expect(earnedSteamAchievementIds(fresh25, LEVELS_2D)).toEqual([]);
 
-    // 1. Chapter Two + Boss i24 + 3D LEVELS isolation
+    // 1. Chapter 3 + Boss i24 + 3D LEVELS isolation
     const pCh2 = createDefaultProgress(LEVELS_2D.length);
     const i17Idx = LEVELS_2D.findIndex((l) => l.id === 'i17');
     const i24Idx = LEVELS_2D.findIndex((l) => l.id === 'i24');
     pCh2.clears[i17Idx] = 1;
     pCh2.bestStars[i17Idx] = 2;
     let earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
-    expect(earned.has('CHAPTER_TWO_LANDING')).toBe(true);
-    expect(earned.has('CHAPTER_TWO_CLEARED')).toBe(false);
+    expect(earned.has('CHAPTER_THREE_LANDING')).toBe(true);
+    expect(earned.has('CHAPTER_THREE_CLEARED')).toBe(false);
     expect(earned.has('BOSS_I24_CLEARED')).toBe(false);
 
     for (let i = i17Idx; i <= i24Idx; i++) {
@@ -593,33 +593,33 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     }
     earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
     expect(earned.has('BOSS_I24_CLEARED')).toBe(true);
-    expect(earned.has('CHAPTER_TWO_CLEARED')).toBe(true);
-    expect(earned.has('CHAPTER_TWO_THREE_STARS')).toBe(false);
+    expect(earned.has('CHAPTER_THREE_CLEARED')).toBe(true);
+    expect(earned.has('CHAPTER_THREE_THREE_STARS')).toBe(false);
 
     pCh2.bestStars[i24Idx] = 3;
     earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
-    expect(earned.has('CHAPTER_TWO_THREE_STARS')).toBe(true);
-    expect(earned.has('STARS_ALL_25_ISLANDS')).toBe(false);
+    expect(earned.has('CHAPTER_THREE_THREE_STARS')).toBe(true);
+    expect(earned.has('STARS_ALL_ISLANDS')).toBe(false);
 
-    // 3D LEVELS has no Chapter Two islands -> Chapter Two & 25-island achievements stay false even when all 16 are 3★
+    // 3D LEVELS has no Chapter 3 islands -> Chapter 3 & all-island achievements stay false even when all 16 are 3★
     const p3dAll = createDefaultProgress(LEVELS.length);
     p3dAll.bestStars.fill(3);
     p3dAll.clears.fill(1);
     const earned3d = new Set(earnedSteamAchievementIds(p3dAll, LEVELS));
     expect(earned3d.has('FEAT_FULL_FIRMAMENT')).toBe(true);
-    expect(earned3d.has('CHAPTER_TWO_LANDING')).toBe(false);
-    expect(earned3d.has('CHAPTER_TWO_CLEARED')).toBe(false);
+    expect(earned3d.has('CHAPTER_THREE_LANDING')).toBe(false);
+    expect(earned3d.has('CHAPTER_THREE_CLEARED')).toBe(false);
     expect(earned3d.has('BOSS_I24_CLEARED')).toBe(false);
-    expect(earned3d.has('STARS_ALL_25_ISLANDS')).toBe(false);
+    expect(earned3d.has('STARS_ALL_ISLANDS')).toBe(false);
 
-    // All 25 islands 3★
+    // All islands 3★
     for (let i = 0; i < LEVELS_2D.length; i++) {
       pCh2.clears[i] = 1;
       pCh2.bestStars[i] = 3;
     }
     earned = new Set(earnedSteamAchievementIds(pCh2, LEVELS_2D));
     expect(earned.has('FEAT_FULL_FIRMAMENT')).toBe(true);
-    expect(earned.has('STARS_ALL_25_ISLANDS')).toBe(true);
+    expect(earned.has('STARS_ALL_ISLANDS')).toBe(true);
     // Legacy save without difficultyWins has 0 Hard ribbons even at 25×3★ Normal
     expect(earned.has('HARD_FIRST_RIBBON')).toBe(false);
 
@@ -674,17 +674,17 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     pHard.difficultyWins.hard[i24Idx] = 1;
     const atHardBoss = earnedSteamAchievementIds(pHard, LEVELS_2D);
     expect(atHardBoss).toContain('HARD_BOSS_I24');
-    // Raw difficultyWins-only saves also satisfy BOSS_I24_CLEARED & CHAPTER_TWO_LANDING without mutating input.
+    // Raw difficultyWins-only saves also satisfy BOSS_I24_CLEARED & CHAPTER_THREE_LANDING without mutating input.
     expect(atHardBoss).toContain('BOSS_I24_CLEARED');
-    expect(atHardBoss).toContain('CHAPTER_TWO_LANDING');
+    expect(atHardBoss).toContain('CHAPTER_THREE_LANDING');
     expect(pHard.clears[i24Idx]).toBe(0);
     expect(atHardBoss).not.toContain('HARD_ALL_ISLANDS');
 
     pHard.difficultyWins.hard.fill(3);
     const atHardAll3 = earnedSteamAchievementIds(pHard, LEVELS_2D);
     expect(atHardAll3).toContain('HARD_ALL_ISLANDS');
-    expect(atHardAll3).toContain('STARS_ALL_25_ISLANDS');
-    expect(atHardAll3).toContain('CHAPTER_TWO_THREE_STARS');
+    expect(atHardAll3).toContain('STARS_ALL_ISLANDS');
+    expect(atHardAll3).toContain('CHAPTER_THREE_THREE_STARS');
 
     // 4. Endless milestones (Bronze 3, Silver 6, Gold 10, Deep 20, 5 Golds)
     const pEnd = createDefaultProgress(LEVELS_2D.length);
@@ -2479,7 +2479,7 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
     expect(batchEarned.has('HARD_BOSS_I24')).toBe(true);
     expect(batchEarned.has('HARD_ALL_ISLANDS')).toBe(true);
     expect(batchEarned.has('CROWN_ALL_ISLANDS')).toBe(true);
-    expect(batchEarned.has('STARS_ALL_25_ISLANDS')).toBe(true);
+    expect(batchEarned.has('STARS_ALL_ISLANDS')).toBe(true);
     expect(batchEarned.has('DAILY_STREAK_14')).toBe(true);
     expect(batchEarned.has('HERO_ALL_ROSTER')).toBe(true);
     expect(batchEarned.has('HERO_BRAN_LV20')).toBe(true);
