@@ -30,7 +30,7 @@ export const HEROES_TR: Readonly<Record<string, HeroTr>> = {
     role: 'Yakın dövüş tankı · yolu tutar',
     passive: {
       name: 'Siper',
-      desc: 'Bran’in durdurduğu kara düşmanları %22 daha az yakın dövüş hasarı verir.',
+      desc: 'Bran’ın durdurduğu kara düşmanları %22 daha az yakın dövüş hasarı verir.',
     },
     actives: [
       {
@@ -182,7 +182,7 @@ export const HEROES_TR: Readonly<Record<string, HeroTr>> = {
   tobb: {
     name: 'Tobb Çarkusta',
     title: 'Usta Mucit',
-    shortDesc: 'Yakındaki kuleleri ayarlayan, otomatik düzenekler kuran ve tıkanan kuleleri elden geçiren, pirinç sırt çantalı neşeli bir mühendis.',
+    shortDesc: 'Yakındaki kuleleri ayarlayan, otomatik düzenekler kuran ve sersemleyen kuleleri elden geçiren, pirinç sırt çantalı neşeli bir mühendis.',
     role: 'Destek · kuleleri güçlendirir',
     passive: {
       name: 'İnce Ayar',
@@ -277,7 +277,7 @@ export const HEROES_TR: Readonly<Record<string, HeroTr>> = {
       },
       sela_und_3: {
         name: 'Kırağı Serpintisi',
-        desc: 'Olağan saldırılar hedefleri üşütür (1,6 sn boyunca %22 yavaşlatma) ve +%18 hasar verir.',
+        desc: 'Normal saldırılar hedefleri üşütür (1,6 sn boyunca %22 yavaşlatma) ve +%18 hasar verir.',
       },
       sela_und_4: {
         name: 'Dipsiz Çekim',
