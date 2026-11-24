@@ -742,8 +742,12 @@ export function openSettings(ctx: SettingsContext): Sheet {
     const padRow = (caps: readonly string[], what: string): HTMLElement => el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...caps.map(padCap)), el('span', 'pu-ink', {}, what));
     const section = (title: string, ...items: HTMLElement[]): HTMLElement => el('section', 'pu-key-section', {}, el('h3', 'pu-letter', {}, title), el('div', 'pu-key-list', {}, ...items));
     const out: HTMLElement[] = [];
-    if (touch) out.push(section(t('set.touch'), el('div', 'pu-key-row pu-ink', {}, t('touch.build')), el('div', 'pu-key-row pu-ink', {}, t('touch.hero')), el('div', 'pu-key-row pu-ink', {}, t('touch.ability')), el('div', 'pu-key-row pu-ink', {}, t('touch.cancel')), el('div', 'pu-key-row pu-ink', {}, t('touch.pan'))));
-    out.push(
+    // A phone (touch, not a desktop client): the touch gestures (with the phone camera's pinch zoom)
+    // and the controller lists; keyboard / mouse / replay keys mean nothing on it.
+    const phone = touch && !desktop;
+    const line = (k: MsgKey): HTMLElement => el('div', 'pu-key-row pu-ink', {}, t(k));
+    if (touch) out.push(section(t('set.touch'), line('touch.build'), line('touch.hero'), line('touch.ability'), line('touch.cancel'), line(phone ? 'touch.panPhone' : 'touch.pan'), ...(phone ? [line('touch.zoom')] : [])));
+    if (!phone) out.push(
       section(
         t('set.keyboard'),
         keyRow([t('key.space')], t('key.pause')),
@@ -772,6 +776,8 @@ export function openSettings(ctx: SettingsContext): Sheet {
         keyRow([t('key.enter'), t('key.space')], t('key.navPress')),
         keyRow([t('key.esc')], t('key.navBack')),
       ),
+    );
+    out.push(
       section(
         t('set.gamepad'),
         padRow([t('pad.dpad'), t('pad.stick')], t('key.navMove')),

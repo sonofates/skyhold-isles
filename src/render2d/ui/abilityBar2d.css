@@ -283,7 +283,9 @@
 
 .pu-ab-tip {
   position: fixed;
-  z-index: 27;
+  /* Above the top-right HUD row (Settings / Guide, z 30): on a 375 px phone a four-line item tip
+     reaches up to it and used to slide under the buttons. Transient and click-through. */
+  z-index: 31;
   width: max-content;
   max-width: min(390px, 72vw);
   padding: max(7px, calc(var(--s) * 0.5)) max(11px, calc(var(--s) * 0.82));

@@ -2844,6 +2844,18 @@ html.pu-phone .pu-meta {
 html.pu-phone .pu-meta-head {
   gap: var(--ui-gap);
   margin-bottom: 6px;
+  /* One row (tally · note · Refund all): a wrapped Refund plank cost a whole row of upgrades. */
+  flex-wrap: nowrap;
+}
+
+html.pu-phone .pu-meta-head > .pu-meta-note {
+  flex: 1 1 0;
+  min-width: 0;
+  text-align: center;
+}
+
+html.pu-phone .pu-meta-head > * {
+  flex-shrink: 0;
 }
 
 html.pu-phone .pu-meta-note {

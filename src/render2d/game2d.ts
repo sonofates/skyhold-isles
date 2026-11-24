@@ -1640,6 +1640,18 @@ export class Game2D {
     return { x: this.map.screenX(this.map.pxX(c.roadX)), y: this.map.screenY(this.map.pxY(c.roadZ)) };
   }
 
+  /**
+   * Phone camera: a ring that had to move far off its plot (a plot near the top edge on a short
+   * screen, the tray in the way) leaves the player guessing which plot it is for. The map glides by
+   * the same drift (clamped to the pan range), so the plot slides in under its ring.
+   */
+  private followRing(): void {
+    if (!this.phoneCamera) return;
+    const d = this.ring.drift;
+    if (Math.hypot(d.dx, d.dy) <= this.ring.tokenRadius) return;
+    if (this.pan.glideBy(d.dx, d.dy, this.reducedMotion)) this.applyPan();
+  }
+
   private openForPlot(plot: number): void {
     const world = this.world;
     const { w, h } = this.screenSize();
@@ -1649,6 +1661,7 @@ export class Game2D {
       this.selectedTower = -1;
       this.rangeDisc.visible = false;
       this.ring.openBuild(plot, c.x, c.y, world.gold, this.costs, w, h, this.hud.topBand, world.mods.bannedTowers);
+      this.followRing();
       return;
     }
     const t = world.getTowerById(towerId);
@@ -1687,6 +1700,7 @@ export class Game2D {
       h,
       this.hud.topBand,
     );
+    this.followRing();
     const range = towerReach(t);
     const ppu = this.level.layout2d!.pxPerUnit;
     this.rangeDisc.position.set(this.map.pxX(t.x), this.map.pxY(t.z));

@@ -1,7 +1,8 @@
 /**
  * "Feat earned" toasts: after a run's result is recorded, each feat it completed slides down from the
  * top of the screen as a parchment card with its wax seal (over the victory board), one after the
- * other, and leaves after a few seconds. The Logbook's Feats tab lists them all.
+ * other, and leaves after a few seconds. Phones show one compact card at a time in the top-left
+ * corner, clear of the board's title. The Logbook's Feats tab lists them all.
  */
 import type { LevelDef } from '../../data/levels/types.ts';
 import type { ProgressData } from '../../core/types.ts';
@@ -24,9 +25,15 @@ export function featToastPlan(n: number): { shown: number; more: number } {
   return { shown, more: Math.max(0, n - shown) };
 }
 
+/** Phones: one card at a time (side by side they squeezed over the victory ribbon's title). */
+export const FEAT_TOAST_PHONE_STAY_MS = 2800;
+
 export function showFeatToasts(feats: readonly FeatDef[], delayMs = 1600): void {
   if (typeof document === 'undefined' || feats.length === 0) return;
   const { shown, more } = featToastPlan(feats.length);
+  const phone = document.documentElement.classList.contains('pu-phone');
+  const stay = phone ? FEAT_TOAST_PHONE_STAY_MS : FEAT_TOAST_STAY_MS;
+  const step = phone ? FEAT_TOAST_PHONE_STAY_MS + 450 : FEAT_TOAST_STEP_MS;
   let stack = document.querySelector<HTMLElement>('.pu-feat-toasts');
   if (!stack) {
     stack = el('div', 'pu pu-feat-toasts', { 'aria-live': 'polite', 'data-testid': 'feat2d-toasts' });
@@ -55,9 +62,9 @@ export function showFeatToasts(feats: readonly FeatDef[], delayMs = 1600): void 
         window.setTimeout(() => {
           card.classList.add('leaving');
           window.setTimeout(() => card.remove(), 400);
-        }, FEAT_TOAST_STAY_MS);
+        }, stay);
       },
-      delayMs + i * FEAT_TOAST_STEP_MS,
+      delayMs + i * step,
     );
   });
 }

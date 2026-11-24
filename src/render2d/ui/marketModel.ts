@@ -113,6 +113,20 @@ export function placeInSlot(loadout: readonly ItemId[], i: number, id: ItemId | 
   return cells.filter((x): x is ItemId => x !== null);
 }
 
+/**
+ * Lost lives that open the belt's 2nd and 3rd cast on `difficulty` (the rescue rule; 0 = no lock),
+ * as `{ a, b }` for the rule lines (`market.capLine`, `market.beltRescue`, `item.reserveRule`).
+ */
+export function rescueSteps(difficulty: DifficultyId = 'normal'): { readonly a: number; readonly b: number } {
+  const step = MARKET_RULES.livesLostPerExtraUse[difficulty];
+  return { a: step, b: step * 2 };
+}
+
+/** Params of `market.capLine`: the per-difficulty caps and the Normal rescue steps. */
+export function capLineParams(): Readonly<Record<string, number>> {
+  return { ...MARKET_RULES.useCap, ...rescueSteps('normal') };
+}
+
 /** Uses per item a run on `difficulty` starts with (the smaller of stock and the cap). */
 export function usesFor(difficulty: DifficultyId, owned: number): number {
   return Math.max(0, Math.min(owned, MARKET_RULES.useCap[difficulty]));
