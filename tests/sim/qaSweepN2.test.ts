@@ -6,7 +6,7 @@ import { BALANCE } from '../../src/data/balance.ts';
 import { CHAPTER_ENEMY_TYPES, type ChapterEnemyType } from '../../src/data/enemies.ts';
 import { defaultSkillsForLevel, HERO_IDS, HERO_RULES } from '../../src/data/heroes.ts';
 import { LEVELS } from '../../src/data/levels/index.ts';
-import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
+import { getLevelById, LEVELS_2D, registeredChapterIslands } from '../../src/data/levels2d/index.ts';
 import { maxedWorkshopRanks } from '../../src/data/workshop.ts';
 import { describeMergeGain, mergeProgress } from '../../src/platform/saveCode.ts';
 import { createDefaultProgress, hasAnyProgress, migrateProgress } from '../../src/platform/storage.ts';
@@ -37,8 +37,8 @@ import { parseSimReplay, serializeSimReplay, SimReplayPlayer, SimWorld } from '.
 
 const DT = BALANCE.fixedDt;
 
-describe('Overnight N2 QA Sweep: Difficulty × 25 Islands, Rally Respawn, Replays & Ch2 Endless', () => {
-  it('verifies getFallbackRespawnPoint() and rally-point retreat across all 25 2D islands (including i17-i24)', () => {
+describe('Overnight N2 QA Sweep: Difficulty × All Islands, Rally Respawn, Replays & Ch2 Endless', () => {
+  it('verifies getFallbackRespawnPoint() and rally-point retreat across all 2D islands (including i17-i24)', () => {
     for (const level of LEVELS_2D) {
       const world = new SimWorld(level, new EventBus(), {
         heroId: 'bran',
@@ -95,9 +95,11 @@ describe('Overnight N2 QA Sweep: Difficulty × 25 Islands, Rally Respawn, Replay
     for (const lvl of LEVELS_2D.slice(0, 9)) {
       expect(hasChapterTwoEnemies(lvl), lvl.id).toBe(false);
     }
-    for (const lvl of LEVELS_2D.slice(17)) {
+    for (const lvl of [...registeredChapterIslands(), getLevelById('i27')!]) {
       expect(hasChapterTwoEnemies(lvl), lvl.id).toBe(true);
     }
+
+    for (const id of ['i25', 'i26']) expect(hasChapterTwoEnemies(getLevelById(id)!)).toBe(false);
 
     // Chapter 1 i16 endless wave 0 still uses ENDLESS_SPOTLIGHTS[0] ('warden', 'golem')
     // Use the last chapter-one island that still has no chapter-two foes (i16 may now have some).
@@ -120,7 +122,7 @@ describe('Overnight N2 QA Sweep: Difficulty × 25 Islands, Rally Respawn, Replay
     }
     expect([...seenCh2].sort()).toEqual([...CHAPTER_ENEMY_TYPES].sort());
 
-    // Pool capacity invariant across all 25 2D islands up to endless offset 200
+    // Pool capacity invariant across all 2D islands up to endless offset 200
     const extra: Record<string, number> = { splitter: 2, boss: 2, carrier: 2, tempest: 6 };
     for (const level of LEVELS_2D) {
       for (const offset of [0, 3, 4, 9, 19, 49, 99, 199]) {

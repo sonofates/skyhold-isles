@@ -64,9 +64,9 @@ type Runs = Record<DifficultyId, Record<Profile, SimRunResult>>;
 interface Row { level: LevelDef; runs: Runs }
 
 function verdict(rows: Row[]): void {
-  const chapterTwo = new Set(registeredChapterIslands());
-  const one = rows.filter(r => !chapterTwo.has(r.level));
-  const two = rows.filter(r => chapterTwo.has(r.level));
+  const chapterTwo = new Set([...registeredChapterIslands().map(level => level.id), 'i27']);
+  const one = rows.filter(r => !chapterTwo.has(r.level.id));
+  const two = rows.filter(r => chapterTwo.has(r.level.id));
   const wins = (group: Row[], p: Profile, d: DifficultyId) => group.map(r => r.runs[d][p]).filter(r => r.outcome === 'won');
   const easy = wins(rows, 'campaign', 'easy');
   const comfortable = easy.filter(r => r.finalLives >= 12);
@@ -82,8 +82,8 @@ function verdict(rows: Row[]): void {
     console.log(`${ok ? 'PASS' : 'FAIL'}  ${label}`);
     if (!ok) process.exitCode = 1;
   }
-  check(easy.length === 25 && comfortable.length === rows.length,
-    `Easy campaign clears all 25 islands, each with ≥12 lives: ${easy.length}/25 wins, ${comfortable.length}/25 with ≥12`);
+  check(easy.length === rows.length && comfortable.length === rows.length,
+    `Easy campaign clears all ${rows.length} islands, each with ≥12 lives: ${easy.length}/${rows.length} wins, ${comfortable.length}/${rows.length} with ≥12`);
   check(weakEasy.length >= 14, `Easy weak clears at least 14 chapter-one islands: ${weakEasy.length}/${one.length}`);
   check(Object.keys(DIFFICULTIES.normal.patch).length === 0 && normal.length === rows.length,
     `Normal uses the island tuning and clears the campaign: ${normal.length}/${rows.length}`);
@@ -93,7 +93,7 @@ function verdict(rows: Row[]): void {
     `Normal first clears earn mostly 2★ and at most 40% 3★: ${twos} two-star, ${threes} three-star`);
   check(hardOne.length >= 9 && hardOne.length <= 11, `Hard campaign clears 9–11 islands in chapter one: ${hardOne.length}/${one.length}`);
   check(Math.abs(hardTwo.length - two.length / 2) <= 1,
-    `Hard campaign clears about half of chapter two: ${hardTwo.length}/${two.length} (target 3–5)`);
+    `Hard campaign clears about half of chapter two: ${hardTwo.length}/${two.length}`);
   check(hard.length > 0 && narrow.length === hard.length,
     `Hard campaign loses lives and earns 1–2★ on every win: ${narrow.length}/${hard.length}`);
   check(!!finale && finale.outcome === 'won' && finale.stars === 1 && finale.finalLives <= 5,

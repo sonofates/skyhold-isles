@@ -36,6 +36,12 @@ export function islandSubtitle(l: Pick<LevelDef, 'id' | 'subtitle'>): string {
   return (tr() && DATA_TR.islands[l.id]?.subtitle) || l.subtitle;
 }
 
+/** Wave titles are shown on the painted card when the island supplies bilingual copy. */
+export function islandWaveTitle(level: Pick<LevelDef, 'id' | 'waves'>, index: number): string | undefined {
+  const translated = DATA_TR.islands[level.id]?.waves?.[index];
+  return translated && (tr() ? translated : level.waves[index]?.name);
+}
+
 export function difficultyName(d: LevelDef['difficulty']): string {
   switch (d) {
     case 'Breezy':

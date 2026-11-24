@@ -235,6 +235,12 @@ export const EN = {
   'story.pell': 'Warden Pell',
   // Neutral captions for islands that have story paintings but no written story yet
   // (render2d/ui/storyBeats.ts, GENERIC_STORY_ISLANDS). Real copy replaces them per island.
+  'story.i25.intro': 'A gust has knocked the blue bob clean out of its rings. Until it hangs true, every chart we send the sanctum points into the storm.',
+  'story.i25.outro': 'One pin of blue light, right in the keeper’s palm. She draws a safe line through the clouds and sends the chart ahead.',
+  'story.i26.intro': 'Listen to that cable. One strand has gone, and the glassworkers’ last load of sand is still swinging over the drop.',
+  'story.i26.outro': 'The brake catches. The tender tips a river of gold into the crucible. There will be glass in the sanctum windows by morning.',
+  'story.i27.intro': 'Three strands for the beacon wick. Two are on the hooks and the third is halfway to the tide. Hold the strand while we catch it!',
+  'story.i27.outro': 'Pass the coil aboard. That wick will drink the orchard wax and burn till dawn. The ferry can make Lastlight on this tide.',
   'story.generic.intro': 'Next stop: {name}. {subtitle}.',
   'story.generic.introShort': 'Next stop: {name}. Ready the towers before the raiders land.',
   'story.generic.outro': '{name} is safe again. I will mark it on the chart, and we sail on.',

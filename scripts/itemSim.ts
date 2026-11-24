@@ -767,7 +767,7 @@ function simulateCampaignEconomy(
   return [
     runScenario(
       'Typical Campaign (No IAP)',
-      '25 Normal first clears (sim stars), 8 replays (5 Normal star-ups + 3 Hard ribbons), 6 Daily Squalls',
+      `${levels.length} Normal first clears, replays every third island, Daily Squalls every fourth island after the first`,
       (save, i, level) => {
         const stars = Math.max(1, normalStarsByIsland[i] ?? 2);
         awardMarketWin(save, 'player', level.id, stars, 'normal', true, null);
@@ -782,7 +782,7 @@ function simulateCampaignEconomy(
     ),
     runScenario(
       'First Clears Only (Zero Replays / Dailies)',
-      '25 Normal first clears at simulated stars, 0 replays, 0 Daily Squalls',
+      `${levels.length} Normal first clears at simulated stars, 0 replays, 0 Daily Squalls`,
       (save, i, level) => {
         const stars = Math.max(1, normalStarsByIsland[i] ?? 2);
         awardMarketWin(save, 'player', level.id, stars, 'normal', true, null);
@@ -790,7 +790,7 @@ function simulateCampaignEconomy(
     ),
     runScenario(
       'Struggling Player (Mixed Easy/Normal + Retries)',
-      '17 Normal (1-2★) + 8 Easy first clears, 6 Normal replays, 5 Daily Squalls (losses pay 0)',
+      'Normal first clears through island 17, then Easy, with Normal replays and Daily Squalls (losses pay 0)',
       (save, i, level) => {
         const dropToEasy = i >= 17;
         const stars = dropToEasy ? 1 : Math.min(2, Math.max(1, normalStarsByIsland[i] ?? 1));
@@ -805,7 +805,7 @@ function simulateCampaignEconomy(
     ),
     runScenario(
       'Easy-Only Casual',
-      'All 25 islands cleared once on Easy (1★ cap), 3 Daily Squalls',
+      'Every island cleared once on Easy (1★ cap), with Daily Squalls',
       (save, i, level) => {
         awardMarketWin(save, 'player', level.id, 1, 'easy', true, null);
         if (i === 7 || i === 15 || i === 23) {
@@ -885,7 +885,7 @@ async function main(): Promise<void> {
     throw new Error(`Invalid --loadout (expected 1..${MARKET_RULES.slots} valid item IDs)`);
   }
 
-  // Step 1: Compute sequential first-clear entry progressions (25 Easy + 25 Normal).
+  // Step 1: Compute sequential first-clear entry progressions (Easy and Normal).
   const normalEntries = buildFirstClearEntries(levels, 'normal');
   normalBeltProbe(levels, normalEntries, selectedSet);
   if (process.argv.includes('--normal-belt')) return;
@@ -1209,7 +1209,7 @@ async function main(): Promise<void> {
   );
   console.log('');
 
-  // Step 6: Economy simulation (full 25-island campaign).
+  // Step 6: Economy simulation (full campaign).
   if (levels.length === LEVELS_2D.length) {
     const normalStars = LEVELS_2D.map((_, i) => {
       const r = normalEntries[i].greedyResult;
@@ -1218,7 +1218,7 @@ async function main(): Promise<void> {
     const scenarios = simulateCampaignEconomy(LEVELS_2D, normalStars, chosenLoadout);
     const avgPrice = ITEM_IDS.reduce((s, id) => s + ITEMS[id].price, 0) / ITEM_IDS.length;
     console.log(
-      `### 4. Campaign Economy Simulation (25 islands, no IAP, avg catalog price = ${avgPrice.toFixed(2)} crystals)`,
+      `### 4. Campaign Economy Simulation (${levels.length} islands, no IAP, avg catalog price = ${avgPrice.toFixed(2)} crystals)`,
     );
     printTable(
       ['Playthrough Scenario', 'Total Crystals', 'Crystals / Isle', 'Bought Items / Isle', 'Incl. Starter / Isle'],
@@ -1232,7 +1232,7 @@ async function main(): Promise<void> {
     );
     console.log('');
     const typical = scenarios[0];
-    const milestoneIndices = [0, 4, 9, 14, 19, 24];
+    const milestoneIndices = levels.flatMap((_, i) => i === 0 || i === levels.length - 1 || (i + 1) % 5 === 0 ? [i] : []);
     console.log(`Cumulative wallet checkpoints (${typical.name}):`);
     printTable(
       ['Checkpoint', 'Island', 'Cumulative Crystals', 'Cumulative Items Affordable'],
@@ -1245,7 +1245,7 @@ async function main(): Promise<void> {
 
     // Step 7: Balance & Economy Verdict Checks.
     if (selectedIndices.length === LEVELS_2D.length) {
-      const chapterTwo = new Set(registeredChapterIslands().map((l) => l.id));
+      const chapterTwo = new Set([...registeredChapterIslands().map((l) => l.id), 'i27']);
       const hardBeltCampaign = LEVELS_2D.map((l) => beltMap.get(`${l.id}:hard:campaign`)!);
       const hardBaseCampaign = LEVELS_2D.map((l) => baselineWaveMap.get(`${l.id}:hard:campaign`)!.out);
       const hardBeltWins = hardBeltCampaign.filter((r) => r.outcome === 'won');
@@ -1278,11 +1278,11 @@ async function main(): Promise<void> {
       );
       check(
         weakNormalBeltWins >= weakNormalBaseWins + 3 && weakEasyBeltWins > weakEasyBaseWins,
-        `Items turn struggling losses into wins: weak Normal ${weakNormalBaseWins}/25 -> ${weakNormalBeltWins}/25, weak Easy ${weakEasyBaseWins}/25 -> ${weakEasyBeltWins}/25`,
+        `Items turn struggling losses into wins: weak Normal ${weakNormalBaseWins}/${levels.length} -> ${weakNormalBeltWins}/${levels.length}, weak Easy ${weakEasyBaseWins}/${levels.length} -> ${weakEasyBeltWins}/${levels.length}`,
       );
       check(
-        hardBeltWins.length > hardBaseWins.length && hardBeltWins.length <= 24 && hardCh2Wins.length < 8,
-        `Items help on Hard without clearing everything effortlessly: campaign Hard ${hardBaseWins.length}/25 -> ${hardBeltWins.length}/25 (Ch2 ${hardCh2Wins.length}/8)`,
+        hardBeltWins.length > hardBaseWins.length && hardBeltWins.length < levels.length && hardCh2Wins.length < chapterTwo.size,
+        `Items help on Hard without clearing everything effortlessly: campaign Hard ${hardBaseWins.length}/${levels.length} -> ${hardBeltWins.length}/${levels.length} (Ch2 ${hardCh2Wins.length}/${chapterTwo.size})`,
       );
       check(
         hardCh2ThreeStars.length === 0 &&
@@ -1291,7 +1291,7 @@ async function main(): Promise<void> {
           !!finaleHard &&
           finaleHard.awardedStars <= 2 &&
           finaleHard.effectiveLives < finaleHard.startingLives,
-        `Hard stays non-trivial: Ch2 Hard 3★ = ${hardCh2ThreeStars.length}/${hardCh2Wins.length}, total Hard 3★ = ${hardThreeStars.length}/${hardBeltWins.length}, i24 Hard = ${finaleHard ? fmtRun(finaleHard) : 'missing'}, weak Hard wins = ${weakHardBeltWins}/25`,
+        `Hard stays non-trivial: Ch2 Hard 3★ = ${hardCh2ThreeStars.length}/${hardCh2Wins.length}, total Hard 3★ = ${hardThreeStars.length}/${hardBeltWins.length}, i24 Hard = ${finaleHard ? fmtRun(finaleHard) : 'missing'}, weak Hard wins = ${weakHardBeltWins}/${levels.length}`,
       );
       check(
         topSpentRatio <= 2.0 && topTotPriceRatio <= 2.0 && minMaxSpentRatio <= 2.5,

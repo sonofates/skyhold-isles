@@ -50,6 +50,7 @@ export function waveChips(p: WavePreview | null): WaveChip[] {
 export interface WaveCardState {
   readonly visible: boolean;
   readonly preview: WavePreview | null;
+  readonly title?: string;
   /** Seconds until the wave starts on its own (0 = waits for the horn). */
   readonly countdown: number;
   readonly earlyBonus: number;
@@ -111,8 +112,8 @@ export function mountWaveCard(
   let shown = false;
   let outTimer: ReturnType<typeof setTimeout> | undefined;
   let chipCount = 0;
-  const build = (p: WavePreview): void => {
-    head.textContent = t('wave.next', { n: p.waveOneBased });
+  const build = (p: WavePreview, title?: string): void => {
+    head.textContent = [t('wave.next', { n: p.waveOneBased }), title].filter(Boolean).join(' · ');
     chips.replaceChildren();
     const list = waveChips(p);
     chipCount = list.length;
@@ -158,10 +159,10 @@ export function mountWaveCard(
         }
       }
       if (!on || !s.preview) return;
-      const k = `${s.preview.waveOneBased}|${s.preview.items.map((i) => `${i.enemyType}${i.count}/${i.eliteCount ?? 0}${isNew(i.enemyType) ? '*' : ''}`).join(',')}`;
+      const k = `${s.title ?? ''}|${s.preview.waveOneBased}|${s.preview.items.map((i) => `${i.enemyType}${i.count}/${i.eliteCount ?? 0}${isNew(i.enemyType) ? '*' : ''}`).join(',')}`;
       if (k !== key) {
         key = k;
-        build(s.preview);
+        build(s.preview, s.title);
       }
       const secs = Math.ceil(s.countdown);
       const fk = `${s.first ? 'f' : secs}|${s.earlyBonus}`;
