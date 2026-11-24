@@ -17,7 +17,7 @@ export const I25 = {
   flightPath: [],
   decorationSeed: 1301,
   startingGold: 375,
-  enemyHpScale: 2.1,
+  enemyHpScale: 1.935,
   waveHpGrowth: 0.09,
   waves: [
     { name: 'First Reading', clearBonus: 25, groups: [

@@ -17,7 +17,7 @@ export const I26 = {
   flightPath: [],
   decorationSeed: 1361,
   startingGold: 390,
-  enemyHpScale: 2.31,
+  enemyHpScale: 2.165,
   waveHpGrowth: 0.095,
   waves: [
     { name: 'Morning Shift', clearBonus: 25, groups: [
