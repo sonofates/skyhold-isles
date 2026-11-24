@@ -9,6 +9,7 @@ import { BALANCE } from '../src/data/balance.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
+import { chapterOf } from '../src/data/chapters.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
 import { getTowerTierStats, specializationsFor } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers, workshopStarsSpent } from '../src/data/workshop.ts';
@@ -513,7 +514,9 @@ export function evaluateBalance(
       xp += greedyRes.heroXp;
       stars += greedyRes.stars;
       const lost = greedyRes.startingLives - greedyRes.finalLives;
-      if (selected && index !== 17 && previousLoss - lost > 3) {
+      // A chapter's first island may ease off after the previous chapter's finale (docs/chapters-plan.md).
+      const opensChapter = chapterOf(level.id)?.islands[0] === level.id;
+      if (selected && !opensChapter && previousLoss - lost > 3) {
         failures.push(`${label} loses ${lost} lives after ${previousLoss} on the preceding island`);
       }
       previousLoss = lost;
