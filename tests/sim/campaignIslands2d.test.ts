@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { CAMPAIGN_ORDER } from '../../src/data/chapters.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, groundLaneCount } from '../../src/data/levels/index.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
@@ -77,7 +78,8 @@ describe.each(ids)('%s campaign plot map', (id) => {
 
   it('resolves in campaign order with its authored formations and valid plot purchases', () => {
     const level = getLevelById(id)!;
-    expect(level).toBe(LEVELS_2D[index + 1]);
+    // Campaign order is the chapter order (i25/i26 sit before i16), so look the slot up by id.
+    expect(LEVELS_2D.indexOf(level)).toBe(CAMPAIGN_ORDER.indexOf(id));
     expect(level.layout2d).toEqual(layout);
     const overrides = formations.filter(formation => formation.id === id);
     const tuning = air[id];

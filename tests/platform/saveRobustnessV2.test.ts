@@ -996,7 +996,10 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     expect(states[24].hardWon).toBe(true);
     expect(states[24].stars).toBe(3);
 
-    // 2. applyRunResult2D on a 17-island ProgressData winning i24 pads arrays densely with zero sparse holes:
+    // 2. applyRunResult2D on a 17-island ProgressData winning i24 pads arrays densely with zero sparse holes.
+    //    i24 is the Chapter 3 finale, the last island in chapter order (not flat index 24 any more):
+    const i24 = LEVELS_2D.findIndex((l) => l.id === 'i24');
+    expect(i24).toBe(LEVELS_2D.length - 1);
     const short17 = createDefaultProgress(17);
     applyRunResult2D(
       short17,
@@ -1005,7 +1008,7 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
         won: true,
         stars: 3,
         livesRemaining: 19,
-        waveReached: LEVELS_2D[24].waves.length,
+        waveReached: LEVELS_2D[i24].waves.length,
         runConfig: { endless: false, challenges: [], daily: null, difficulty: 'hard' },
       },
       LEVELS_2D,
@@ -1013,7 +1016,10 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     expect(short17.bestStars).toHaveLength(LEVELS_2D.length);
     expect(short17.bestStars.includes(undefined as unknown as number)).toBe(false);
     expect(short17.difficultyWins?.hard).toHaveLength(LEVELS_2D.length);
-    expect(short17.difficultyWins?.hard[24]).toBe(3);
+    expect(short17.difficultyWins?.hard[i24]).toBe(3);
+    expect(short17.bestStars[i24]).toBe(3);
+    // Nothing leaks onto the island that now sits at the old flat index 24 (i22).
+    expect(short17.difficultyWins?.hard[24]).toBe(0);
 
     // 3. Partial raw difficultyWins (`{ hard: [3, 2, 3] }` missing `easy` & `normal`) + NaN/Infinity entries never throw:
     const partialRaw = {

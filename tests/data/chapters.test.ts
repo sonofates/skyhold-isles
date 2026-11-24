@@ -33,13 +33,12 @@ import {
 import { pageFrontier } from '../../src/render2d/ui/worldMap.ts';
 
 const ids = (levels: readonly { id: string }[]): string[] => levels.map((l) => l.id);
-const byId = (id: string): LevelDef => {
-  const l = LEVELS_2D.find((x) => x.id === id);
-  if (!l) throw new Error(id);
-  return l;
-};
-/** The roster once the three new islands (built elsewhere) are registered: stand-ins cloned from i16. */
-const WITH_NEW: readonly LevelDef[] = orderByChapters([...LEVELS_2D, { ...byId('i16'), id: 'i25' }, { ...byId('i16'), id: 'i26' }, { ...byId('i24'), id: 'i27' }]);
+/** The real roster: the three new islands (i25 Galeglass Orrery, i26, i27) are registered. */
+const WITH_NEW: readonly LevelDef[] = LEVELS_2D;
+/** A synthetic pool with two chapter slots unfilled (i25 in Chapter 2, i27 in Chapter 3). */
+const PARTIAL: readonly LevelDef[] = orderByChapters(LEVELS_2D.filter((l) => l.id !== 'i25' && l.id !== 'i27'));
+/** The roster before the new islands landed (the shape every pre-chapter save was written for). */
+const PRE_NEW: readonly LevelDef[] = orderByChapters(LEVELS_2D.filter((l) => !['i25', 'i26', 'i27'].includes(l.id)));
 
 function memStorage(): Storage {
   const m = new Map<string, string>();
@@ -98,11 +97,18 @@ describe('chapter list', () => {
 });
 
 describe('LEVELS_2D order comes from the chapters', () => {
-  it('is the chapter order, with the unregistered slots (i25, i26, i27) skipped', () => {
-    expect(ids(LEVELS_2D)).toEqual(CAMPAIGN_ORDER.filter((id) => LEVELS_2D.some((l) => l.id === id)));
-    // Today i25-i27 are not registered yet: the order is the old flat one.
-    expect(ids(LEVELS_2D)).toEqual([...LEGACY_2D_ORDER]);
+  it('is the chapter order, every slot filled (Prologue + 27 chapter islands)', () => {
+    expect(ids(LEVELS_2D)).toEqual([...CAMPAIGN_ORDER]);
+    expect(LEVELS_2D).toHaveLength(28);
+    // The new islands moved i16..i24 off their flat (pre-chapter) indexes.
+    expect(ids(LEVELS_2D)).not.toEqual([...LEGACY_2D_ORDER]);
     for (const l of LEVELS_2D) expect(chapterOf(l.id), l.id).not.toBeNull();
+  });
+
+  it('an unregistered slot is skipped (synthetic pool without i25 / i27)', () => {
+    expect(ids(PARTIAL)).toEqual(CAMPAIGN_ORDER.filter((id) => id !== 'i25' && id !== 'i27'));
+    // Without any of the three new islands the order is exactly the old flat one.
+    expect(ids(PRE_NEW)).toEqual([...LEGACY_2D_ORDER]);
   });
 
   it('a registered new island takes its chapter slot, before the finale', () => {
@@ -112,14 +118,25 @@ describe('LEVELS_2D order comes from the chapters', () => {
     expect(order).toHaveLength(28);
   });
 
-  it('missing slots leave a shorter chapter page that still works', () => {
+  it('the real roster fills three pages of nine', () => {
     const pages = chapterPages(ids(LEVELS_2D));
-    expect(pages.map((p) => p.own.length)).toEqual([9, 7, 8, 0, 0]);
+    expect(pages.map((p) => p.own.length)).toEqual([9, 9, 9, 0, 0]);
+    expect(pages[0].indexes).toEqual([0, ...pages[0].own]);
+    expect(ids(pages[1].own.map((i) => LEVELS_2D[i]))).toEqual([...CHAPTERS[1].islands]);
+    expect(ids(pages[2].own.map((i) => LEVELS_2D[i]))).toEqual([...CHAPTERS[2].islands]);
+    expect(pageOfIsland(pages, ids(LEVELS_2D).indexOf('i26'))).toBe(1);
+    expect(pageOfIsland(pages, ids(LEVELS_2D).indexOf('i27'))).toBe(2);
+  });
+
+  it('missing slots leave a shorter chapter page that still works', () => {
+    const pages = chapterPages(ids(PARTIAL));
+    expect(pages.map((p) => p.own.length)).toEqual([9, 8, 8, 0, 0]);
     // Chapter 1's page leads with the Prologue.
     expect(pages[0].indexes).toEqual([0, ...pages[0].own]);
-    expect(ids(pages[1].own.map((i) => LEVELS_2D[i]))).toEqual(['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16']);
+    expect(ids(pages[1].own.map((i) => PARTIAL[i]))).toEqual(['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i26', 'i16']);
+    expect(ids(pages[2].own.map((i) => PARTIAL[i]))).toEqual(['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24']);
     expect(pageOfIsland(pages, 0)).toBe(0);
-    expect(pageOfIsland(pages, ids(LEVELS_2D).indexOf('i17'))).toBe(2);
+    expect(pageOfIsland(pages, ids(PARTIAL).indexOf('i17'))).toBe(2);
     // QA stand-ins (no chapter) go on the last page with islands.
     const mock = chapterPages([...ids(LEVELS_2D), 'mock-1']);
     expect(mock[2].indexes.at(-1)).toBe(LEVELS_2D.length);
@@ -239,8 +256,12 @@ describe('old saves never relock', () => {
   });
 
   it('a save without an id order is read in the flat pre-chapter order', () => {
-    expect(legacyIdOrder(LEVELS_2D)).toEqual(ids(LEVELS_2D));
-    expect(legacyIdOrder(WITH_NEW).slice(0, 25)).toEqual([...LEGACY_2D_ORDER]);
+    // Before the new islands, the flat order and the chapter order were the same.
+    expect(legacyIdOrder(PRE_NEW)).toEqual(ids(PRE_NEW));
+    // With them registered, an id-less save is still read flat; the new islands come after it.
+    expect(legacyIdOrder(LEVELS_2D)).toEqual([...LEGACY_2D_ORDER, 'i25', 'i26', 'i27']);
+    expect(legacyIdOrder(LEVELS_2D)).not.toEqual(ids(LEVELS_2D));
+    expect(legacyIdOrder(PARTIAL)).toEqual([...LEGACY_2D_ORDER, 'i26']);
     expect(legacyIdOrder([{ id: 'a' }, { id: 'b' }])).toEqual(['a', 'b']);
     const ls = memStorage();
     vi.stubGlobal('localStorage', ls);
