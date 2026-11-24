@@ -10,7 +10,7 @@ import { itemDesc, itemName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import { el, openSheet, plank, type Sheet } from './dom.ts';
 import { readMarket2D, setLoadout2D } from './market2d.ts';
-import { toggleLoadout, usesFor } from './marketModel.ts';
+import { capLineParams, rescueSteps, toggleLoadout, usesFor } from './marketModel.ts';
 import { itemSocket } from './marketScreen.ts';
 
 export interface BeltChip {
@@ -32,7 +32,12 @@ export function beltChip(opts: BeltChipOptions = {}): BeltChip {
     const w = readMarket2D();
     // The rule ("3 per item on this island" / items off in this mode) is the row's tooltip and
     // label; only "off" also shows on the slots, since a run mode the player just picked turned it.
-    const rule = off ? t('market.disabled') : w.loadout.length === 0 ? t('market.beltNone') : t('market.beltUses', { n: MARKET_RULES.useCap[difficulty] });
+    const steps = rescueSteps(difficulty);
+    const rule = off
+      ? t('market.disabled')
+      : w.loadout.length === 0
+        ? t('market.beltNone')
+        : `${t('market.beltUses', { n: MARKET_RULES.useCap[difficulty] })}${steps.a > 0 && w.loadout.length > 1 ? `. ${t('market.beltRescue', steps)}` : ''}`;
     const slots = el('div', 'pu-beltchip-slots', { role: 'list', 'aria-label': `${t('market.beltRow')}: ${rule}` });
     for (let i = 0; i < MARKET_RULES.slots; i++) {
       const id = w.loadout[i] ?? null;
@@ -83,7 +88,7 @@ export function beltChip(opts: BeltChipOptions = {}): BeltChip {
         });
         grid.append(b);
       }
-      const head = el('div', 'pu-meta-note pu-ink-soft', {}, t('market.loadoutHint', { n: MARKET_RULES.slots }), ' ', el('b', 'pu-ink', {}, t('market.capLine', MARKET_RULES.useCap)));
+      const head = el('div', 'pu-meta-note pu-ink-soft', {}, t('market.loadoutHint', { n: MARKET_RULES.slots }), ' ', el('b', 'pu-ink', {}, t('market.capLine', capLineParams())));
       const foot = el('div', 'pu-beltpick-foot', {});
       if (note) foot.append(el('span', 'pu-market-beltnote bad', {}, note));
       if (opts.onMarket) {

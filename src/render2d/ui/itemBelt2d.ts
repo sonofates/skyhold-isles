@@ -15,7 +15,7 @@
  * Casting goes through `game.useItem` (recorded, debits the belt and the save); the rules stay in the
  * sim (src/sim/itemSystem.ts). FX: itemFx.ts, from the sim's events.
  */
-import { heartstoneCeiling, type ItemCounts, type ItemId } from '../../data/market.ts';
+import { heartstoneCeiling, MARKET_RULES, type ItemCounts, type ItemId } from '../../data/market.ts';
 import { itemDesc, itemName } from '../../i18n/data.ts';
 import { t, type MsgKey } from '../../i18n/index.ts';
 import { haptics } from '../../platform/haptics.ts';
@@ -54,9 +54,24 @@ interface Slot {
   readonly frame: HTMLImageElement;
   readonly pips: HTMLSpanElement;
   readonly stock: HTMLSpanElement;
+  readonly lock: HTMLSpanElement;
   readonly keyChip: HTMLSpanElement | null;
   view: BeltSlotView | null;
   key: string;
+}
+
+/**
+ * Locked charge (Normal / Hard rescue rule: the belt's 2nd and 3rd casts open after 5 / 10 lost
+ * lives): a heart chip on the medallion's face with the lives still to lose before it opens.
+ */
+function lockChip(): HTMLSpanElement {
+  return el('span', 'pu-item-lock pu-letter', { 'aria-hidden': 'true', hidden: true }, img(KIT.heart, '', 'pu-item-lock-heart'), el('b'));
+}
+
+function setLock(lock: HTMLSpanElement, need: number): void {
+  lock.hidden = need <= 0;
+  const n = lock.querySelector('b');
+  if (n) n.textContent = need > 0 ? String(need) : '';
 }
 
 export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D {
@@ -69,7 +84,8 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
   // Pouch (narrow screens): one button; the slots open in a parchment strip above the tray.
   const pouch = el('button', 'pu-ab pu-item pu-items-pouch', { type: 'button', 'data-testid': 'item2d-pouch', 'aria-label': t('item.pouchAria'), 'aria-expanded': 'false' });
   const pouchIcon = el('span', 'pu-ab-icon');
-  pouch.append(img(KIT.medallion, '', 'pu-ab-frame'), pouchIcon, el('span', 'pu-item-stock pu-letter pu-items-pouchn'));
+  const pouchLock = lockChip();
+  pouch.append(img(KIT.medallion, '', 'pu-ab-frame'), pouchIcon, el('span', 'pu-item-stock pu-letter pu-items-pouchn'), pouchLock);
   const pop = el('div', 'pu pu-items-pop', { 'data-testid': 'item2d-pop', hidden: true });
   group.append(divider, row, pouch);
   const tip = el('div', 'pu pu-ab-tip pu-item-tip', { role: 'tooltip', id: 'item2d-tip', hidden: true });
@@ -93,7 +109,8 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
     const pips = el('span', 'pu-item-pips', { 'aria-hidden': 'true' });
     const stockEl = el('span', 'pu-item-stock pu-letter', { 'aria-hidden': 'true' });
     const cancel = el('span', 'pu-ab-cancel', { 'aria-hidden': 'true' }, '✕');
-    btn.append(frame, icon, pips, stockEl, cancel);
+    const lock = lockChip();
+    btn.append(frame, icon, pips, stockEl, lock, cancel);
     let keyChip: HTMLSpanElement | null = null;
     if (opts.desktop) {
       keyChip = el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, ['Z', 'X', 'C'][i] ?? '');
@@ -109,7 +126,7 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
     btn.addEventListener('pointerleave', () => showTip(null));
     btn.addEventListener('focus', () => showTip(id));
     btn.addEventListener('blur', () => showTip(null));
-    return { id, btn, frame, pips, stock: stockEl, keyChip, view: null, key: '' };
+    return { id, btn, frame, pips, stock: stockEl, lock, keyChip, view: null, key: '' };
   };
 
   // --- run binding ------------------------------------------------------------------------------
@@ -190,7 +207,13 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
 
   // --- tooltip ----------------------------------------------------------------------------------
   let tipFor: ItemId | null = null;
-  const stateText = (v: BeltSlotView): string => t(beltStateKey(v) as MsgKey);
+  // Lives still to lose before the next belt cast opens (the Normal / Hard rescue rule; 0 = open).
+  let need = 0;
+  const stateText = (v: BeltSlotView): string => (v.state === 'reserve' ? t('item.reserve', { n: need }) : t(beltStateKey(v) as MsgKey));
+  const reserveRule = (): string => {
+    const step = MARKET_RULES.livesLostPerExtraUse[game.world.mods.marketDifficulty];
+    return t('item.reserveRule', { a: step, b: step * 2 });
+  };
   const showTip = (id: ItemId | null): void => {
     tipFor = id;
     const s = id ? slots.find((q) => q.id === id) : null;
@@ -206,6 +229,7 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
       el('div', 'pu-ab-tip-desc pu-ink-soft', {}, itemDesc(id)),
       el('div', 'pu-item-tip-uses pu-ink', {}, t('item.uses', { n: v.uses }), ' · ', t('item.stock', { n: v.owned })),
       el('div', `pu-item-tip-state${v.state === 'ready' ? ' ok' : ''}`, {}, stateText(v)),
+      v.state === 'reserve' ? el('div', 'pu-item-tip-rule pu-ink-soft', {}, reserveRule()) : '',
     );
     tip.hidden = false;
     const b = s.btn.getBoundingClientRect();
@@ -433,11 +457,19 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
   };
   const currentView = (): BeltSlotView[] => beltView(slots.map((s) => s.id), game.world.itemSystem.belt(), stock, runState());
   const sync = (s: Slot, v: BeltSlotView): void => {
-    const key = `${v.state}|${v.uses}|${v.owned}`;
+    const key = `${v.state}|${v.uses}|${v.owned}|${v.state === 'reserve' ? need : 0}`;
     if (key === s.key) return;
+    // A locked charge opening is a moment: pop the medallion (and buzz on a phone).
+    if (s.view?.state === 'reserve' && v.state !== 'reserve' && v.uses > 0) {
+      s.btn.classList.remove('cast-pop');
+      void s.btn.offsetWidth;
+      s.btn.classList.add('cast-pop');
+      haptics.pulse('upgrade');
+    }
     s.key = key;
     s.view = v;
     s.btn.dataset.state = v.state;
+    setLock(s.lock, v.state === 'reserve' ? need : 0);
     s.frame.src = v.state === 'ready' ? KIT.medallionHi : KIT.medallion;
     s.btn.classList.toggle('used-up', v.uses <= 0);
     const pips: HTMLElement[] = [];
@@ -458,10 +490,13 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
       lastDt = dt;
       if (game.events !== bound) bind();
       if (game.dock.items.mode !== mode || group.style.getPropertyValue('--di') !== `${game.dock.items.d}px`) layout();
+      need = game.world.itemSystem.livesUntilNextUse(game.world);
       const views = currentView();
       views.forEach((v, i) => sync(slots[i], v));
       pouch.querySelector('.pu-items-pouchn')!.textContent = String(views.reduce((n, v) => n + v.uses, 0));
-      pouch.dataset.state = views.some((v) => v.state === 'ready') ? 'ready' : 'waiting';
+      const locked = views.some((v) => v.state === 'reserve');
+      pouch.dataset.state = views.some((v) => v.state === 'ready') ? 'ready' : locked ? 'reserve' : 'waiting';
+      setLock(pouchLock, locked ? need : 0);
       if (aiming) {
         const v = views.find((q) => q.id === aiming);
         if (!v || v.state !== 'ready' || !visible) setAim(null);
@@ -500,7 +535,7 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
         popOpen,
         aiming,
         group: r(group),
-        slots: slots.map((s) => ({ id: s.id, ...r(s.btn), state: s.view?.state ?? null, uses: s.view?.uses ?? 0, owned: s.view?.owned ?? 0 })),
+        slots: slots.map((s) => ({ id: s.id, ...r(s.btn), state: s.view?.state ?? null, uses: s.view?.uses ?? 0, owned: s.view?.owned ?? 0, lock: s.lock.hidden ? 0 : need })),
         hint: hint.hidden ? null : hint.textContent,
         tip: tip.hidden ? null : tip.textContent,
         fx: fx.debug(),

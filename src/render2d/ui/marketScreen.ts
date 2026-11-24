@@ -19,7 +19,7 @@ import { itemDesc, itemName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
 import { el, img, openSheet, plank, type Sheet } from './dom.ts';
 import { buyItem2D, readMarket2D, setLoadout2D } from './market2d.ts';
-import { CRYSTAL_ICON, CRYSTAL_ICON_LARGE, itemIconUrl, MARKET_STALL, marketView, toggleLoadout, type MarketCard } from './marketModel.ts';
+import { capLineParams, CRYSTAL_ICON, CRYSTAL_ICON_LARGE, itemIconUrl, MARKET_STALL, marketView, toggleLoadout, type MarketCard } from './marketModel.ts';
 import { onProgress2DCloudHydrated } from './progress2d.ts';
 import './market.css';
 
@@ -99,7 +99,7 @@ export function openMarket(opts: MarketScreenOptions = {}): Sheet {
       {},
       el('span', '', {}, t('market.loadoutHint', { n: MARKET_RULES.slots })),
       ' ',
-      el('span', 'pu-market-cap', { 'data-testid': 'market2d-cap' }, t('market.capLine', MARKET_RULES.useCap)),
+      el('span', 'pu-market-cap', { 'data-testid': 'market2d-cap' }, t('market.capLine', capLineParams())),
     ),
     beltNote,
   );
