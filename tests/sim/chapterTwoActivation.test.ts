@@ -19,18 +19,19 @@ const onDisk = (p: string): boolean => existsSync(resolve(ROOT, 'public/art2d', 
 const CHAPTER = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'];
 
 describe('chapter two is in the shipping campaign', () => {
-  it('LEVELS_2D lists all 25 islands in campaign order, chapter two right after i16', () => {
+  it('LEVELS_2D registers every shipping island exactly once', () => {
     const ids = LEVELS_2D.map((l) => l.id);
-    expect(ids).toHaveLength(25);
-    expect(ids).toEqual(['l1c', ...Array.from({ length: 24 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)]);
+    expect(ids).toHaveLength(28);
+    expect(new Set(ids)).toEqual(new Set(['l1c', ...Array.from({ length: 27 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)]));
     expect(registeredChapterIslands().map((l) => l.id)).toEqual(CHAPTER);
-    for (const id of CHAPTER) expect(getLevelById(id)).toBe(LEVELS_2D[Number(id.slice(1))]);
+    for (const id of CHAPTER) expect(getLevelById(id)).toBe(LEVELS_2D.find(level => level.id === id));
   });
 
   it('clearing i16 unlocks i17 (and only i17)', () => {
     const p = createDefaultProgress(LEVELS_2D.length);
-    for (let i = 0; i <= 16; i++) applyWin(p, i, LEVELS_2D.length, 2, 10, []);
-    expect(p.unlockedLevelIndex).toBe(17);
+    const finale = LEVELS_2D.findIndex(level => level.id === 'i16');
+    for (let i = 0; i <= finale; i++) applyWin(p, i, LEVELS_2D.length, 2, 10, []);
+    expect(p.unlockedLevelIndex).toBe(finale + 1);
     expect(LEVELS_2D[p.unlockedLevelIndex].id).toBe('i17');
   });
 

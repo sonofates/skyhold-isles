@@ -13,7 +13,7 @@ import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { codexEnemyUrl, mountCodex2D } from './codex2d.ts';
 import { specPortraitUrl } from './specArt.ts';
 import { initLocale, t } from '../i18n/index.ts';
-import { heroName, islandName } from '../i18n/data.ts';
+import { heroName, islandName, islandWaveTitle } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../data/enemies.ts';
 import { getTowerTierStats } from '../data/towers.ts';
@@ -976,6 +976,7 @@ async function main(): Promise<void> {
       waveCard.update({
         visible,
         preview: pv,
+        title: pv ? islandWaveTitle(w.level, pv.waveOneBased - 1) : undefined,
         countdown: hudState.countdown,
         earlyBonus: hudState.earlyBonus,
         first: ws.state === 'preFirstWave',

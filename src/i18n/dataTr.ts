@@ -4,7 +4,7 @@
  * Place names are translated so the isles read like a Turkish storybook; "Skyhold" stays a name.
  */
 export interface DataTr {
-  readonly islands: Readonly<Record<string, { readonly name: string; readonly subtitle: string }>>;
+  readonly islands: Readonly<Record<string, { readonly name: string; readonly subtitle: string; readonly waves?: readonly string[] }>>;
   readonly towers: Readonly<
     Record<string, { readonly name: string; readonly short: string; readonly desc: string; readonly role: string; readonly sigName: string; readonly sigDesc: string; readonly strong: string; readonly weak: string }>
   >;
@@ -51,6 +51,35 @@ export const DATA_TR: DataTr = {
     i22: { name: 'Tuzcam Salı', subtitle: 'Salın halatı koptu. Son yük karşı kıyıya varana kadar iki tuz yolunu da savun.' },
     i23: { name: 'Mum Işığı Bahçesi', subtitle: 'Deniz fenerini yeniden yakmak için bir alev gerek. Son balmumu arabası geçene dek armut bahçesinin yollarını açık tut.' },
     i24: { name: 'Son Işık Burnu', subtitle: 'Deniz feneri söndü. Fenerci lambayı yeniden yakana dek deniz kalesini ve iki iskeleyi savun.' },
+    i25: {
+      name: 'Fırtına Küresi', subtitle: 'Cam çekül halkalardan kurtuldu. Gözlemci fırtınanın yönünü bulana dek iki ölçüm yolunu tut.',
+      waves: [
+        'İlk Ölçüm', 'Çatal İbre', 'Gümüş Esinti',
+        'Çekül İpi', 'Mika Yağmuru', 'Pusulasız Seyir',
+        'Ters Dönüş', 'Buğulu Mercek', 'Ölçeğin Ötesi',
+        'Nişan Çizgileri', 'Mavi Saat', 'Halkalar Hizalanıyor',
+      ],
+    },
+    i26: {
+      name: 'Köz Asansörü Sekileri', subtitle: 'Son kova dolusu fırın kumu uçurumun üzerinde asılı. Asansör yeniden çalışana dek basamaklı yük yolunu koru.',
+      waves: [
+        'Sabah Vardiyası', 'Çekme Halatı', 'Gevşek Çakıl',
+        'Dişlilerde Kum', 'Fren Başında', 'Gevşeyen Kablo',
+        'Karşı Ağırlık', 'Sallanan Vinç', 'Kehribar Yükü',
+        'Mandal Sıyırıyor', 'Son Sahanlık', 'Hep Birlikte Çek',
+        'Kova Devriliyor',
+      ],
+    },
+    i27: {
+      name: 'Fitilciler Kıyısı', subtitle: 'Bahçenin balmumu teknede. Ustalar Son Işık’a yetecek bir fitil örene dek kıyı yollarını savun.',
+      waves: [
+        'İlk Büküm', 'Keten Tozu', 'Üç Kat İplik',
+        'İğ Boyunca', 'Gevşek Lif', 'Bakır Kancalar',
+        'Makaraya Sarım', 'Katranlı Kazıklar', 'Büküme Karşı',
+        'İp Eki', 'Tekne Dalgası', 'Yumağı Salın',
+        'Son Işık’a Vira',
+      ],
+    },
   },
   towers: {
     archer: {

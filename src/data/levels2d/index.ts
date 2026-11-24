@@ -28,6 +28,7 @@ import { I21 } from './i21.ts';
 import { I22 } from './i22.ts';
 import { I23 } from './i23.ts';
 import { I24 } from './i24.ts';
+import { NEW_ISLANDS } from './newIslands.ts';
 import type { ChapterIsland } from './chapterIsland.ts';
 
 const chapterTwo: readonly ChapterIsland[] = [I17, I18, I19, I20, I21, I22, I23, I24];
@@ -48,6 +49,7 @@ export const LEVELS_2D: readonly LevelDef[] = [
   I01, I02, I03, I04, I05, I06, I07, I08,
   I09, I10, I11, I12, I13, I14, I15, I16,
   ...registeredChapterIslands(),
+  ...NEW_ISLANDS,
 ];
 
 /** Any island by id: campaign islands first, then the 2D side entries. */

@@ -51,6 +51,18 @@ interface PlaceholderBeat {
 /** The recurring narrator of the placeholder beats. */
 const PELL = { speaker: 'story.pell', portrait: '/art2d/ui/portrait-pell.webp' } as const;
 const PLACEHOLDER_STORY: Readonly<Record<string, Partial<Record<StoryPart, readonly PlaceholderBeat[]>>>> = {
+  i25: {
+    intro: [{ ...PELL, key: 'story.i25.intro', art: '/art2d/ui/story-i25-intro-1.webp' }],
+    outro: [{ ...PELL, key: 'story.i25.outro', art: '/art2d/ui/story-i25-outro-1.webp' }],
+  },
+  i26: {
+    intro: [{ ...PELL, key: 'story.i26.intro', art: '/art2d/ui/story-i26-intro-1.webp' }],
+    outro: [{ ...PELL, key: 'story.i26.outro', art: '/art2d/ui/story-i26-outro-1.webp' }],
+  },
+  i27: {
+    intro: [{ ...PELL, key: 'story.i27.intro', art: '/art2d/ui/story-i27-intro-1.webp' }],
+    outro: [{ ...PELL, key: 'story.i27.outro', art: '/art2d/ui/story-i27-outro-1.webp' }],
+  },
   l1c: {
     intro: [
       { ...PELL, key: 'story.l1c.intro.1', art: '/art2d/ui/story-l1c-intro-1.webp', focus: [0.12, 0.25] },
