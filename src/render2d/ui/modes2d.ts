@@ -186,6 +186,10 @@ export function dailyHref2D(levelId: string, pathname?: string): string {
   return buildRunHref2D(levelId, { daily: true, pathname });
 }
 
+const DAY_MS = 86_400_000;
+/** How long after UTC midnight a Daily link for yesterday's island still opens yesterday's Daily. */
+export const DAILY_LINK_GRACE_MS = 30 * 60_000;
+
 /**
  * Resolves URL query params (`?level=`, `?challenge=<id>`, `?daily=1`, `?endless=1`,
  * `?diff=easy|normal|hard`) and the 2D save's Workshop upgrades into the level, `RunConfig`, and
@@ -247,7 +251,14 @@ export function resolveQueryRun2D(
     else warn(`[skyhold-2d] Unknown ?diff=${String(raw)}; expected easy, normal or hard. Playing Normal.`);
   }
 
-  const dailyToday = dailyReq ? dailyForToday(nowMs, progress, levels) : null;
+  let dailyToday = dailyReq ? dailyForToday(nowMs, progress, levels) : null;
+  // The Daily sheet picks its island when it opens; a link opened just after UTC midnight would
+  // otherwise fall back to a plain run with no Daily rules. Yesterday's Daily still counts
+  // (applyDailyWin's one-day grace), so play that one when the link names its island.
+  if (dailyToday && q.has('level') && q.get('level') !== dailyToday.levelId && nowMs - utcDayNumber(nowMs) * DAY_MS < DAILY_LINK_GRACE_MS) {
+    const yesterday = dailyForToday(nowMs - DAY_MS, progress, levels);
+    if (yesterday && yesterday.levelId === q.get('level')) dailyToday = yesterday;
+  }
 
   let levelId: string;
   let level: LevelDef | null;
