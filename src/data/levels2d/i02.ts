@@ -8,8 +8,9 @@ export const I02 = campaignIsland(LEVEL_2, layout, {
     'Dreadnought Fleet': { boss: { hpScale: 1.5 } },
   },
   startingGold: 300,
-  enemyHpScale: 1.741,
-  waveHpGrowth: 0.162,
+  enemyHpScale: 1.72,
+  waveHpGrowth: 0.265,
+  waveCount: 10,
   sites: {
     '2,3': 2,
     '4,5': 3,

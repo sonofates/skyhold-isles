@@ -10,9 +10,10 @@ export const I13 = campaignIsland(LEVEL_13, layout, {
     count: 4, startDelay: 3.6, spawnInterval: 1,
   }),
   startingGold: 360,
-  enemyHpScale: 1.8298,
-  waveHpGrowth: 0.17,
-  flyingGroups: { hpScale: 0.35 },
+  enemyHpScale: 1.96,
+  waveHpGrowth: 0.49,
+  waveCount: 12,
+  flyingGroups: { hpScale: 0.26 },
   sites: {
     '11,7': 4,
     '12,8': 21,

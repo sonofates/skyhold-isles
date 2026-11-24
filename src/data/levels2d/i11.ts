@@ -4,12 +4,14 @@ import layout from './i11.json';
 
 export const I11 = campaignIsland(LEVEL_11, layout, {
   formations: {
-    'Golden Freight': { golem: { hpScale: 1.45 } },
+    'Golden Freight': { golem: { hpScale: 1.75 } },
+    'Thunderhead': { carrier: { count: 7 } },
   },
   startingGold: 265,
-  enemyHpScale: 1.9624,
-  waveHpGrowth: 0.235,
-  flyingGroups: { hpScale: 0.15 },
+  enemyHpScale: 1.94,
+  waveHpGrowth: 0.6,
+  waveCount: 11,
+  flyingGroups: { hpScale: 0.1 },
   sites: {
     '6,3': 0,
     '4,4': 5,

@@ -5,9 +5,15 @@ import layout from './i16.json';
 
 const sanctum = campaignIsland(LEVEL_16, layout, {
   waves: replaceWaveEnemy(LEVEL_16, 'Gatecrash', 'brute', 'kilnback'),
+  formations: {
+    'Crown of Ash': { flyer: { count: 16 }, blinker: { count: 12 } },
+    'Heart of the Sanctum': { flyer: { count: 26, hpScale: 0.55 }, brute: { count: 9 }, golem: { count: 4 } },
+  },
   startingGold: 360,
-  enemyHpScale: 2.3,
-  waveHpGrowth: 0.09,
+  enemyHpScale: 2.28,
+  waveHpGrowth: 0.275,
+  waveCount: 13,
+  keepWaves: ['Counter-March', 'Cinder Fall', 'Burning Freight'],
   flyingGroups: { hpScale: 0.5, intervalScale: 1.5 },
   sites: {
     '7,4': 23,

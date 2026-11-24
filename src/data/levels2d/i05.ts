@@ -5,12 +5,14 @@ import layout from './i05.json';
 export const I05 = campaignIsland(LEVEL_5, layout, {
   waves: replaceWaveEnemy(LEVEL_5, 'Whirlwind', 'flyer', 'flyer', { count: 9 }),
   formations: {
-    'Gale Force': { flyer: { hpScale: 0.85 } },
+    'Gale Force': { flyer: { hpScale: 0.64 } },
     'Harvest Dreadnought': { boss: { hpScale: 1.3 }, flyer: { count: 28 } },
   },
   startingGold: 270,
-  enemyHpScale: 1.6688,
-  waveHpGrowth: 0.167,
+  enemyHpScale: 1.62,
+  waveHpGrowth: 0.31,
+  waveCount: 10,
+  flyingGroups: { hpScale: 0.75 },
   sites: {
     '8,7': 7,
     '8,6': 14,

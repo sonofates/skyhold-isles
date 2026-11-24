@@ -8,12 +8,13 @@ export const I14 = campaignIsland(LEVEL_14, layout, {
     lane: 2, startDelay: 5.6, spawnInterval: 2.4,
   }),
   formations: {
-    'Aegis Dune': { warden: { count: 4 }, healer: { count: 2 }, flyer: { count: 14 } },
+    'Aegis Dune': { warden: { count: 5 }, healer: { count: 2 }, flyer: { count: 14 } },
   },
   startingGold: 360,
-  enemyHpScale: 3.2809,
-  waveHpGrowth: 0.0768,
-  flyingGroups: { hpScale: 0.55, intervalScale: 1.2 },
+  enemyHpScale: 3.3,
+  waveHpGrowth: 0.214,
+  waveCount: 12,
+  flyingGroups: { hpScale: 0.42, intervalScale: 1.2 },
   sites: {
     '9,7': 8,
     '12,7': 20,

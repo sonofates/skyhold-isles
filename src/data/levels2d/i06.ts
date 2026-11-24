@@ -6,11 +6,13 @@ export const I06 = campaignIsland(LEVEL_6, layout, {
   formations: {
     'The Leviathan': { boss: { hpScale: 0.6 } },
     'Maelstrom': { flyer: { count: 12 } },
+    'Fall of the Atoll': { brute: { count: 14 }, healer: { count: 6 } },
   },
   startingGold: 285,
-  enemyHpScale: 1.3623,
-  waveHpGrowth: 0.306,
-  flyingGroups: { countScale: 0.65, intervalScale: 1.2 },
+  enemyHpScale: 1.35,
+  waveHpGrowth: 0.575,
+  waveCount: 11,
+  flyingGroups: { hpScale: 1.15, countScale: 0.65, intervalScale: 1.2 },
   sites: {
     '3,3': 18,
     '5,2': 4,

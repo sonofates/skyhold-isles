@@ -4,11 +4,13 @@ import layout from './i12.json';
 
 export const I12 = campaignIsland(LEVEL_12, layout, {
   formations: {
-    'Hexfire Legion': { brute: { hpScale: 1.4 } },
+    'Dreadnought Choir': { boss: { hpScale: 1.55 } },
+    'Hexfire Legion': { brute: { hpScale: 1.42 } },
   },
   startingGold: 360,
-  enemyHpScale: 2.307,
-  waveHpGrowth: 0.21,
+  enemyHpScale: 2.26,
+  waveHpGrowth: 0.49,
+  waveCount: 12,
   // The recessed clearing is outside a 120 px hex and inside the 160 px barracks rally range.
   hexRadius: 2.4,
   sites: {

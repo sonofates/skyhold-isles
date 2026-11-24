@@ -4,9 +4,10 @@ import layout from './i08.json';
 
 export const I08 = campaignIsland(LEVEL_8, layout, {
   startingGold: 250,
-  enemyHpScale: 2.0577,
-  waveHpGrowth: 0.207,
-  flyingGroups: { hpScale: 0.4, intervalScale: 1.5 },
+  enemyHpScale: 1.98,
+  waveHpGrowth: 0.54,
+  waveCount: 11,
+  flyingGroups: { hpScale: 0.33, intervalScale: 1.5 },
   sites: {
     '3,5': 3,
     '3,6': 1,
