@@ -32,6 +32,7 @@ import {
   isHeroId,
 } from '../../data/heroes.ts';
 import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../../data/workshop.ts';
+import { LEGACY_2D_ORDER } from '../../data/chapters.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, starWallet, type WinRecord } from '../../game/progression.ts';
@@ -106,6 +107,19 @@ export function onProgress2DCloudHydrated(listener: (progress: ProgressData) => 
 
 function isMockLevelRoster(levels: readonly Pick<LevelDef, 'id'>[]): boolean {
   return levels.some((l) => l.id.startsWith('mock-'));
+}
+
+/**
+ * The island order of a save (or save code) that never recorded one. Every such save predates the
+ * chapters, so it was written in the flat order (`LEGACY_2D_ORDER`, islands only ever appended);
+ * reading it in today's chapter order would shift stars onto the wrong islands once a chapter slot
+ * is filled in the middle (i25 before i16). A roster that is not the real one (tests) keeps its
+ * own order.
+ */
+export function legacyIdOrder(levels: readonly Pick<LevelDef, 'id'>[]): string[] {
+  const ids = levels.map((l) => l.id);
+  if (!ids.includes(LEGACY_2D_ORDER[0])) return ids;
+  return [...LEGACY_2D_ORDER, ...ids.filter((id) => !LEGACY_2D_ORDER.includes(id))];
 }
 
 interface Stored2D {
@@ -242,7 +256,7 @@ function parseStored2DRaw(
     ? obj.ids.map((x) => (typeof x === 'string' ? x : ''))
     : [];
   const hasAnyValidId = mappedIds.some((x) => x.length > 0);
-  const ids = hasAnyValidId ? mappedIds : levels.map((l) => l.id);
+  const ids = hasAnyValidId ? mappedIds : legacyIdOrder(levels);
   const preRemapCount = Math.max(1, ids.length, maxRawIslandArrayLen(payload));
   const preRemapWorkshop = migrateProgress(payload, preRemapCount).workshop;
   const progress = remapProgress(payload, ids, levels);
@@ -1378,6 +1392,13 @@ export function decodeSaveCode2D(
       progress: remapProgress(sized.progress, head.levelIds, levels),
       levelIds: head.levelIds,
     };
+  }
+  const legacy = legacyIdOrder(levels);
+  if (legacy.length !== levels.length || legacy.some((id, i) => levels[i]?.id !== id)) {
+    // A code without ids was written in the flat pre-chapter order: re-index it by id.
+    const sized = decodeSaveCode(code, Math.max(legacy.length, levels.length, 64));
+    if (!sized.ok) return sized;
+    return { ok: true, progress: remapProgress(sized.progress, legacy, levels) };
   }
   const direct = decodeSaveCode(code, levels.length);
   if (!direct.ok) return direct;

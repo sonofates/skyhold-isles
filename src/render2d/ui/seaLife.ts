@@ -77,6 +77,8 @@ export interface SeaHandle {
   decorateNode(b: HTMLElement, i: number, frontier: boolean): void;
   /** The frontier ship (hull + fluttering pennant and sail, or the painted sail strip). */
   ship(): HTMLElement;
+  /** Tints the water (the world map chapter's sea: rgb multipliers + saturation). */
+  setGrade(g: readonly [number, number, number, number]): void;
 }
 
 interface Flight {
@@ -874,6 +876,10 @@ export function mountSea(root: HTMLElement, world: HTMLElement, scroll: HTMLElem
       dressShip(entry);
       lastShipFrame = -1;
       return rootEl;
+    },
+    setGrade(g) {
+      water.setGrade(g);
+      requestStill();
     },
   };
 }

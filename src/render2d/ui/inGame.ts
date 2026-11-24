@@ -3,6 +3,7 @@
  * recording a win in the 2D save, and the story panels before an island's first play and after a
  * win. Used by main2d.ts.
  */
+import { chapterOf } from '../../data/chapters.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import type { WinRecord } from '../../game/progression.ts';
@@ -30,10 +31,17 @@ export function nextIsland2D(levelId: string, levels: readonly LevelDef[] = LEVE
   return i >= 0 ? levels[i + 1] : undefined;
 }
 
-/** End panel "Next Isle" target: the next island when it is open (or this run just won it open). */
+/**
+ * End panel "Next Isle" target: the next island when it is open (or this run just won it open).
+ * None across a chapter boundary (the Prologue's or a finale's win): the World Map comes first,
+ * with its "Chapter complete" and title cards.
+ */
 export function nextIslandOpen(levelId: string, wonNow: boolean): LevelDef | undefined {
   const next = nextIsland2D(levelId);
   if (!next) return undefined;
+  const here = chapterOf(levelId);
+  const there = chapterOf(next.id);
+  if (here && there && here.id !== there.id) return undefined;
   return wonNow || isUnlocked2D(loadProgress2D(), next.id) ? next : undefined;
 }
 

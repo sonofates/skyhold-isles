@@ -1,0 +1,91 @@
+/* Chapter cards (chapterCards.ts): the storybook card's one-beat spread, with the chapter's name
+   lettered large and its accent colour under it. Phone sizes use the html.pu-phone tokens. */
+
+.pu-chapter-card .pu-chapter-panel {
+  align-items: center;
+}
+
+.pu-chapter-words {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--s) * 0.7);
+}
+
+.pu-chapter-name {
+  font-size: calc(var(--s) * 2.7);
+  line-height: 1.05;
+  padding-bottom: calc(var(--s) * 0.45);
+  border-bottom: calc(var(--s) * 0.32) solid var(--chapter-accent, var(--gold));
+  align-self: flex-start;
+}
+
+.pu-chapter-blurb {
+  font-size: calc(var(--s) * 1.5);
+  line-height: 1.3;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.pu-chapter-blurb.soon {
+  color: var(--ink-soft);
+  font-size: calc(var(--s) * 1.3);
+}
+
+.pu-chapter-starline {
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 1);
+}
+
+.pu-chapter-stars {
+  font-size: calc(var(--s) * 3.2);
+}
+
+.pu-chapter-tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3em;
+  font-size: calc(var(--s) * 2.2);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.pu-chapter-tally img {
+  width: 1.2em;
+  height: 1.2em;
+}
+
+.pu-chapter-tally small {
+  font-size: 0.65em;
+  opacity: 0.9;
+}
+
+.pu-story-actions.pu-chapter-actions {
+  justify-content: center;
+}
+
+html.pu-phone .pu-chapter-words {
+  gap: 6px;
+}
+
+html.pu-phone .pu-chapter-name {
+  font-size: max(20px, calc(var(--ui-font-heading) * 1.35));
+  padding-bottom: 4px;
+  border-bottom-width: 4px;
+}
+
+html.pu-phone .pu-chapter-blurb {
+  font-size: var(--ui-font-body);
+}
+
+html.pu-phone .pu-chapter-blurb.soon {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-chapter-stars {
+  font-size: 26px;
+}
+
+html.pu-phone .pu-chapter-tally {
+  font-size: max(18px, var(--ui-font-heading));
+}

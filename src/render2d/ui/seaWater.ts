@@ -33,6 +33,7 @@ uniform vec4 uFx;
 uniform vec2 uCalmXf;
 uniform vec4 uHint;
 uniform float uTop;
+uniform vec4 uGrade;
 varying vec2 vUv;
 const float TAU = 6.2831853;
 void main() {
@@ -70,6 +71,8 @@ void main() {
     float spot = exp(-dot(q, q) / 2.4) + 0.4 * (exp(-q.x * q.x / 0.45 - q.y * q.y / 16.0) + exp(-q.y * q.y / 0.45 - q.x * q.x / 16.0));
     col += vec3(1.0, 0.97, 0.86) * tw * spot * calm * smoothstep(0.3, 0.52, lum + swell * 0.3) * 0.9;
   }
+  col *= uGrade.rgb;
+  col = mix(vec3(dot(col, vec3(0.3, 0.59, 0.11))), col, uGrade.a);
   gl_FragColor = vec4(col, 1.0);
 }`;
 
@@ -166,7 +169,7 @@ function compile(gl: WebGLRenderingContext, type: number, src: string): WebGLSha
 const isPot = (n: number): boolean => n > 0 && (n & (n - 1)) === 0;
 const potBelow = (n: number): number => 2 ** Math.max(0, Math.floor(Math.log2(Math.max(1, n))));
 
-type Uniforms = Record<'uSea' | 'uNoise' | 'uRand' | 'uCalm' | 'uView' | 'uTile' | 'uPh' | 'uFx' | 'uCalmXf' | 'uHint' | 'uTop', WebGLUniformLocation | null>;
+type Uniforms = Record<'uSea' | 'uNoise' | 'uRand' | 'uCalm' | 'uView' | 'uTile' | 'uPh' | 'uFx' | 'uCalmXf' | 'uHint' | 'uTop' | 'uGrade', WebGLUniformLocation | null>;
 
 export class SeaWater {
   readonly canvas: HTMLCanvasElement;
@@ -178,6 +181,8 @@ export class SeaWater {
   private lost = false;
   /** Height of the uploaded sea texture in texels (0 = not yet). */
   seaTexH = 0;
+  /** Colour grade of the water (world map chapter tint): rgb multipliers + saturation. */
+  private grade: readonly [number, number, number, number] = [1, 1, 1, 1];
 
   private readonly onLost: (lost: boolean) => void;
 
@@ -222,7 +227,7 @@ export class SeaWater {
     const loc = gl.getAttribLocation(prog, 'aPos');
     gl.enableVertexAttribArray(loc);
     gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
-    const names = ['uSea', 'uNoise', 'uRand', 'uCalm', 'uView', 'uTile', 'uPh', 'uFx', 'uCalmXf', 'uHint', 'uTop'] as const;
+    const names = ['uSea', 'uNoise', 'uRand', 'uCalm', 'uView', 'uTile', 'uPh', 'uFx', 'uCalmXf', 'uHint', 'uTop', 'uGrade'] as const;
     const u = {} as Uniforms;
     for (const n of names) u[n] = gl.getUniformLocation(prog, n);
     gl.uniform1i(u.uSea, 0);
@@ -319,8 +324,14 @@ export class SeaWater {
     gl.uniform4f(u.uFx, f.amp, f.foam, f.glint, f.shadow);
     gl.uniform4f(u.uHint, f.hint[0], f.hint[1], f.hint[2], f.hint[3]);
     gl.uniform1f(u.uTop, f.top);
+    gl.uniform4f(u.uGrade, this.grade[0], this.grade[1], this.grade[2], this.grade[3]);
     gl.drawArrays(gl.TRIANGLES, 0, 3);
     return true;
+  }
+
+  /** The world map chapter's sea tint (`ChapterDef.sea`); used from the next drawn frame. */
+  setGrade(g: readonly [number, number, number, number]): void {
+    this.grade = [g[0], g[1], g[2], g[3]];
   }
 
   destroy(): void {

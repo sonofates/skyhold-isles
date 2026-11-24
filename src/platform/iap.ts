@@ -12,6 +12,7 @@
  *
  * Pure simulation layers (`src/sim`, `src/data`, `src/core`) must never import this module.
  */
+import { freeIslandIds } from '../data/chapters.ts';
 import { isCrystalPack, type CrystalPackId } from '../data/market.ts';
 import type {
   CustomerInfo,
@@ -93,17 +94,11 @@ export interface IapStoreAdapter {
 /**
  * Free mobile island roster (playable on mobile without owning `full_unlock`).
  *
- * TODO(owner): Decide final free-vs-paid island split before mobile store launch.
- * Placeholder: the first 6 islands of `LEVELS_2D` (`l1c`, `i01`, `i02`, `i03`, `i04`, `i05`).
+ * Owner decision (2026-11-24, docs/chapters-plan.md): the free version is the Prologue + Chapter 1
+ * (`l1c`, `i01`-`i09`); the full adventure opens Chapter 2 onward. Taken from the chapter list, so
+ * it follows any change there.
  */
-export const FREE_ISLANDS: readonly string[] = Object.freeze([
-  'l1c',
-  'i01',
-  'i02',
-  'i03',
-  'i04',
-  'i05',
-]);
+export const FREE_ISLANDS: readonly string[] = Object.freeze(freeIslandIds());
 
 export type EntitlementCollection =
   | ReadonlySet<string>

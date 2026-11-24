@@ -1,0 +1,265 @@
+/* World map chapters (worldMap.ts): the chapter bar at the bottom centre (‹ tally + tabs ›), the
+   fog over a chapter not reached yet or still to come, the still sea's chapter wash, and the page
+   turn. Phone sizes use the html.pu-phone tokens (paintedUi.css). */
+
+/* The still sea painting takes the chapter's tint (the WebGL water grades itself on top of it). */
+.pu-map-world::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--sea-wash, transparent);
+  mix-blend-mode: soft-light;
+  pointer-events: none;
+}
+
+/* ---- chapter bar ---- */
+.pu-chapter-bar {
+  position: absolute;
+  left: 50%;
+  bottom: max(calc(var(--s) * 0.7), var(--safe-b));
+  transform: translateX(-50%);
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  gap: calc(var(--s) * 0.6);
+  pointer-events: auto;
+}
+
+.pu-round.pu-ch-arrow {
+  width: calc(var(--s) * 4);
+  height: calc(var(--s) * 4);
+}
+
+.pu-round.pu-ch-arrow:disabled {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+  cursor: default;
+}
+
+.pu-ch-plaque {
+  --ph: calc(var(--s) * 4.2);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.25);
+  border-style: solid;
+  border-width: calc(var(--ph) * 0.3) calc(var(--ph) * 0.45);
+  border-image-source: url('/art2d/ui-plaque.webp');
+  border-image-slice: 50 68 fill;
+  border-image-width: calc(var(--ph) * 0.355) calc(var(--ph) * 0.482);
+  border-image-repeat: stretch;
+  padding: 0 calc(var(--s) * 0.5);
+  filter: drop-shadow(0 3px 2px rgba(30, 16, 4, 0.4));
+}
+
+.pu-ch-label {
+  display: flex;
+  align-items: center;
+  gap: 0.7em;
+  font-size: calc(var(--s) * 1.45);
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.pu-ch-stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+}
+
+.pu-ch-stars img {
+  width: 1.15em;
+  height: 1.15em;
+}
+
+.pu-ch-tabs {
+  display: flex;
+  gap: calc(var(--s) * 0.45);
+}
+
+.pu-ch-tab {
+  --tab: max(26px, calc(var(--s) * 2.5));
+  position: relative;
+  width: var(--tab);
+  height: var(--tab);
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--outline);
+  background: radial-gradient(circle at 35% 30%, color-mix(in srgb, var(--accent) 55%, white), var(--accent) 62%, color-mix(in srgb, var(--accent) 70%, black));
+  font: inherit;
+  font-size: calc(var(--tab) * 0.52);
+  line-height: 1;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.15s;
+}
+
+.pu-ch-tab::before {
+  content: '';
+  position: absolute;
+  inset: -8px -4px;
+}
+
+.pu-ch-tab.on {
+  transform: scale(1.18);
+  box-shadow: 0 0 0 2px var(--gold), 0 0 calc(var(--s) * 0.6) rgba(255, 205, 90, 0.9);
+}
+
+.pu-ch-tab.locked {
+  filter: grayscale(0.85) brightness(0.9);
+}
+
+.pu-ch-tab.soon {
+  filter: grayscale(0.6) brightness(1.05);
+  opacity: 0.65;
+  border-style: dashed;
+}
+
+.pu-ch-tab.complete::after {
+  content: '';
+  position: absolute;
+  right: -3px;
+  top: -3px;
+  width: 42%;
+  height: 42%;
+  background: url('/art2d/ui/star.webp') center / contain no-repeat;
+}
+
+.pu-ch-tab:active {
+  transform: scale(0.94);
+}
+
+/* ---- fog over a locked / coming-soon chapter ---- */
+.pu-chapter-veil {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 52%, rgba(238, 243, 247, 0.9) 0%, rgba(228, 236, 242, 0.78) 50%, rgba(214, 226, 236, 0.5) 80%, rgba(205, 219, 231, 0.32) 100%);
+}
+
+.pu-chapter-veil[hidden] {
+  display: none;
+}
+
+/* A chapter not reached yet: its islands stay faintly visible under the fog. */
+.pu-map.chapter-veiled:not(.chapter-soon) .pu-chapter-veil {
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 52%, rgba(238, 243, 247, 0.86) 0%, rgba(228, 236, 242, 0.62) 55%, rgba(214, 226, 236, 0.4) 100%);
+}
+
+.pu-map .pu-node.veiled {
+  pointer-events: none;
+  filter: grayscale(0.5) blur(0.6px);
+  opacity: 0.75;
+}
+
+.pu-ch-veil-card {
+  max-width: min(86vw, calc(var(--s) * 42));
+  padding: calc(var(--s) * 1.2) calc(var(--s) * 2.2);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: calc(var(--s) * 0.45);
+}
+
+.pu-ch-veil-kicker {
+  font-size: calc(var(--s) * 1.25);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.pu-ch-veil-name {
+  font-size: calc(var(--s) * 2.6);
+  line-height: 1.05;
+  padding-bottom: calc(var(--s) * 0.35);
+  border-bottom: calc(var(--s) * 0.3) solid var(--chapter-accent, var(--gold));
+}
+
+.pu-ch-veil-state {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  font-size: calc(var(--s) * 1.6);
+  font-weight: 700;
+}
+
+.pu-ch-veil-state .pu-glyph {
+  width: 1.3em;
+  height: 1.3em;
+}
+
+.pu-ch-veil-hint {
+  font-size: calc(var(--s) * 1.4);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+/* ---- page turn: the route fades in (the islands pop in on their own) ---- */
+.pu-map-world.pu-page-turn .pu-route {
+  animation: pu-ch-route-in 0.45s ease-out both;
+}
+
+@keyframes pu-ch-route-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* ---- phone ---- */
+html.pu-phone .pu-chapter-bar {
+  bottom: max(6px, var(--safe-b));
+  gap: 6px;
+}
+
+html.pu-phone .pu-round.pu-ch-arrow {
+  width: var(--ui-tap);
+  height: var(--ui-tap);
+}
+
+html.pu-phone .pu-ch-plaque {
+  --ph: 40px;
+  gap: 2px;
+  padding: 0 6px;
+}
+
+html.pu-phone .pu-ch-label {
+  font-size: var(--ui-font-caption);
+  gap: 0.6em;
+}
+
+html.pu-phone .pu-ch-tabs {
+  gap: 8px;
+}
+
+html.pu-phone .pu-ch-tab {
+  --tab: 28px;
+}
+
+html.pu-phone .pu-ch-veil-card {
+  padding: 10px 18px;
+  gap: 4px;
+  max-width: min(80vw, 420px);
+}
+
+html.pu-phone .pu-ch-veil-kicker {
+  font-size: var(--ui-font-caption);
+}
+
+html.pu-phone .pu-ch-veil-name {
+  font-size: max(20px, calc(var(--ui-font-heading) * 1.3));
+  border-bottom-width: 4px;
+}
+
+html.pu-phone .pu-ch-veil-state {
+  font-size: var(--ui-font-heading);
+}
+
+html.pu-phone .pu-ch-veil-hint {
+  font-size: var(--ui-font-body);
+}
