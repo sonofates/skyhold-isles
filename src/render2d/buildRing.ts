@@ -584,6 +584,20 @@ export class BuildRing {
     return this.mode !== null;
   }
 
+  /**
+   * How far (css px) the open ring's centre had to move from the point it was opened at to stay on
+   * screen and clear of the HUD. On a short phone screen this can be most of the screen; the phone
+   * camera then glides the map by the same amount so the plot ends up under its ring (game2d.ts).
+   */
+  get drift(): { readonly dx: number; readonly dy: number } {
+    if (this.mode === null) return { dx: 0, dy: 0 };
+    return { dx: this.shadow.position.x - this.originX, dy: this.shadow.position.y - this.originY };
+  }
+
+  get tokenRadius(): number {
+    return this.tokenR;
+  }
+
   close(): void {
     if (this.mode === null) return;
     this.mode = null;

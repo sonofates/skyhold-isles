@@ -126,6 +126,22 @@ export class MapPan {
     return this.moveBy(dx, dy);
   }
 
+  /**
+   * Glide the view by (dx, dy) css px (clamped to the range; reduced motion: jump). Returns whether
+   * the view moved at once (only with reduced motion; a glide moves in `step`).
+   */
+  glideBy(dx: number, dy: number, reduced: boolean): boolean {
+    this.vx = 0;
+    this.vy = 0;
+    const t = clampPan(this.range, this.x + dx, this.y + dy);
+    if (reduced) {
+      this.target = null;
+      return this.moveBy(t.x - this.x, t.y - this.y);
+    }
+    this.target = t;
+    return false;
+  }
+
   /** Arrow key: glide a step that way (reduced motion: jump the step). */
   nudge(dirX: number, dirY: number, reduced: boolean): boolean {
     this.vx = 0;
