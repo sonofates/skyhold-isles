@@ -17,8 +17,8 @@ export const I21 = {
   flightPath: [],
   decorationSeed: 1117,
   startingGold: 345,
-  enemyHpScale: 2.6554,
-  waveHpGrowth: 0.1,
+  enemyHpScale: 2.68,
+  waveHpGrowth: 0.101,
   waves: [
     { name: 'Broken Spar', clearBonus: 24, groups: [
       group('bellrunner', 7, 0.72),
@@ -48,7 +48,7 @@ export const I21 = {
     ] },
     { name: 'Across the Chalk', clearBonus: 34, groups: [
       group('carrier', 2, 2.65),
-      { ...group('draftwing', 7, 0.55, 1.3), elite: true },
+      { ...group('draftwing', 5, 0.55, 1.3), elite: true },
       { ...group('bellrunner', 9, 0.51, 3.7), elite: true },
     ] },
     { name: 'A Snarl in the Line', clearBonus: 36, groups: [

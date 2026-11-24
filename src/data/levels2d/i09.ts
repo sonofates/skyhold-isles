@@ -8,7 +8,9 @@ export const I09 = campaignIsland(LEVEL_9, layout, {
   },
   startingGold: 336,
   enemyHpScale: 1.9549,
-  waveHpGrowth: 0.205,
+  waveHpGrowth: 0.63,
+  waveCount: 11,
+  flyingGroups: { hpScale: 0.75 },
   sites: {
     '2,6': 2,
     '7,5': 21,

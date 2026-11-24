@@ -19,41 +19,49 @@ export const I17 = {
   decorationSeed: 887,
   startingGold: 320,
   enemyHpScale: 2.0128,
-  waveHpGrowth: 0.095,
+  waveHpGrowth: 0.0674,
   waves: [
-    { name: 'The Stolen Clappers', clearBonus: 24, groups: [
+    { name: 'The Stolen Clappers', clearBonus: 18, groups: [
       group('bellrunner', 4, 1.35), group('grunt', 7, 0.65, 2.4, 1),
     ] },
-    { name: 'East Arcade', clearBonus: 25, groups: [
+    { name: 'East Arcade', clearBonus: 18, groups: [
       group('brute', 3, 1.5, 0, 1), group('bellrunner', 7, 0.58, 2.1),
     ] },
-    { name: 'Above the Clouds', clearBonus: 28, groups: [
+    { name: 'Above the Clouds', clearBonus: 20, groups: [
       group('draftwing', 3, 0.72), group('draftwing', 4, 0.58, 5.4),
       group('grunt', 12, 0.55, 0.8, 1),
     ] },
-    { name: 'Copper Procession', clearBonus: 30, groups: [
+    { name: 'Copper Procession', clearBonus: 20, groups: [
       group('warden', 2, 2.5, 0, 1), group('brute', 6, 1.05, 0.8, 1),
       group('bellrunner', 8, 0.45, 3),
     ] },
-    { name: 'Loose Chimes', clearBonus: 32, groups: [
+    { name: 'Loose Chimes', clearBonus: 20, groups: [
       group('splitter', 7, 0.8), group('draftwing', 8, 0.55, 1.4),
       group('runner', 9, 0.44, 4, 1),
     ] },
-    { name: 'At the Bend', clearBonus: 35, groups: [
+    { name: 'Updraft', clearBonus: 12, groups: [
+      group('bellrunner', 5, 0.6), group('grunt', 5, 0.7, 1.4, 1),
+      group('brute', 3, 1.2, 2.2, 1),
+    ] },
+    { name: 'At the Bend', clearBonus: 20, groups: [
       group('golem', 5, 1.8, 0, 1), group('healer', 2, 1.3, 1.2, 1),
       group('bellrunner', 11, 0.42, 3.6),
     ] },
-    { name: 'A Break in the Clouds', clearBonus: 38, groups: [
+    { name: 'A Break in the Clouds', clearBonus: 22, groups: [
       group('carrier', 2, 3.4), group('draftwing', 12, 0.5, 1),
       group('brute', 6, 0.85, 1.8, 1), group('mite', 15, 0.2, 5.6),
     ] },
-    { name: 'The Bell Rope', clearBonus: 40, groups: [
+    { name: 'The Bell Rope', clearBonus: 24, groups: [
       group('blinker', 6, 0.8), group('hexer', 3, 1.5, 0.5, 1),
       { ...group('bellrunner', 12, 0.38, 2.3, 1), elite: true }, group('warden', 3, 1.2, 5.3),
     ] },
-    { name: 'Two Choirs', clearBonus: 44, groups: [
-      { ...group('brute', 6, 0.7), elite: true }, group('brute', 5, 0.7, 0.4, 1),
-      group('draftwing', 12, 0.42, 2.4), group('healer', 3, 1.3, 3.3, 1),
+    { name: 'Crosswind', clearBonus: 14, groups: [
+      group('golem', 3, 1.5, 0, 1), group('splitter', 4, 0.85, 1.2),
+      group('healer', 2, 1.4, 2.0, 1),
+    ] },
+    { name: 'Two Choirs', clearBonus: 24, groups: [
+      { ...group('brute', 6, 0.7), elite: true, hpScale: 1.42 }, group('brute', 5, 0.7, 0.4, 1),
+      group('draftwing', 7, 0.5, 2.4), group('healer', 3, 1.3, 3.3, 1),
     ] },
     { name: 'The Cloister Rings', clearBonus: 60, groups: [
       group('boss', 1, 1, 0, 1), group('warden', 3, 1.7, 1.2, 1),

@@ -502,10 +502,11 @@ describe('next-wave caves', () => {
     expect(chosen20!.count).toBe(19);
     expect(chosen20!.path).toBe(lay20.paths[1]);
 
-    // i16 wave 7: 13 flyers on dedicated air entry outnumber 5 on lane 0 and 5 on lane 1.
+    // i16 Burning Freight: 13 flyers on dedicated air entry outnumber 5 on lane 0 and 5 on lane 1.
     const i16 = LEVELS_2D.find((l) => l.id === 'i16')!;
     const lay16 = i16.layout2d!;
-    const w7 = waveEntranceCounts(i16.waves[6].groups, lay16.paths, lay16.flightPath, isFlying);
+    const burningFreight = i16.waves.find((w) => w.name === 'Burning Freight')!;
+    const w7 = waveEntranceCounts(burningFreight.groups, lay16.paths, lay16.flightPath, isFlying);
     const chosen16 = primaryWaveEntrance(w7);
     expect(chosen16).not.toBeNull();
     expect(chosen16!.lane).toBe(-1);

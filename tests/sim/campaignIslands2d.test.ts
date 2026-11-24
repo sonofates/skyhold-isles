@@ -6,6 +6,7 @@ import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
 import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS, groundLaneCount } from '../../src/data/levels/index.ts';
+import { adjustWaveCount } from '../../src/data/levels2d/campaignIsland.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { parseLevel2D, type Level2DJson } from '../../src/data/levels2d/loader.ts';
 import { entranceFacing } from '../../src/data/levels2d/gates.ts';
@@ -42,30 +43,56 @@ const formations = [
 
 // Painted-route adjustments apply after the shared air tuning.
 const paintedFormations = [
-  { id: 'i01', wave: 'Iron Knock', slot: 1, from: 'brute', patch: { elite: true, hpScale: 2.4 } },
-  { id: 'i02', wave: 'Spring Tide', slot: 2, from: 'flyer', patch: { count: 13 } },
-  { id: 'i02', wave: 'Dreadnought Fleet', slot: 4, from: 'boss', patch: { hpScale: 1.5 } },
-  { id: 'i04', wave: 'Emerald Dreadnoughts', slot: 4, from: 'boss', patch: { hpScale: 1.6 } },
-  { id: 'i05', wave: 'Gale Force', slot: 2, from: 'flyer', patch: { hpScale: 0.85 } },
-  { id: 'i05', wave: 'Harvest Dreadnought', slot: 5, from: 'boss', patch: { hpScale: 1.3 } },
-  { id: 'i05', wave: 'Harvest Dreadnought', slot: 3, from: 'flyer', patch: { count: 28 } },
-  { id: 'i06', wave: 'The Leviathan', slot: 4, from: 'boss', patch: { hpScale: 0.6 } },
-  { id: 'i06', wave: 'Maelstrom', slot: 0, from: 'flyer', patch: { count: 12 } },
-  { id: 'i07', wave: 'Fortress Breaker', slot: 3, from: 'boss', patch: { hpScale: 1.4 } },
-  { id: 'i09', wave: 'Twin Warlords', slot: 3, from: 'boss', patch: { hpScale: 1.35, spawnInterval: 4.5 } },
-  { id: 'i10', wave: 'Earthshaker', slot: 3, from: 'flyer', patch: { count: 12 } },
-  { id: 'i10', wave: 'The Confluence', slot: 0, from: 'boss', patch: { hpScale: 2.5 } },
-  { id: 'i11', wave: 'Golden Freight', slot: 0, from: 'golem', patch: { hpScale: 1.45 } },
-  { id: 'i12', wave: 'Hexfire Legion', slot: 0, from: 'brute', patch: { hpScale: 1.4 } },
-  { id: 'i14', wave: 'Aegis Dune', slot: 0, from: 'warden', patch: { count: 4 } },
-  { id: 'i14', wave: 'Aegis Dune', slot: 2, from: 'healer', patch: { count: 2 } },
-  { id: 'i14', wave: 'Aegis Dune', slot: 3, from: 'flyer', patch: { count: 14 } },
+  { id: 'i01', wave: 'Iron Knock', from: 'brute', patch: { elite: true, hpScale: 2.4 } },
+  { id: 'i02', wave: 'Spring Tide', from: 'flyer', patch: { count: 13 } },
+  { id: 'i02', wave: 'Dreadnought Fleet', from: 'boss', patch: { hpScale: 1.5 } },
+  { id: 'i04', wave: 'Emerald Dreadnoughts', from: 'boss', patch: { hpScale: 1.6 } },
+  { id: 'i05', wave: 'Gale Force', from: 'flyer', patch: { hpScale: 0.64 } },
+  { id: 'i05', wave: 'Harvest Dreadnought', from: 'boss', patch: { hpScale: 1.3 } },
+  { id: 'i05', wave: 'Harvest Dreadnought', from: 'flyer', patch: { count: 28 } },
+  { id: 'i06', wave: 'The Leviathan', from: 'boss', patch: { hpScale: 0.6 } },
+  { id: 'i06', wave: 'Maelstrom', from: 'flyer', patch: { count: 12 } },
+  { id: 'i06', wave: 'Fall of the Atoll', from: 'brute', patch: { count: 14 } },
+  { id: 'i06', wave: 'Fall of the Atoll', from: 'healer', patch: { count: 6 } },
+  { id: 'i07', wave: 'Fortress Breaker', from: 'boss', patch: { hpScale: 1 } },
+  { id: 'i09', wave: 'Twin Warlords', from: 'boss', patch: { hpScale: 1.35, spawnInterval: 4.5 } },
+  { id: 'i10', wave: 'Earthshaker', from: 'flyer', patch: { count: 14 } },
+  { id: 'i10', wave: 'The Confluence', from: 'boss', patch: { hpScale: 2.5 } },
+  { id: 'i11', wave: 'Golden Freight', from: 'golem', patch: { hpScale: 1.75 } },
+  { id: 'i11', wave: 'Thunderhead', from: 'carrier', patch: { count: 7 } },
+  { id: 'i12', wave: 'Dreadnought Choir', from: 'boss', patch: { hpScale: 1.55 } },
+  { id: 'i12', wave: 'Hexfire Legion', from: 'brute', patch: { hpScale: 1.42 } },
+  { id: 'i14', wave: 'Aegis Dune', from: 'warden', patch: { count: 5 } },
+  { id: 'i14', wave: 'Aegis Dune', from: 'healer', patch: { count: 2 } },
+  { id: 'i14', wave: 'Aegis Dune', from: 'flyer', patch: { count: 14 } },
+  { id: 'i15', wave: 'Night Freight', from: 'carrier', patch: { hpScale: 0.55 } },
+  { id: 'i15', wave: 'Night Freight', from: 'flyer', patch: { hpScale: 0.55 } },
+  { id: 'i15', wave: 'Night Freight', from: 'brute', patch: { hpScale: 0.55 } },
+  { id: 'i15', wave: 'Night Freight', from: 'splitter', patch: { hpScale: 0.55 } },
+  { id: 'i15', wave: 'Aegis Well', from: 'brute', patch: { count: 13 } },
+  { id: 'i15', wave: 'Aegis Well', from: 'healer', patch: { count: 4 } },
+  { id: 'i16', wave: 'Crown of Ash', from: 'flyer', patch: { count: 16 } },
+  { id: 'i16', wave: 'Crown of Ash', from: 'blinker', patch: { count: 12 } },
+  { id: 'i16', wave: 'Heart of the Sanctum', from: 'flyer', patch: { count: 26, hpScale: 0.55 } },
+  { id: 'i16', wave: 'Heart of the Sanctum', from: 'brute', patch: { count: 9 } },
+  { id: 'i16', wave: 'Heart of the Sanctum', from: 'golem', patch: { count: 4 } },
 ] as const;
 
 const air: Partial<Record<string, { hp?: number; count?: number; interval?: number }>> = {
-  i03: { hp: 0.75 }, i06: { count: 0.65, interval: 1.2 }, i07: { hp: 0.58 },
-  i08: { hp: 0.4, interval: 1.5 }, i11: { hp: 0.15 }, i13: { hp: 0.35 },
-  i14: { hp: 0.55, interval: 1.2 }, i15: { hp: 0.8, interval: 1.75 }, i16: { hp: 0.5, interval: 1.5 },
+  i03: { hp: 0.75 }, i05: { hp: 0.75 }, i06: { hp: 1.15, count: 0.65, interval: 1.2 },
+  i07: { hp: 0.58 }, i08: { hp: 0.33, interval: 1.5 }, i09: { hp: 0.75 },
+  i10: { hp: 0.8 }, i11: { hp: 0.1 }, i13: { hp: 0.26 },
+  i14: { hp: 0.42, interval: 1.2 }, i15: { hp: 0.8, interval: 1.75 }, i16: { hp: 0.5, interval: 1.5 },
+};
+
+const waveCounts: Partial<Record<string, number>> = {
+  i02: 10, i03: 10, i04: 10, i05: 10, i06: 11, i07: 11, i08: 11, i09: 11,
+  i10: 11, i11: 11, i12: 12, i13: 12, i14: 12, i15: 12, i16: 13,
+};
+
+const keepWaves: Partial<Record<string, readonly string[]>> = {
+  i15: ['Lantern Walk', 'Crossed Paths', 'Night Freight'],
+  i16: ['Counter-March', 'Cinder Fall', 'Burning Freight'],
 };
 
 describe.each(ids)('%s campaign plot map', (id) => {
@@ -82,8 +109,10 @@ describe.each(ids)('%s campaign plot map', (id) => {
     const overrides = formations.filter(formation => formation.id === id);
     const tuning = air[id];
     const painted = paintedFormations.filter(formation => formation.id === id);
-    if (overrides.length || tuning || painted.length) {
-      const expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
+    const targetWaves = waveCounts[id];
+    const keptNames = new Set(keepWaves[id] ?? []);
+    if (overrides.length || tuning || painted.length || targetWaves !== undefined) {
+      let expected = source.waves.map(wave => ({ ...wave, groups: wave.groups.map(group => ({ ...group })) }));
       for (const { wave, slot, from, patch } of overrides) {
         const group = expected.find(w => w.name === wave)!.groups[slot];
         expect(group.enemyType).toBe(from);
@@ -98,10 +127,22 @@ describe.each(ids)('%s campaign plot map', (id) => {
           }
         }
       }
-      for (const { wave, slot, from, patch } of painted) {
-        const group = expected.find(w => w.name === wave)!.groups[slot];
-        expect(group.enemyType).toBe(from);
-        Object.assign(group, patch);
+      for (const { wave, from, patch } of painted) {
+        const matched = expected.find(w => w.name === wave)!.groups.filter(g => g.enemyType === from);
+        expect(matched.length).toBeGreaterThan(0);
+        for (const group of matched) Object.assign(group, patch);
+      }
+      if (targetWaves !== undefined && targetWaves !== expected.length) {
+        const pinnedNames = new Set([
+          ...overrides.map(o => o.wave),
+          ...painted.map(p => p.wave),
+          ...keptNames,
+        ]);
+        const pinned = new Set<number>();
+        expected.forEach((w, i) => {
+          if (pinnedNames.has(w.name ?? '')) pinned.add(i);
+        });
+        expected = adjustWaveCount(expected, targetWaves, pinned);
       }
       expect(level.waves).toEqual(expected);
     } else {
@@ -230,4 +271,70 @@ it('Sanctum can defend both opening lanes using only its base starting gold', ()
   expect(world.waveSystem.state).toBe('betweenWaves');
   expect(world.lives).toBe(startingLives);
   world.dispose();
+});
+
+describe('per-chapter wave-count curve and adjustWaveCount', () => {
+  it('keeps l1c at 10 and grows story wave counts monotonically within each chapter band', () => {
+    expect(getLevelById('l1c')!.waves).toHaveLength(10);
+    const chapters = [
+      { ids: ['i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'i07', 'i08', 'i09'], min: 8, max: 11 },
+      { ids: ['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16'], min: 11, max: 13 },
+      { ids: ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'], min: 12, max: 14 },
+    ] as const;
+    for (const { ids: chapterIds, min, max } of chapters) {
+      const counts = chapterIds.map((id) => getLevelById(id)!.waves.length);
+      for (const count of counts) {
+        expect(count).toBeGreaterThanOrEqual(min);
+        expect(count).toBeLessThanOrEqual(max);
+      }
+      for (let i = 1; i < counts.length; i++) {
+        expect(counts[i]).toBeGreaterThanOrEqual(counts[i - 1]);
+      }
+      expect(counts.at(-1)).toBe(max);
+    }
+  });
+
+  it('trims weakest middle waves while preserving pinned waves, enemy/lane coverage, and gold', () => {
+    const source = LEVELS[1]; // 14 waves
+    const snapshot = structuredClone(source.waves);
+    const pinned = new Set([5]);
+    const trimmed = adjustWaveCount(source.waves, 10, pinned);
+
+    expect(trimmed).toHaveLength(10);
+    expect(source.waves).toEqual(snapshot); // source untouched
+    expect(trimmed[0].name).toBe(source.waves[0].name);
+    expect(trimmed.at(-1)!.name).toBe(source.waves.at(-1)!.name);
+    expect(trimmed.some((w) => w.name === source.waves[5].name)).toBe(true);
+
+    const sourceTypes = new Set(source.waves.flatMap((w) => w.groups.map((g) => g.enemyType)));
+    const trimmedTypes = new Set(trimmed.flatMap((w) => w.groups.map((g) => g.enemyType)));
+    expect(trimmedTypes).toEqual(sourceTypes);
+
+    const expectedGold = (waves: typeof source.waves) => waves.reduce((sum, w) => {
+      let gSum = w.clearBonus;
+      for (const g of w.groups) {
+        gSum += ENEMY_DEFS[g.enemyType].reward * g.count;
+        if (g.enemyType === 'splitter') gSum += ENEMY_DEFS.runner.reward * 2 * g.count;
+        if (g.enemyType === 'carrier') gSum += ENEMY_DEFS.grunt.reward * (ENEMY_DEFS.carrier.dropCount ?? 2) * g.count;
+      }
+      return sum + gSum;
+    }, 0);
+    expect(expectedGold(trimmed)).toBe(expectedGold(source.waves));
+  });
+
+  it('extends by repeating the penultimate wave with progressive HP growth', () => {
+    const base = LEVELS[0].waves.slice(0, 4);
+    const snapshot = structuredClone(base);
+    const extended = adjustWaveCount(base, 6);
+
+    expect(extended).toHaveLength(6);
+    expect(base).toEqual(snapshot);
+    expect(extended[0].name).toBe(base[0].name);
+    expect(extended[5].name).toBe(base[3].name);
+    expect(extended[3].name).toBe(base[2].name);
+    expect(extended[4].name).toBe(base[2].name);
+    const baseHp = base[2].groups[0].hpScale ?? 1;
+    expect(extended[3].groups[0].hpScale).toBeCloseTo(baseHp * 1.06, 3);
+    expect(extended[4].groups[0].hpScale).toBeCloseTo(baseHp * 1.12, 3);
+  });
 });

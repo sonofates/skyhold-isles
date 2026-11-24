@@ -4,11 +4,12 @@ import layout from './i07.json';
 
 export const I07 = campaignIsland(LEVEL_7, layout, {
   formations: {
-    'Fortress Breaker': { boss: { hpScale: 1.4 } },
+    'Fortress Breaker': { boss: { hpScale: 1 } },
   },
   startingGold: 290,
-  enemyHpScale: 1.7108,
-  waveHpGrowth: 0.18,
+  enemyHpScale: 1.65,
+  waveHpGrowth: 0.425,
+  waveCount: 11,
   flyingGroups: { hpScale: 0.58 },
   sites: {
     '3,3': 4,

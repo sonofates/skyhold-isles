@@ -7,9 +7,10 @@ export const I04 = campaignIsland(LEVEL_4, layout, {
   formations: {
     'Emerald Dreadnoughts': { boss: { hpScale: 1.6 } },
   },
-  startingGold: 265,
-  enemyHpScale: 1.167,
-  waveHpGrowth: 0.18,
+  startingGold: 285,
+  enemyHpScale: 1.15,
+  waveHpGrowth: 0.28,
+  waveCount: 10,
   sites: {
     '2,3': 2,
     '2,4': 0,
