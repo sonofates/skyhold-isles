@@ -2,6 +2,7 @@ import type { HeroId, ProgressData } from '../../src/core/types.ts';
 import { challengesForLevel } from '../../src/data/challenges.ts';
 import { difficultyWinsOf } from '../../src/data/difficulty.ts';
 import { defaultSkillsForLevel, HERO_IDS, HERO_LEVEL_XP, heroLevelFromXp, heroSkillPointsForLevel } from '../../src/data/heroes.ts';
+import { LEGACY_2D_ORDER } from '../../src/data/chapters.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { buyRank, WORKSHOP_UPGRADES, workshopStarsSpent } from '../../src/data/workshop.ts';
 import { starWallet } from '../../src/game/progression.ts';
@@ -28,6 +29,16 @@ import {
   remapProgress,
 } from '../../src/render2d/ui/progress2d.ts';
 import type { InvariantViolation } from './invariants.ts';
+
+/** Index of an island in today's (chapter-ordered) `LEVELS_2D`; never a hard-coded flat index. */
+function at(id: string): number {
+  const i = LEVELS_2D.findIndex((l) => l.id === id);
+  if (i < 0) throw new Error(`saveSweep: unknown island ${id}`);
+  return i;
+}
+
+/** The islands with the second enemy roster (`i17`..`i24`, the achievements' "Chapter Two"). */
+const ENEMY_CH2_IDS: ReadonlySet<string> = new Set(LEGACY_2D_ORDER.slice(17));
 
 function assertProgressInvariants(
   p: ProgressData,
@@ -78,11 +89,11 @@ function assertProgressInvariants(
 
 /**
  * Pure headless campaign save/load mid-progress sweep covering:
- * - Incremental progression across all 25 islands (`l1c` -> `i24`, Chapter 1 -> Chapter 2)
+ * - Incremental progression across every island in chapter order (`l1c` -> `i24`, Prologue -> Chapter 3)
  * - Difficulty wins (`Easy` 1★ cap & `bestLives` preservation, `Normal` 1–3★, `Hard` ribbons)
  * - Hero unlocks (`bran` -> `wren` -> `mira` -> `tobb` -> `sela`), XP/levels, skill nodes & respec
  * - Workshop purchases, Daily Squall streaks on Chapter 2 islands, Endless records
- * - Mid-campaign `SKY2-...` save-code round-trips, Chapter 1 (17) -> Chapter 2 (25) remapping,
+ * - Mid-campaign `SKY2-...` save-code round-trips, flat 17-island save -> chapter-ordered roster remapping,
  *   and cross-device Steam Cloud conflict merges (`hydrateProgress2DFromCloud`).
  */
 export async function runMidProgressSaveSweep(): Promise<readonly InvariantViolation[]> {
@@ -237,7 +248,7 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
   for (let d = 0; d < 40; d++) {
     const dayMs = baseDayMs + d * 86_400_000;
     const daily = dailyForToday(dayMs, p, LEVELS_2D);
-    if (daily && daily.levelIndex >= 17) {
+    if (daily && ENEMY_CH2_IDS.has(daily.levelId)) {
       ch2DailyFound = true;
       applyRunResult2D(
         p,
@@ -262,7 +273,7 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
     violations.push({
       kind: 'save_roundtrip',
       tick: 0,
-      message: 'dailyForToday never selected a Chapter 2 island across 40 UTC days with all 25 islands cleared',
+      message: `dailyForToday never selected a Chapter 2 island across 40 UTC days with all ${LEVELS_2D.length} islands cleared`,
     });
   }
 
@@ -273,28 +284,35 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
       won: false,
       stars: 0,
       livesRemaining: 0,
-      waveReached: LEVELS_2D[24].waves.length + 11,
+      waveReached: LEVELS_2D[at('i24')].waves.length + 11,
       runConfig: { endless: true, challenges: [], daily: null },
       heroId: 'mira',
       enemiesKilled: 520,
-      wavesCleared: LEVELS_2D[24].waves.length + 10,
+      wavesCleared: LEVELS_2D[at('i24')].waves.length + 10,
     },
     LEVELS_2D,
   );
   assertProgressInvariants(p, 'after-ch2-daily-and-endless', violations);
 
-  // Step 4: Chapter 1 (17-island) legacy save remapped onto 25 islands + Steam Cloud conflict merge.
-  const ch1Ids = LEVELS_2D.slice(0, 17).map((l) => l.id);
+  // Step 4: the old 17-island save (flat order `l1c`, `i01`..`i16`, all cleared) remapped onto today's
+  // chapter-ordered roster (i25/i26 now sit before i16) + Steam Cloud conflict merge.
+  const ch1Ids = LEGACY_2D_ORDER.slice(0, 17);
   const legacyCh1 = createDefaultProgress(17);
   legacyCh1.bestStars.fill(3);
   legacyCh1.clears.fill(1);
   legacyCh1.unlockedLevelIndex = 16;
   const remapped25 = remapProgress(legacyCh1, ch1Ids, LEVELS_2D);
-  if (remapped25.unlockedLevelIndex !== 17 || remapped25.bestStars[16] !== 3 || remapped25.bestStars[17] !== 0) {
+  if (
+    remapped25.unlockedLevelIndex !== at('i17') ||
+    remapped25.bestStars[at('i16')] !== 3 ||
+    remapped25.bestStars[at('i17')] !== 0 ||
+    remapped25.bestStars[at('i25')] !== 0 ||
+    remapped25.bestStars[at('i26')] !== 0
+  ) {
     violations.push({
       kind: 'save_roundtrip',
       tick: 0,
-      message: `17->25 Chapter 2 remap failed to open i17 (unlockedLevelIndex=${remapped25.unlockedLevelIndex})`,
+      message: `flat 17-island save remap failed to keep i16 and open i17 (unlockedLevelIndex=${remapped25.unlockedLevelIndex})`,
     });
   }
 
@@ -307,11 +325,11 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
       won: true,
       stars: 3,
       livesRemaining: 20,
-      waveReached: LEVELS_2D[16].waves.length,
+      waveReached: LEVELS_2D[at('i16')].waves.length,
       runConfig: { endless: false, challenges: [], daily: null, difficulty: 'hard' },
       heroId: 'tobb',
       enemiesKilled: 300,
-      wavesCleared: LEVELS_2D[16].waves.length,
+      wavesCleared: LEVELS_2D[at('i16')].waves.length,
     },
     LEVELS_2D,
   );
@@ -342,7 +360,7 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
   const hydrated = await hydrateProgress2DFromCloud(remapped25, LEVELS_2D, mockSteamAdapter);
   assertProgressInvariants(hydrated.merged, 'cloud-hydrated', violations);
   const gainDesc = describeMergeGain(remapped25, hydrated.merged);
-  if (!hydrated.merged.difficultyWins || hydrated.merged.difficultyWins.hard[16] !== 3 || !gainDesc.includes('Hard ribbon')) {
+  if (!hydrated.merged.difficultyWins || hydrated.merged.difficultyWins.hard[at('i16')] !== 3 || !gainDesc.includes('Hard ribbon')) {
     violations.push({
       kind: 'save_roundtrip',
       tick: 0,
