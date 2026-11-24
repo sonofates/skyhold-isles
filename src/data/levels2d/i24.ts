@@ -17,7 +17,7 @@ export const I24 = {
   flightPath: [],
   decorationSeed: 1291,
   startingGold: 410,
-  enemyHpScale: 1.965,
+  enemyHpScale: 1.98,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'A Light Goes Out', clearBonus: 25, groups: [
@@ -37,7 +37,7 @@ export const I24 = {
     { name: 'Two Landings', clearBonus: 31, groups: [
       group('splitter', 7, 0.75, 0, 1),
       group('healer', 2, 1.37, 0.5, 1),
-      group('burrower', 5, 0.86, 1.8, 2),
+      group('burrower', 7, 0.86, 1.8, 2),
       group('bellrunner', 8, 0.59, 3.8),
     ] },
     { name: 'Flood Tide', clearBonus: 32, groups: [
@@ -65,7 +65,7 @@ export const I24 = {
       group('bellrunner', 12, 0.5, 4.8, 2),
     ] },
     { name: 'The Rising Gale', clearBonus: 40, groups: [
-      { ...group('golem', 5, 1.15, 0, 2), elite: true },
+      { ...group('golem', 3, 1.15, 0, 2), elite: true },
       group('warden', 3, 1.3, 0.5, 2),
       group('blinker', 8, 0.61, 2.3, 1),
       group('carrier', 2, 2.13, 4.5),
@@ -91,7 +91,7 @@ export const I24 = {
     { name: 'One Turn of the Lens', clearBonus: 48, groups: [
       { ...group('kilnback', 8, 0.98, 0, 2), elite: true },
       group('reedpiper', 4, 1.22, 0.7, 2),
-      { ...group('draftwing', 7, 0.48, 2.9), elite: true },
+      { ...group('draftwing', 4, 0.48, 2.9), elite: true },
       { ...group('blinker', 8, 0.64, 5.6, 1), elite: true },
     ] },
     { name: 'First Light', clearBonus: 70, groups: [

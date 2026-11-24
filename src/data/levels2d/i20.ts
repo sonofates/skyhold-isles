@@ -17,7 +17,7 @@ export const I20 = {
   flightPath: [],
   decorationSeed: 1069,
   startingGold: 380,
-  enemyHpScale: 2.0128,
+  enemyHpScale: 2.03,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'The First Pennant', clearBonus: 24, groups: [
@@ -77,7 +77,7 @@ export const I20 = {
     ] },
     { name: 'Boats on the Bar', clearBonus: 45, groups: [
       group('warden', 3, 1.58, 0, 2),
-      { ...group('kilnback', 8, 0.94, 0.6, 2), elite: true },
+      { ...group('kilnback', 7, 1.0, 0.6, 2), elite: true },
       { ...group('bellrunner', 12, 0.45, 2), elite: true },
       group('burrower', 8, 0.72, 4, 1),
     ] },

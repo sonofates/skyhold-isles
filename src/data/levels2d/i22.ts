@@ -17,8 +17,8 @@ export const I22 = {
   flightPath: [],
   decorationSeed: 1171,
   startingGold: 380,
-  enemyHpScale: 1.8952,
-  waveHpGrowth: 0.1,
+  enemyHpScale: 1.88,
+  waveHpGrowth: 0.095,
   waves: [
     { name: 'A Parted Cable', clearBonus: 25, groups: [
       group('kilnback', 3, 1.28),
