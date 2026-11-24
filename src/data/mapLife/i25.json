@@ -1,0 +1,12 @@
+{
+  "island": "i25",
+  "wind": {
+    "mask": "life/i25-sway.webp", "dir": [0.95, 0.31], "strength": 2.2,
+    "gustPeriod": 4.3, "gustSpeed": 228, "breezeFreq": 1.42, "sheen": 0.05
+  },
+  "clouds": { "count": 3, "alpha": 0.13, "speed": 51, "tint": "#24314b", "sizeRange": [540, 830] },
+  "birds": {
+    "flockSize": [3, 5], "interval": [19, 33], "initialDelay": 3.8, "speed": 104,
+    "tint": "#423f40", "scale": 20, "shadowOffset": [36, 48], "shadowAlpha": 0.15
+  }
+}

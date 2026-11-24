@@ -1,0 +1,16 @@
+{
+  "island": "i27",
+  "wind": {
+    "mask": "life/i27-sway.webp", "dir": [0.86, -0.51], "strength": 1.95,
+    "gustPeriod": 5.7, "gustSpeed": 198, "breezeFreq": 1.18, "sheen": 0.043
+  },
+  "water": {
+    "mask": "life/i27-water.webp", "strength": 1.15, "dir": [-0.95, 0.31], "flowSpeed": 1.16,
+    "rippleScale": 1.05, "glintColor": "#f7ebc1", "glintStrength": 0.16, "glintSpeed": 0.94
+  },
+  "clouds": { "count": 2, "alpha": 0.09, "speed": 32, "tint": "#244a50", "sizeRange": [570, 800] },
+  "birds": {
+    "flockSize": [3, 5], "interval": [21, 37], "initialDelay": 2.6, "speed": 92,
+    "tint": "#524c3e", "scale": 21, "shadowOffset": [30, 42], "shadowAlpha": 0.14
+  }
+}
