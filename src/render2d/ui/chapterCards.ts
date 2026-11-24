@@ -74,7 +74,7 @@ export function showChapterDone(o: ChapterDoneOptions): ChapterCard {
   const row = starsRow(share >= 0.999 ? 3 : share >= 0.66 ? 2 : share > 0 ? 1 : 0, 'pu-stars pu-chapter-stars');
   const tally = el(
     'div',
-    'pu-chapter-tally pu-letter',
+    'pu-chapter-tally pu-ink',
     { 'data-testid': 'chapter2d-stars', 'aria-label': t('chapter.doneStarsAria', { n: o.stars, max: o.maxStars }) },
     img(KIT.star),
     el('b', '', {}, String(o.stars)),

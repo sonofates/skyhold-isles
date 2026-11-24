@@ -8,7 +8,7 @@
   position: absolute;
   inset: 0;
   background: var(--sea-wash, transparent);
-  mix-blend-mode: soft-light;
+  mix-blend-mode: color;
   pointer-events: none;
 }
 

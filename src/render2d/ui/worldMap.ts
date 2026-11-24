@@ -644,7 +644,9 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         el('div', 'pu-ch-veil-state pu-ink', {}, glyph('lock'), soon ? t('chapter.soon') : t('chapter.locked')),
         el('div', 'pu-ch-veil-hint pu-ink-soft', {}, soon ? t('chapter.soonHint') : t('chapter.lockedHint', { n: prev?.chapter.n ?? 1 })),
       );
-      if (paidChapter) veilCard.append(el('div', 'pu-ch-veil-hint pu-ink-soft', {}, t('chapter.lockedPaid', { n: c.chapter.n })));
+      // The full adventure starts with the first chapter past the free scope (Chapter 2).
+      const firstPaid = chapters.find((x) => x.page.own.some((i) => paid[i]))?.chapter.n ?? c.chapter.n;
+      if (paidChapter) veilCard.append(el('div', 'pu-ch-veil-hint pu-ink-soft', {}, t('chapter.lockedPaid', { n: firstPaid })));
     }
   };
 

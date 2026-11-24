@@ -75,7 +75,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     finale: 'i16',
     status: 'playable',
     accent: '#5b84c4',
-    sea: [0.86, 0.93, 1.06, 0.82],
+    sea: [0.8, 0.88, 1.05, 0.72],
   },
   {
     id: 'ch3',
@@ -86,7 +86,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     finale: 'i24',
     status: 'playable',
     accent: '#d9733a',
-    sea: [1.07, 0.99, 0.88, 0.92],
+    sea: [1.12, 0.98, 0.8, 0.95],
   },
   {
     id: 'ch4',
@@ -97,7 +97,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     finale: null,
     status: 'soon',
     accent: '#7cc3d8',
-    sea: [0.97, 1.05, 1.12, 0.62],
+    sea: [0.96, 1.06, 1.15, 0.5],
   },
   {
     id: 'ch5',
@@ -108,7 +108,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     finale: null,
     status: 'soon',
     accent: '#8a6cc8',
-    sea: [0.82, 0.76, 1.02, 0.72],
+    sea: [0.78, 0.68, 1.0, 0.7],
   },
 ];
 
