@@ -17,7 +17,7 @@ export const I19 = {
   flightPath: [],
   decorationSeed: 1019,
   startingGold: 360,
-  enemyHpScale: 1.745,
+  enemyHpScale: 1.74,
   waveHpGrowth: 0.0853,
   waves: [
     { name: 'A Torn Basket', clearBonus: 20, groups: [
