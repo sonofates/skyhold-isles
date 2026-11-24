@@ -47,10 +47,23 @@ import { heroArtFiles } from './heroBits.ts';
 import { heroChip, heroesButton, openHeroSelect, openSkillTree } from './heroScreens.ts';
 import { needsFullAdventure, openStore, storeEnabled } from './store2d.ts';
 import { mountSea } from './seaLife.ts';
+import { chapterPages, nextChapter, pageOfIsland, PROLOGUE, type ChapterDef, type ChapterPage } from '../../data/chapters.ts';
+import { cardsDue, chapterStates, firstIsland, parseCardsSeen, type CardsSeen, type ChapterState } from './chapterState.ts';
+import { showChapterDone, showChapterTitle } from './chapterCards.ts';
+import { storyBeats } from './storyBeats.ts';
+import './worldChapters.css';
 
 declare global {
   interface Window {
-    __map?: { layout: () => WorldMapLayout | null; islands: () => { id: string; unlocked: boolean; paid: boolean; stars: number; x: number; y: number }[] };
+    __map?: {
+      layout: () => WorldMapLayout | null;
+      /** The islands on the page shown (x / y = node centre in world px). */
+      islands: () => { id: string; unlocked: boolean; paid: boolean; stars: number; x: number; y: number }[];
+      /** The chapter page shown, and every chapter's tally. */
+      chapter: () => { page: number; id: string; opened: boolean; soon: boolean };
+      chapters: () => { id: string; opened: boolean; complete: boolean; cleared: number; total: number; stars: number; maxStars: number }[];
+      showChapter: (page: number) => void;
+    };
   }
 }
 
@@ -206,6 +219,60 @@ function writeUnveilSeen(n: number): void {
   }
 }
 
+/** localStorage: chapter cards already shown (chapterState.ts `cardsDue`). */
+const CARDS_KEY = 'skyhold2d_chapter_cards_v1';
+
+function readCardsSeen(): CardsSeen {
+  try {
+    return parseCardsSeen(localStorage.getItem(CARDS_KEY)) ?? { title: [], done: [] };
+  } catch {
+    return { title: [], done: [] };
+  }
+}
+
+function writeCardsSeen(seen: CardsSeen): void {
+  try {
+    localStorage.setItem(CARDS_KEY, JSON.stringify(seen));
+  } catch {
+    /* private mode: the cards may show again next visit */
+  }
+}
+
+/**
+ * The route's sailed legs on a chapter page: up to the frontier when it is on the page, all of
+ * them on a chapter already left behind, none on one not reached yet (`routeSvg`'s `frontier`).
+ */
+export function pageFrontier(page: readonly number[], frontier: number): number {
+  if (page.length === 0) return 0;
+  const reached = page.filter((i) => i <= frontier).length;
+  return Math.max(0, reached - 1);
+}
+
+/** The "Chapter 2 · 4/9" line of a chapter tab / the chapter bar. */
+function chapterCount(c: ChapterState): string {
+  return t('chapter.count', { n: c.chapter.n, done: c.cleared, total: c.total });
+}
+
+function chapterAria(c: ChapterState): string {
+  const name = t(c.chapter.nameKey);
+  if (c.chapter.status === 'soon') return t('chapter.tabSoonAria', { n: c.chapter.n, name });
+  if (!c.opened && c.chapter.n > 1) return t('chapter.tabLockedAria', { n: c.chapter.n, name });
+  return t('chapter.tabAria', { n: c.chapter.n, name, done: c.cleared, total: c.total, stars: c.stars, max: c.maxStars });
+}
+
+/** A chapter page that shows the fog (with the unlock hint, or "coming soon") instead of its route. */
+function pageVeiled(c: ChapterState): boolean {
+  return c.chapter.status === 'soon' || (!c.opened && c.chapter.n > 1);
+}
+
+/** CSS wash for the still sea painting (the WebGL water grades itself, `SeaHandle.setGrade`). */
+function seaWash(c: ChapterDef): string {
+  const [r, g, b, sat] = c.sea;
+  const m = Math.max(r, g, b, 0.001);
+  const a = Math.min(0.5, Math.abs(r - b) * 1.6 + (1 - sat) * 0.6);
+  return a < 0.01 ? 'transparent' : `rgba(${Math.round((r / m) * 255)}, ${Math.round((g / m) * 255)}, ${Math.round((b / m) * 255)}, ${a.toFixed(2)})`;
+}
+
 export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const mock = Math.max(0, Math.min(24, Number(q.get('mockislands') ?? 0) || 0));
   const levels: readonly LevelDef[] = mock > 0 ? [...LEVELS_2D, ...mockLevels(mock)] : LEVELS_2D;
@@ -251,7 +318,6 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const heroBtn = heroesButton(heroFiles);
   const right = el('div', 'pu-topbar-right', {}, tallyBox, heroBtn.el, mkBtn, wsBtn, lbBtn, dailyBtn, setBtn);
   const topbar = el('div', 'pu-topbar', {}, banner, right);
-  const hint = el('div', 'pu-map-hint pu-letter', {}, t('map.hint'));
   // Painted arrows at the sea's edges when more of the route lies that way (mouse users without a
   // wheel; touch pans natively, a mouse can also drag the sea).
   const panL = roundButton('back', t('map.panWest'), 'map2d-pan-left');
@@ -260,7 +326,20 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   panR.classList.add('pu-map-pan', 'right');
   // Keys / pad walk the islands (each focus scrolls the sea); the pan arrows would be extra stops.
   panL.dataset.navSkip = panR.dataset.navSkip = '';
-  root.append(scroll, panL, panR, topbar, hint);
+
+  // Chapter bar (bottom centre): ‹ the chapter's tally and its five tabs › (one page per chapter).
+  const chPrev = roundButton('back', t('chapter.prev'), 'map2d-chapter-prev');
+  const chNext = roundButton('next', t('chapter.next'), 'map2d-chapter-next');
+  chPrev.classList.add('pu-ch-arrow');
+  chNext.classList.add('pu-ch-arrow');
+  const chLabel = el('div', 'pu-ch-label pu-letter', { 'data-testid': 'map2d-chapter-label' });
+  const chTabs = el('div', 'pu-ch-tabs', { role: 'tablist', 'aria-label': t('chapter.tabs') });
+  const chBar = el('nav', 'pu-chapter-bar', { 'data-testid': 'map2d-chapters', 'aria-label': t('chapter.tabs') }, chPrev, el('div', 'pu-ch-plaque', {}, chLabel, chTabs), chNext);
+  // Fog over a chapter not reached yet / still to come, with its hint card.
+  const veilCard = el('div', 'pu-ch-veil-card pu-card', { 'data-testid': 'map2d-chapter-veil' });
+  const veil = el('div', 'pu-chapter-veil', { 'aria-live': 'polite' }, veilCard);
+  veil.hidden = true;
+  root.append(scroll, veil, panL, panR, topbar, chBar);
   document.body.append(root);
   const sea = mountSea(root, world, scroll, manifest, q);
 
@@ -269,6 +348,14 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   let paid: boolean[] = [];
   let layout: WorldMapLayout | null = null;
   const nodes: HTMLButtonElement[] = [];
+  const pages: ChapterPage[] = chapterPages(levels.map((l) => l.id));
+  let chapters: ChapterState[] = [];
+  /** The chapter page shown (index into `pages`). */
+  let page = 0;
+  /** Island indexes (into `levels`) drawn on the page shown, in route order. */
+  let shown: readonly number[] = [];
+  /** Where the next layout scrolls to: the frontier / a given island, or the page's start or end. */
+  let scrollTarget: number | 'start' | 'end' | null = null;
 
   const ctx: MetaContext = {
     get progress() {
@@ -342,8 +429,14 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const buildNodes = (): void => {
     for (const n of nodes) n.remove();
     nodes.length = 0;
-    states.forEach((st, i) => {
+    const veiled = chapters[page] ? pageVeiled(chapters[page]) : false;
+    let num = 0;
+    shown.forEach((i, k) => {
+      const st = states[i];
+      if (!st) return;
       const isPaid = paid[i];
+      const prologue = PROLOGUE.islands.includes(st.level.id);
+      if (!prologue) num++;
       const b = el('button', `pu-node${st.unlocked ? '' : ' locked'}${isPaid ? ' paid' : ''}${st.frontier ? ' frontier' : ''}`, {
         type: 'button',
         'data-testid': `map2d-island-${st.level.id}`,
@@ -353,9 +446,16 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
             ? t('map.nodeOpen', { name: islandName(st.level), n: st.stars })
             : t('map.nodeLocked', { name: islandName(st.level) }),
       });
-      b.style.animationDelay = `${0.05 + i * 0.06}s`;
+      b.style.animationDelay = `${0.05 + k * 0.06}s`;
       // Keyboard / pad focus starts on the island to play next.
       if (st.frontier && st.unlocked) b.dataset.navDefault = '';
+      // Under a chapter's fog the islands are only a silhouette: not a stop for taps or keys.
+      if (veiled) {
+        b.classList.add('veiled');
+        b.tabIndex = -1;
+        b.dataset.navSkip = '';
+        b.setAttribute('aria-hidden', 'true');
+      }
       sea.decorateNode(b, i, st.frontier && st.unlocked && !isPaid);
       b.append(el('span', 'pu-node-shore'), medal(st.unlocked ? thumb(st.level) : FOG_ART, '100%', st.frontier && st.unlocked));
       if (st.unlocked && !isPaid) {
@@ -363,10 +463,10 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         // Stars won since the last visit drop onto the node one by one (after the node pops in).
         const from = starsFrom[i] ?? -1;
         if (from >= 0 && !document.documentElement.classList.contains('pu-reduce-motion')) {
-          Array.from(row.children).forEach((star, k) => {
-            if (k < from || k >= st.stars || !(star instanceof HTMLElement)) return;
+          Array.from(row.children).forEach((star, j) => {
+            if (j < from || j >= st.stars || !(star instanceof HTMLElement)) return;
             star.classList.add('pu-star-new');
-            star.style.setProperty('--sd', `${(0.75 + i * 0.06 + (k - from) * 0.22).toFixed(2)}s`);
+            star.style.setProperty('--sd', `${(0.75 + k * 0.06 + (j - from) * 0.22).toFixed(2)}s`);
           });
         }
         b.append(row);
@@ -377,7 +477,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         b.append(c);
       }
       if (st.unlocked && !isPaid && st.hardWon) b.append(hardRibbon(`map2d-hard-${st.level.id}`));
-      const name = el('span', 'pu-tag pu-node-name', {}, el('span', 'pu-tag-ring pu-letter', {}, String(i + 1)), el('span', 'pu-ink', {}, st.unlocked ? islandName(st.level) : '? ? ?'));
+      const name = el('span', 'pu-tag pu-node-name', {}, el('span', 'pu-tag-ring pu-letter', {}, prologue ? t('chapter.prologueTag') : String(num)), el('span', 'pu-ink', {}, st.unlocked ? islandName(st.level) : '? ? ?'));
       b.append(name);
       if (isPaid) {
         // The "full adventure" lock: a chest seal and a red ribbon (not the grey padlock of an
@@ -391,7 +491,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
         b.append(lock);
       }
       if (st.frontier && st.unlocked && !isPaid) b.append(sea.ship());
-      if (i === unveilAt && st.unlocked && !isPaid) unveil(b, i);
+      if (i === unveilAt && st.unlocked && !isPaid) unveil(b, k);
       b.addEventListener('click', () => openBrief(i));
       world.append(b);
       nodes.push(b);
@@ -470,33 +570,120 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     fitTitleBanner(banner, bannerText, w, right);
     const insets = readSafeInsets();
     const bar = topbar.getBoundingClientRect();
+    // The chapter bar keeps the bottom of the sea: the route lies above it.
+    const chTop = chBar.getBoundingClientRect().top;
+    const bottomInset = Math.max(insets.bottom, chTop > 0 && chTop < h ? h - chTop - Math.max(10, h * 0.03) + 4 : 0);
     // The free band starts under the title banner (the round buttons' captions may overhang a bit).
-    const L = worldMapLayout(levels.length, w, h, { ...insets, top: 0 }, Math.max(bar.bottom, banner.getBoundingClientRect().bottom) + 6);
+    const L = worldMapLayout(shown.length, w, h, { ...insets, top: 0, bottom: bottomInset }, Math.max(bar.bottom, banner.getBoundingClientRect().bottom) + 6);
     layout = L;
     world.style.width = `${L.worldW}px`;
     route.setAttribute('width', String(L.worldW));
     route.setAttribute('height', String(h));
     route.setAttribute('viewBox', `0 0 ${L.worldW} ${h}`);
     const frontier = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
-    route.innerHTML = routeSvg(L, frontier);
-    nodes.forEach((b, i) => {
+    route.innerHTML = chapters[page] && pageVeiled(chapters[page]) ? '' : routeSvg(L, pageFrontier(shown, frontier));
+    nodes.forEach((b, k) => {
       b.style.setProperty('--d', `${L.nodeD}px`);
-      b.style.left = `${L.nodes[i].x}px`;
-      b.style.top = `${L.nodes[i].y}px`;
+      b.style.left = `${L.nodes[k].x}px`;
+      b.style.top = `${L.nodes[k].y}px`;
     });
-    scroll.scrollLeft = scrollToCentre(L.nodes[frontier]?.x ?? 0, w, L.worldW);
+    // Scroll: a requested island, the page's start / end (turning pages), else the frontier island
+    // when it is on this page, else the start of the route.
+    const target = scrollTarget ?? (shown.includes(frontier) ? frontier : 'start');
+    const at = typeof target === 'number' ? shown.indexOf(target) : -1;
+    scroll.scrollLeft = target === 'end' ? L.worldW : at >= 0 ? scrollToCentre(L.nodes[at]?.x ?? 0, w, L.worldW) : 0;
+    scrollTarget = null;
     updatePan();
-    sea.layout(L, h, Math.max(bar.bottom, banner.getBoundingClientRect().bottom), hint);
+    sea.layout(L, h, Math.max(bar.bottom, banner.getBoundingClientRect().bottom), chBar);
+  };
+
+  /** The chapter bar: the page's tally, its tabs, the arrows. */
+  const renderChapterBar = (): void => {
+    const c = chapters[page];
+    if (!c) return;
+    const veiled = pageVeiled(c);
+    chLabel.replaceChildren(
+      el('span', '', {}, chapterCount(c)),
+      ...(c.chapter.status === 'soon' ? [] : [el('span', 'pu-ch-stars', {}, img(KIT.star), `${c.stars}/${c.maxStars}`)]),
+    );
+    chLabel.classList.toggle('veiled', veiled);
+    chTabs.replaceChildren(
+      ...chapters.map((cs, p) => {
+        const on = p === page;
+        const tab = el(
+          'button',
+          `pu-ch-tab${on ? ' on' : ''}${pageVeiled(cs) ? (cs.chapter.status === 'soon' ? ' soon' : ' locked') : ''}${cs.complete ? ' complete' : ''}`,
+          { type: 'button', role: 'tab', 'aria-selected': String(on), 'aria-label': chapterAria(cs), 'data-testid': `map2d-chapter-tab-${cs.chapter.n}`, title: t(cs.chapter.nameKey) },
+          el('span', 'pu-letter', {}, String(cs.chapter.n)),
+        );
+        tab.style.setProperty('--accent', cs.chapter.accent);
+        tab.tabIndex = on ? 0 : -1;
+        tab.addEventListener('click', () => showPage(p));
+        return tab;
+      }),
+    );
+    chPrev.disabled = page <= 0;
+    chNext.disabled = page >= chapters.length - 1;
+    // Title banner: the chapter's name; the sea takes the chapter's tint.
+    bannerText.textContent = t(c.chapter.nameKey);
+    root.style.setProperty('--chapter-accent', c.chapter.accent);
+    root.style.setProperty('--sea-wash', seaWash(c.chapter));
+    root.dataset.chapter = c.chapter.id;
+    sea.setGrade(c.chapter.sea);
+    // The fog: a chapter not reached yet, or one still to come.
+    veil.hidden = !veiled;
+    root.classList.toggle('chapter-veiled', veiled);
+    root.classList.toggle('chapter-soon', c.chapter.status === 'soon');
+    if (veiled) {
+      const soon = c.chapter.status === 'soon';
+      const prev = chapters[page - 1];
+      const paidChapter = !soon && c.page.own.some((i) => paid[i]);
+      veilCard.replaceChildren(
+        el('div', 'pu-ch-veil-kicker pu-ink-soft', {}, t('chapter.label', { n: c.chapter.n })),
+        el('div', 'pu-ch-veil-name pu-letter', {}, t(c.chapter.nameKey)),
+        el('div', 'pu-ch-veil-state pu-ink', {}, glyph('lock'), soon ? t('chapter.soon') : t('chapter.locked')),
+        el('div', 'pu-ch-veil-hint pu-ink-soft', {}, soon ? t('chapter.soonHint') : t('chapter.lockedHint', { n: prev?.chapter.n ?? 1 })),
+      );
+      // The full adventure starts with the first chapter past the free scope (Chapter 2).
+      const firstPaid = chapters.find((x) => x.page.own.some((i) => paid[i]))?.chapter.n ?? c.chapter.n;
+      if (paidChapter) veilCard.append(el('div', 'pu-ch-veil-hint pu-ink-soft', {}, t('chapter.lockedPaid', { n: firstPaid })));
+    }
   };
 
   const refresh = (): void => {
     states = islandStates(progress, levels);
     const scoped = storeEnabled();
     paid = states.map((st) => scoped && needsFullAdventure(st.level.id));
+    chapters = chapterStates(states);
+    shown = pages[page]?.indexes ?? [];
+    renderChapterBar();
     buildNodes();
     refreshTopbar();
     relayout(true);
   };
+
+  /** Turns to chapter page `p` (`at`: an island to centre, else the start, or the end going back). */
+  const showPage = (p: number, at?: number | 'start' | 'end'): void => {
+    const to = Math.max(0, Math.min(pages.length - 1, p));
+    if (to === page && at === undefined) return;
+    const dir = to > page ? 1 : -1;
+    page = to;
+    scrollTarget = at ?? (dir > 0 ? 'start' : 'end');
+    if (at === undefined) {
+      // Arriving on the frontier's chapter centres the ship.
+      const f = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
+      if (pages[to]?.indexes.includes(f)) scrollTarget = f;
+    }
+    refresh();
+    if (!document.documentElement.classList.contains('pu-reduce-motion')) {
+      world.classList.remove('pu-page-turn', 'back');
+      void world.offsetWidth;
+      world.classList.add('pu-page-turn');
+      world.classList.toggle('back', dir < 0);
+    }
+  };
+  chPrev.addEventListener('click', () => showPage(page - 1));
+  chNext.addEventListener('click', () => showPage(page + 1));
 
   const updatePan = (): void => {
     const max = scroll.scrollWidth - scroll.clientWidth;
@@ -561,18 +748,101 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     { passive: false },
   );
   window.addEventListener('resize', () => relayout());
+  /** The sea is scrolled to its left / right end (or does not scroll at all). */
+  const atEdge = (dir: -1 | 1): boolean => {
+    const max = scroll.scrollWidth - scroll.clientWidth;
+    return max <= 2 || (dir < 0 ? scroll.scrollLeft <= 2 : scroll.scrollLeft >= max - 2);
+  };
+  // Touch: a swipe that starts and ends at the route's end turns the chapter page that way.
+  let swipe: { x: number; y: number; left: boolean; right: boolean } | null = null;
+  scroll.addEventListener(
+    'touchstart',
+    (e) => {
+      const tp = e.touches[0];
+      swipe = e.touches.length === 1 && tp ? { x: tp.clientX, y: tp.clientY, left: atEdge(-1), right: atEdge(1) } : null;
+    },
+    { passive: true },
+  );
+  scroll.addEventListener(
+    'touchend',
+    (e) => {
+      const tp = e.changedTouches[0];
+      const sw = swipe;
+      swipe = null;
+      if (!sw || !tp || anySheetOpen()) return;
+      const dx = tp.clientX - sw.x;
+      if (Math.abs(dx) < 56 || Math.abs(dx) < Math.abs(tp.clientY - sw.y) * 1.4) return;
+      if (dx < 0 && sw.right && atEdge(1) && page < pages.length - 1) showPage(page + 1);
+      else if (dx > 0 && sw.left && atEdge(-1) && page > 0) showPage(page - 1);
+    },
+    { passive: true },
+  );
   window.addEventListener('keydown', (e) => {
     if (anySheetOpen()) return;
-    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) openBrief(Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex)));
-    else if (e.key === 'ArrowLeft') panBy(-1);
-    else if (e.key === 'ArrowRight') panBy(1);
+    const inBar = e.target instanceof Node && chBar.contains(e.target);
+    if (e.key === 'Enter' && !(e.target instanceof HTMLButtonElement)) {
+      const f = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
+      if (!shown.includes(f)) showPage(pageOfIsland(pages, f), f);
+      openBrief(f);
+    } else if (e.key === 'PageUp' || e.key === '[') showPage(page - 1);
+    else if (e.key === 'PageDown' || e.key === ']') showPage(page + 1);
+    else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+      const dir = e.key === 'ArrowLeft' ? -1 : 1;
+      // Past the route's end the arrows turn the chapter page (not while walking the chapter tabs).
+      if (!inBar && atEdge(dir) && (dir < 0 ? page > 0 : page < pages.length - 1)) showPage(page + dir);
+      else if (!inBar) panBy(dir);
+    }
   });
 
   await document.fonts?.ready.catch(() => undefined);
+  // Open on the frontier's chapter (?chapter=N: on chapter N, QA).
+  const qChapter = Number(q.get('chapter'));
+  const frontierIdx = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
+  page = Number.isInteger(qChapter) && qChapter >= 1 && qChapter <= pages.length ? qChapter - 1 : pageOfIsland(pages, frontierIdx);
   refresh();
   window.__map = {
     layout: () => layout,
-    islands: () => states.map((s, i) => ({ id: s.level.id, unlocked: s.unlocked, paid: paid[i] ?? false, stars: s.stars, x: layout?.nodes[i]?.x ?? 0, y: layout?.nodes[i]?.y ?? 0 })),
+    islands: () =>
+      shown.map((i, k) => {
+        const s = states[i];
+        return { id: s.level.id, unlocked: s.unlocked, paid: paid[i] ?? false, stars: s.stars, x: layout?.nodes[k]?.x ?? 0, y: layout?.nodes[k]?.y ?? 0 };
+      }),
+    chapter: () => ({ page, id: chapters[page]?.chapter.id ?? '', opened: chapters[page]?.opened ?? false, soon: chapters[page]?.chapter.status === 'soon' }),
+    chapters: () => chapters.map((c) => ({ id: c.chapter.id, opened: c.opened, complete: c.complete, cleared: c.cleared, total: c.total, stars: c.stars, maxStars: c.maxStars })),
+    showChapter: (p: number) => showPage(p),
+  };
+
+  /** The painting of an island's story part (its first beat), else its map. */
+  const storyArt = (i: number | undefined, part: 'intro' | 'outro'): string | null => {
+    const st = i === undefined ? undefined : states[i];
+    if (!st) return null;
+    return storyBeats(st.level, part)[0]?.art ?? thumb(st.level);
+  };
+  const titleCard = (c: ChapterDef, then?: () => void): void => {
+    const p = pages.findIndex((pg) => pg.chapter.id === c.id);
+    if (p >= 0 && p !== page) showPage(p);
+    const cs = chapters[p];
+    showChapterTitle(c, storyArt(cs ? firstIsland(cs, states)?.index : undefined, 'intro'), () => then?.());
+  };
+  const doneCard = (c: ChapterDef, then: () => void): void => {
+    const cs = chapters.find((x) => x.chapter.id === c.id);
+    if (!cs) return then();
+    const finale = cs.page.own.find((i) => states[i]?.level.id === c.finale) ?? cs.page.own[cs.page.own.length - 1];
+    const next = nextChapter(c);
+    showChapterDone({
+      chapter: c,
+      art: storyArt(finale, 'outro'),
+      stars: cs.stars,
+      maxStars: cs.maxStars,
+      cleared: cs.cleared,
+      total: cs.total,
+      next,
+      onNext: () => {
+        const p = pages.findIndex((pg) => pg.chapter.id === next?.id);
+        if (p >= 0) showPage(p);
+      },
+      onDone: then,
+    });
   };
 
   const screen = q.get('screen');
@@ -581,7 +851,9 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     const pick = (q.get('pick') ?? '').split(',').filter(Boolean);
     // &diff=easy|normal|hard pre-selects the difficulty.
     const diff = parseDifficulty(q.get('diff'));
-    openBrief(Math.max(0, Math.min(levels.length - 1, Number(q.get('island') ?? progress.unlockedLevelIndex) || 0)), {
+    const bi = Math.max(0, Math.min(levels.length - 1, Number(q.get('island') ?? progress.unlockedLevelIndex) || 0));
+    if (!shown.includes(bi)) showPage(pageOfIsland(pages, bi), bi);
+    openBrief(bi, {
       endless: pick.includes('endless'),
       challenges: pick.filter(isChallengeId),
       ...(diff ? { difficulty: diff } : {}),
@@ -597,14 +869,24 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   else if (screen === 'heroes') openSkillTree(ctx, heroFiles, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'herosel') openHeroSelect(ctx, heroFiles, undefined, isHeroId(q.get('focus')) ? (q.get('focus') as HeroId) : undefined);
   else if (screen === 'store' && storeEnabled()) openStoreFor(null);
+  // QA: the chapter cards of the page shown (?chapter=N&screen=chaptertitle|chapterdone).
+  else if (screen === 'chaptertitle' && chapters[page]) titleCard(chapters[page].chapter);
+  else if (screen === 'chapterdone' && chapters[page]) doneCard(chapters[page].chapter, () => undefined);
   // A deep link into an island the free version does not include lands here (main2d.ts).
   const storeFor = q.get('store');
   if (storeFor && storeEnabled()) {
     const i = levels.findIndex((l) => l.id === storeFor);
     if (i >= 0 && paid[i]) {
-      const L = layout as WorldMapLayout | null; // set by refresh() above
-      if (L) scroll.scrollLeft = scrollToCentre(L.nodes[i]?.x ?? 0, window.innerWidth, L.worldW);
+      showPage(pageOfIsland(pages, i), i);
       openStoreFor(i);
     }
+  }
+  // A chapter just finished / just opened: its card, once (not over a QA screen or a deep link).
+  if (!screen && !storeFor && mock === 0) {
+    const due = cardsDue(chapters, readCardsSeen());
+    writeCardsSeen(due.seen);
+    const title = due.title;
+    if (due.done) doneCard(due.done, () => (title ? titleCard(title) : undefined));
+    else if (title) titleCard(title);
   }
 }

@@ -311,7 +311,7 @@ describe('IAP store adapter: native RevenueCat bridge', () => {
     expect(res.status).toBe('unavailable');
     const restoreRes = await store.restore();
     expect(restoreRes.restored).toEqual([]);
-    expect(isUnlocked('i06', store.entitlements())).toBe(false);
+    expect(isUnlocked('i10', store.entitlements())).toBe(false);
   });
 
   it('an explicit native mode still uses the bridge even when it reports unconfigured', async () => {
@@ -471,10 +471,13 @@ describe('IAP store adapter: native RevenueCat bridge', () => {
 });
 
 describe('Free-version scope gate (FREE_ISLANDS + isUnlocked) & catalogue invariants', () => {
-  it('sets FREE_ISLANDS to the first 6 islands of LEVELS_2D', () => {
-    expect(FREE_ISLANDS).toHaveLength(6);
-    expect(FREE_ISLANDS).toEqual(LEVELS_2D.slice(0, 6).map((l) => l.id));
-    expect(FREE_ISLANDS).toEqual(['l1c', 'i01', 'i02', 'i03', 'i04', 'i05']);
+  it('sets FREE_ISLANDS to the Prologue + Chapter 1 (the first 10 islands of LEVELS_2D)', () => {
+    expect(FREE_ISLANDS).toHaveLength(10);
+    expect(FREE_ISLANDS).toEqual(LEVELS_2D.slice(0, 10).map((l) => l.id));
+    expect(FREE_ISLANDS).toEqual(['l1c', 'i01', 'i02', 'i03', 'i04', 'i05', 'i06', 'i07', 'i08', 'i09']);
+    // The free scope ends on Chapter 1's finale; Chapter 2 opens with the full adventure.
+    expect(FREE_ISLANDS.at(-1)).toBe('i09');
+    expect(FREE_ISLANDS).not.toContain('i10');
   });
 
   it('gates non-free islands until full_unlock is present in entitlements', () => {
@@ -483,7 +486,7 @@ describe('Free-version scope gate (FREE_ISLANDS + isUnlocked) & catalogue invari
       expect(isUnlocked(id, empty)).toBe(true);
     }
 
-    const lockedIslands = LEVELS_2D.slice(6).map((l) => l.id);
+    const lockedIslands = LEVELS_2D.slice(FREE_ISLANDS.length).map((l) => l.id);
     expect(lockedIslands.length).toBeGreaterThan(0);
     for (const id of lockedIslands) {
       expect(isUnlocked(id, empty)).toBe(false);

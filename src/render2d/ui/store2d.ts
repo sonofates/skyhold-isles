@@ -1,19 +1,24 @@
 /**
  * Free-version scope + the store card (mobile builds only).
  *
- * On the iOS / Android builds the first islands (`FREE_ISLANDS`) are free and the rest need the
- * `full_unlock` purchase (`platform/iap.ts`). The world map shows those islands with a "full
+ * On the iOS / Android builds the Prologue and Chapter 1 (`FREE_ISLANDS`) are free and Chapter 2
+ * onward needs the `full_unlock` purchase (`platform/iap.ts`). The world map shows those islands with a "full
  * adventure" lock (a chest seal and a red ribbon, unlike the grey padlock of an island not yet
  * reached) and opens this card: the store's products with their names and prices as the store
  * adapter gives them, Buy, and Restore purchases.
  *
  * Web and Steam never show any of it (`storeEnabled()` is false: every island is playable).
  */
-import { FREE_ISLANDS, getIap, getPlatform, isUnlocked, type IapStoreAdapter, type IapStoreProduct } from '../../platform/index.ts';
+import { CHAPTERS } from '../../data/chapters.ts';
+import { getIap, getPlatform, isUnlocked, type IapStoreAdapter, type IapStoreProduct } from '../../platform/index.ts';
 import { FULL_UNLOCK_ENTITLEMENT } from '../../platform/iapProducts.ts';
 import { t } from '../../i18n/index.ts';
 import { el, glyph, img, KIT, openSheet, plank, type Sheet } from './dom.ts';
 import { SEAL_GLYPHS, type IconName } from './paintedIcons.ts';
+
+/** The free version is the Prologue + Chapter 1 (`FREE_ISLANDS`); the full adventure opens the rest. */
+const FREE_CHAPTER = CHAPTERS[0];
+const FIRST_PAID_CHAPTER = CHAPTERS[1];
 
 /** Is the free-version scope (and the store) in force on this build? */
 export function storeEnabled(iap: IapStoreAdapter = getIap()): boolean {
@@ -69,7 +74,7 @@ export function openStore(opts: StoreCardOptions): Sheet {
     'pu-meta-note pu-ink-soft pu-store-intro',
     {},
     opts.islandName ? el('b', 'pu-ink', {}, t('store.introIsland', { name: opts.islandName }) + ' ') : null,
-    t('store.intro', { n: FREE_ISLANDS.length, total: opts.totalIslands }),
+    t('store.intro', { free: FREE_CHAPTER.n, n: FIRST_PAID_CHAPTER.n, total: opts.totalIslands }),
   );
   const list = el('div', 'pu-store-list', { 'data-testid': 'store2d-list' });
   const status = el('div', 'pu-store-status pu-ink', { role: 'status', 'aria-live': 'polite', 'data-testid': 'store2d-status' });
@@ -100,7 +105,7 @@ export function openStore(opts: StoreCardOptions): Sheet {
     icon.append(glyph(iconName));
     // Name and price exactly as the store adapter gives them (store-localised on the phone).
     const name = el('div', 'pu-ws-name pu-store-name', {}, p.title || p.id);
-    const blurb = main ? t('store.blurbFull', { n: FREE_ISLANDS.length }) : p.description;
+    const blurb = main ? t('store.blurbFull', { n: FIRST_PAID_CHAPTER.n }) : p.description;
     const price = el('span', 'pu-store-price pu-ink', { 'data-testid': `store2d-price-${p.id}` }, img(KIT.gold, '', 'pu-store-price-coin'), p.priceString);
     let action: HTMLElement;
     if (owned) {

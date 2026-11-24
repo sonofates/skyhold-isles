@@ -30,6 +30,7 @@ import { I23 } from './i23.ts';
 import { I24 } from './i24.ts';
 import { NEW_ISLANDS } from './newIslands.ts';
 import type { ChapterIsland } from './chapterIsland.ts';
+import { orderByChapters } from '../chapters.ts';
 
 const chapterTwo: readonly ChapterIsland[] = [I17, I18, I19, I20, I21, I22, I23, I24];
 
@@ -41,16 +42,25 @@ export function registeredChapterIslands(): LevelDef[] {
 }
 
 /**
- * 2D plot-map islands. Kept apart from the 16-island campaign list (`LEVELS`), so campaign
- * progression, saves and every UI that iterates `LEVELS` stay untouched; load these by id.
+ * Every 2D island that can be played: the Prologue, the first sixteen islands and the chapter
+ * islands whose enemies are registered. A new island is added HERE; where it sits on the route
+ * is decided by its chapter slot (`src/data/chapters.ts`), not by its place in this list.
  */
-export const LEVELS_2D: readonly LevelDef[] = [
+const ISLAND_POOL: readonly LevelDef[] = [
   LEVEL_L1C,
   I01, I02, I03, I04, I05, I06, I07, I08,
   I09, I10, I11, I12, I13, I14, I15, I16,
   ...registeredChapterIslands(),
   ...NEW_ISLANDS,
 ];
+
+/**
+ * 2D plot-map islands in campaign order: the Prologue, then each chapter's islands
+ * (`orderByChapters`; a chapter slot whose island is not in the pool is skipped). Kept apart from
+ * the 16-island campaign list (`LEVELS`), so campaign progression, saves and every UI that
+ * iterates `LEVELS` stay untouched; load these by id.
+ */
+export const LEVELS_2D: readonly LevelDef[] = orderByChapters(ISLAND_POOL);
 
 /** Any island by id: campaign islands first, then the 2D side entries. */
 export function getLevelById(id: string): LevelDef | null {

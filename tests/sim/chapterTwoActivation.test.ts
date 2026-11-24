@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyWin } from '../../src/game/progression.ts';
+import { CAMPAIGN_ORDER } from '../../src/data/chapters.ts';
 import { CHAPTER_ENEMY_DEFS, CHAPTER_ENEMY_MELEE, CHAPTER_ENEMY_TYPES, ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { getLevelById, LEVELS_2D, registeredChapterIslands } from '../../src/data/levels2d/index.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
@@ -19,19 +20,21 @@ const onDisk = (p: string): boolean => existsSync(resolve(ROOT, 'public/art2d', 
 const CHAPTER = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'];
 
 describe('chapter two is in the shipping campaign', () => {
-  it('LEVELS_2D registers every shipping island exactly once', () => {
+  it('LEVELS_2D registers every shipping island exactly once, in chapter order', () => {
     const ids = LEVELS_2D.map((l) => l.id);
     expect(ids).toHaveLength(28);
     expect(new Set(ids)).toEqual(new Set(['l1c', ...Array.from({ length: 27 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)]));
+    expect(ids).toEqual(CAMPAIGN_ORDER.filter((id) => getLevelById(id) !== null));
     expect(registeredChapterIslands().map((l) => l.id)).toEqual(CHAPTER);
-    for (const id of CHAPTER) expect(getLevelById(id)).toBe(LEVELS_2D.find(level => level.id === id));
+    for (const id of CHAPTER) expect(getLevelById(id)).toBe(LEVELS_2D[ids.indexOf(id)]);
+    expect(ids.indexOf('i17')).toBe(ids.indexOf('i16') + 1);
   });
 
   it('clearing i16 unlocks i17 (and only i17)', () => {
     const p = createDefaultProgress(LEVELS_2D.length);
-    const finale = LEVELS_2D.findIndex(level => level.id === 'i16');
-    for (let i = 0; i <= finale; i++) applyWin(p, i, LEVELS_2D.length, 2, 10, []);
-    expect(p.unlockedLevelIndex).toBe(finale + 1);
+    const i16 = LEVELS_2D.findIndex((l) => l.id === 'i16');
+    for (let i = 0; i <= i16; i++) applyWin(p, i, LEVELS_2D.length, 2, 10, []);
+    expect(p.unlockedLevelIndex).toBe(i16 + 1);
     expect(LEVELS_2D[p.unlockedLevelIndex].id).toBe('i17');
   });
 
