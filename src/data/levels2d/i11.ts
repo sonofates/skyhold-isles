@@ -8,7 +8,7 @@ export const I11 = campaignIsland(LEVEL_11, layout, {
     'Thunderhead': { carrier: { count: 7 } },
   },
   startingGold: 265,
-  enemyHpScale: 1.94,
+  enemyHpScale: 1.977,
   waveHpGrowth: 0.6,
   waveCount: 11,
   flyingGroups: { hpScale: 0.1 },

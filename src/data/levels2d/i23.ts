@@ -16,7 +16,7 @@ export const I23 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1229,
-  startingGold: 395,
+  startingGold: 380,
   enemyHpScale: 2.54,
   waveHpGrowth: 0.1035,
   waves: [

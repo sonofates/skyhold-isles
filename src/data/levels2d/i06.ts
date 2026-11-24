@@ -9,7 +9,7 @@ export const I06 = campaignIsland(LEVEL_6, layout, {
     'Fall of the Atoll': { brute: { count: 14 }, healer: { count: 6 } },
   },
   startingGold: 285,
-  enemyHpScale: 1.35,
+  enemyHpScale: 1.297,
   waveHpGrowth: 0.575,
   waveCount: 11,
   flyingGroups: { hpScale: 1.15, countScale: 0.65, intervalScale: 1.2 },

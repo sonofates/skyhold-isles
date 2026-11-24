@@ -7,7 +7,7 @@ export const I09 = campaignIsland(LEVEL_9, layout, {
     'Twin Warlords': { boss: { hpScale: 1.35, spawnInterval: 4.5 } },
   },
   startingGold: 336,
-  enemyHpScale: 1.9549,
+  enemyHpScale: 1.96,
   waveHpGrowth: 0.63,
   waveCount: 11,
   flyingGroups: { hpScale: 0.75 },

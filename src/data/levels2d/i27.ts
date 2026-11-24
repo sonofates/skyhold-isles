@@ -16,8 +16,8 @@ export const I27 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1427,
-  startingGold: 400,
-  enemyHpScale: 1.55,
+  startingGold: 405,
+  enemyHpScale: 1.625,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'First Twist', clearBonus: 25, groups: [
