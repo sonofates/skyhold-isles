@@ -14,9 +14,10 @@ const BASE = arg('base') ?? 'http://127.0.0.1:4381';
 const OUT = arg('out') ?? 'qa-out/wp/before';
 const LANGS = (arg('lang') ?? 'en,tr').split(',');
 const JOBS = Number(arg('jobs') ?? 4);
-// --notch: emulate an iPhone landscape safe area (59 px sides, 21 px bottom) on phone sizes — the
+// --notch[=59]: emulate an iPhone landscape safe area (N px sides, 21 px bottom) on phone sizes — the
 // app's --safe-* vars and its env() inset probes (uiKit.ts readSafeInsets, platform/safeArea.ts).
-const NOTCH = process.argv.includes('--notch');
+const NOTCH_ARG = process.argv.find((a) => a === '--notch' || a.startsWith('--notch='));
+const NOTCH = NOTCH_ARG ? Number(NOTCH_ARG.split('=')[1] ?? 59) || 59 : 0;
 const only = process.argv.slice(2).filter((a) => !a.startsWith('--'));
 const IPHONE_UA =
   'Mozilla/5.0 (iPhone; CPU iPhone OS 17_4 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4 Mobile/15E148 Safari/604.1';
@@ -367,11 +368,11 @@ async function runOne(lang, size, [name, query, seed, action, opt = {}], key) {
   });
   await seedContext(ctx, seed, lang, opt);
   if (NOTCH && size.touch) {
-    await ctx.addInitScript(() => {
+    await ctx.addInitScript((n) => {
       const st = document.createElement('style');
       st.textContent =
-        ':root, .pu { --safe-t: 0px !important; --safe-r: 59px !important; --safe-b: 21px !important; --safe-l: 59px !important; }' +
-        ' div[style*="safe-area-inset"] { padding: 0px 59px 21px 59px !important; }';
+        `:root, .pu { --safe-t: 0px !important; --safe-r: ${n}px !important; --safe-b: 21px !important; --safe-l: ${n}px !important; }` +
+        ` div[style*="safe-area-inset"] { padding: 0px ${n}px 21px ${n}px !important; }`;
       const add = () => {
         if (!document.documentElement) return false;
         document.documentElement.appendChild(st);
@@ -383,7 +384,7 @@ async function runOne(lang, size, [name, query, seed, action, opt = {}], key) {
         });
         mo.observe(document, { childList: true, subtree: true });
       }
-    });
+    }, NOTCH);
   }
   const page = await ctx.newPage();
   const logs = [];
