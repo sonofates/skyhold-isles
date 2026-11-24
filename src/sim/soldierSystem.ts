@@ -100,6 +100,12 @@ export function blockedLateralOffset(uid: number, halfWidth = BLOCK_LATERAL_MAX)
 }
 
 /** Samples `path` at `dist`, extrapolating backward along the start tangent when `dist < 0`. */
+/** Every soldier of the squad is dead (a closure-free loop: this runs per tick per banner). */
+function squadAllDead(squad: readonly SoldierEntity[]): boolean {
+  for (let i = 0; i < squad.length; i++) if (squad[i].state !== 'dead') return false;
+  return true;
+}
+
 function samplePathWithBackoff(path: CompiledPath, dist: number, out: Vec3): number {
   if (dist >= 0) return path.sample(dist, out);
   const yaw = path.sample(0, out);
@@ -660,7 +666,7 @@ export class SoldierSystem {
       const b = this.barracks[i];
       if (b.remainingSeconds === undefined) continue;
       b.remainingSeconds -= dt;
-      if (b.remainingSeconds <= 1e-9 || b.squad.every((s) => s.state === 'dead')) {
+      if (b.remainingSeconds <= 1e-9 || squadAllDead(b.squad)) {
         this.removeBarracks(b.towerId);
       }
     }

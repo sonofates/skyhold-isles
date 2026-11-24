@@ -906,7 +906,9 @@ export class SimWorld {
     this.gold += refund;
     this.grid.clearTowerAt(tower.col, tower.row);
     this.towers.splice(idx, 1);
-    if (tower.type === 'beacon' && tower.specialization) this.combatSystem.applyBeaconAuras(this.towers);
+    // Every beacon lends rate (tier III also range): drop it now, or a rally set before the next
+    // combat step could still use the sold beacon's range bonus and land outside the barracks reach.
+    if (tower.type === 'beacon') this.combatSystem.applyBeaconAuras(this.towers);
     this.recordCommand({ kind: 'sellTower', towerId });
     if (TOWER_DEFS[tower.type].role === 'barracks') this.soldierSystem.removeBarracks(tower.id);
 
