@@ -635,6 +635,7 @@
     "biome": "highlands",
     "dressingMask": "land-i25.webp",
     "roadMaterial": "tex-mica-setts.webp",
+    "entranceArt": {"A": "shard-grotto", "B": "shard-grotto"},
     "thresholdRoad": true,
     "brushRoad": true,
     "dustyShoulders": true,
@@ -648,7 +649,6 @@
     "windmill": "none",
     "cave-h": 2.04,
     "castle-h": 2.55,
-    "sprites": {"gate-cave-e.png": "storm-cave-e.webp"},
     "seedPlots": [[1345, 534], [1340, 693]]
   },
   "i26": {
@@ -657,6 +657,7 @@
     "biome": "ember",
     "dressingMask": "land-i26.webp",
     "roadMaterial": "tex-furnace-grit.webp",
+    "entranceArt": {"A": "ore-kiln", "B": "ore-kiln"},
     "thresholdRoad": true,
     "brushRoad": true,
     "dustyShoulders": true,
@@ -669,8 +670,8 @@
     "decals": 68,
     "windmill": "none",
     "cave-h": 2.04,
-    "castle-h": 2.55,
-    "sprites": {"gate-cave-e.png": "mesa-cave-e.webp"}
+    "gate-inset": 0.21,
+    "castle-h": 2.55
   },
   "i27": {
     "plots": 20,
@@ -678,6 +679,7 @@
     "biome": "tidal",
     "dressingMask": "land-i27.webp",
     "roadMaterial": "tex-towpath-shell.webp",
+    "entranceArt": {"A": "reed-weir", "B": "reed-weir"},
     "thresholdRoad": true,
     "brushRoad": true,
     "dustyShoulders": true,
@@ -690,6 +692,7 @@
     "decals": 68,
     "windmill": "none",
     "cave-h": 2.04,
+    "gate-inset": 0.21,
     "castle-h": 2.55
   }
 }
