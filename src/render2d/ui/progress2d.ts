@@ -1431,13 +1431,13 @@ export function importSaveCode2D(
   merged.heroes = migrateHeroSave(merged.heroes, merged, levels);
   const summary = describeMergeGain(current, merged);
   try {
-    if (ls && (hasAnyProgress(current) || ls.getItem(PROGRESS_2D_IMPORT_BACKUP_KEY) === null)) {
+    if (ls && (worthBackingUp2D(current) || ls.getItem(PROGRESS_2D_IMPORT_BACKUP_KEY) === null)) {
       const raw = ls.getItem(PROGRESS_2D_KEY);
       const validPrimary = raw ? parseStored2DRaw(raw, levels) : null;
       const backupJson =
         raw && validPrimary && !validPrimary.repairedFromTruncated
           ? raw
-          : hasAnyProgress(current) || validPrimary !== null
+          : worthBackingUp2D(current) || validPrimary !== null
             ? serializeStored2D(current, levels)
             : null;
       if (backupJson) {
@@ -1459,6 +1459,17 @@ export function importSaveCode2D(
  * progress to `PROGRESS_2D_RESET_BACKUP_KEY` first. Never overwrites a real backup with an empty save.
  * The 3D campaign save is untouched.
  */
+/**
+ * Backup guard: real progress, not counting the zero-crystal purchase receipts a reset keeps (so a
+ * pack is never delivered twice). A reset save holds only those, and must not overwrite a backup.
+ */
+function worthBackingUp2D(p: ProgressData): boolean {
+  const ledger = p.market?.purchaseLedger;
+  if (!ledger || !Object.values(ledger).some((v) => v === 0)) return hasAnyProgress(p);
+  const paid = Object.fromEntries(Object.entries(ledger).filter(([, v]) => v !== 0));
+  return hasAnyProgress({ ...p, market: { ...p.market!, purchaseLedger: paid } });
+}
+
 export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
   resetGen2D++;
   const platform = getPlatform();
@@ -1466,7 +1477,7 @@ export function resetProgress2D(levels: readonly LevelDef[] = LEVELS_2D): void {
   const ls = storage();
   try {
     const current = loadLocalProgress2DInternal(levels);
-    if (hasAnyProgress(current)) {
+    if (worthBackingUp2D(current)) {
       const raw = ls?.getItem(PROGRESS_2D_KEY) ?? null;
       const validPrimary = raw ? parseStored2DRaw(raw, levels) : null;
       const backupJson =

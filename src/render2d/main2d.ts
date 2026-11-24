@@ -595,6 +595,7 @@ async function main(): Promise<void> {
     modifiers: run.modifiers,
     ...(plainPlay ? { itemBelt: () => runItemBelt2D(runDifficulty ?? 'normal', run.modifiers.itemsDisabled), spendItem: spendItem2D } : {}),
     hero: heroSelection,
+    ...(heroSelection && plainPlay ? { refreshHero: () => resolveHeroForRun(loadProgress2D(), q.get('hero'), q.get('herolevel')) } : {}),
     startEndless: run.runConfig.endless,
     ...(runDifficulty ? { difficulty: runDifficulty } : {}),
     initialUnlockedTier: autoTier,

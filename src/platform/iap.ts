@@ -514,7 +514,14 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
   const storage = options.storage === undefined ? defaultStorage() : options.storage;
   const catalogue = options.catalogue ?? IAP_PRODUCTS;
   const now = options.now ?? (() => Date.now());
-  const mode = resolveMode(options.mode, platform);
+  const resolved = resolveMode(options.mode, platform);
+  // Native mode without a RevenueCat key for this platform can sell nothing and restore nothing.
+  // It must behave like no store at all: otherwise the free-version gate (store2d.ts) stays on and
+  // every island past FREE_ISLANDS is locked behind a purchase that can never succeed.
+  const native = resolved === 'native'
+    ? options.nativeBridge ?? createRevenueCatBridge({ mobilePlatform: platform.mobilePlatform })
+    : null;
+  const mode: IapStoreMode = native && !options.mode && !native.isConfigured() ? 'noop' : resolved;
 
   if (mode === 'noop') {
     const emptySet: ReadonlySet<string> = new Set();
@@ -647,12 +654,8 @@ export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAda
     };
   }
 
-  // Native mode (`@revenuecat/purchases-capacitor`).
-  const native =
-    options.nativeBridge ??
-    createRevenueCatBridge({
-      mobilePlatform: platform.mobilePlatform,
-    });
+  // Native mode (`@revenuecat/purchases-capacitor`); `native` is non-null here (mode is 'native').
+  if (!native) throw new Error('unreachable: native IAP mode without a bridge');
   const cachedStoreProducts = new Map<string, PurchasesStoreProduct>();
 
   return {

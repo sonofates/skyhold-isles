@@ -43,6 +43,7 @@ import {
 import {
   availableChallenges,
   buildRunHref2D,
+  DAILY_LINK_GRACE_MS,
   canPlayEndless,
   composeRunModifiers2D,
   dailyForToday,
@@ -170,6 +171,23 @@ describe('2D run modifiers composition matches 3D composition', () => {
       });
       expect(res.modifiers).toEqual(runModifiersFor(workshopModifiers(p.workshop), daily.challenges));
     }
+  });
+
+  it('a Daily link opened just after UTC midnight still plays the Daily its sheet showed', () => {
+    const p = createDefaultProgress(LEVELS_2D.length);
+    for (let i = 0; i < 12; i++) p.clears[i] = 1;
+    // Find a day whose Daily island differs from the next day's.
+    let day = utcDayNumber(Date.UTC(2026, 10, 18));
+    while (dailyForToday(day * 86_400_000, p)!.levelId === dailyForToday((day + 1) * 86_400_000, p)!.levelId) day++;
+    const shown = dailyForToday(day * 86_400_000 + 86_000_000, p)!; // the sheet, 6 min before midnight
+    const query = new URLSearchParams(`level=${shown.levelId}&daily=1`);
+    const at = (msAfterMidnight: number) => resolveQueryRun2D(query, p, { nowMs: (day + 1) * 86_400_000 + msAfterMidnight, warn: () => {} });
+    // Loaded 2 minutes past midnight: yesterday's Daily (its rules and its day, which still counts).
+    const late = at(2 * 60_000);
+    expect(late.level?.id).toBe(shown.levelId);
+    expect(late.runConfig).toEqual({ endless: false, challenges: [...shown.challenges], daily: day });
+    // Hours later the stale link is just an island link again.
+    expect(at(DAILY_LINK_GRACE_MS + 1).runConfig.daily).toBeNull();
   });
 
   it('?endless=1 enables endless mode with Workshop modifiers and drops challenge/daily rules', () => {

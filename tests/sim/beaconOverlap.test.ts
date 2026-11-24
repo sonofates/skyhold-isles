@@ -163,3 +163,21 @@ it('uses the current Horizon range for rally orders issued on the same tick as a
   checkRally(3.2);
   world.dispose();
 });
+
+it('selling a plain tier-III beacon drops its range aura at once (a rally cannot use the sold reach)', () => {
+  const world = new SimWorld(encounter, new EventBus());
+  world.gold = 5000;
+  const barracks = world.placeTowerOnPlot(0, 'barracks')!;
+  const beacon = world.placeTowerOnPlot(1, 'beacon')!;
+  for (const id of [barracks.id, barracks.id, beacon.id, beacon.id]) expect(world.upgradeTower(id)).toBe(true);
+  world.fixedTick(BALANCE.fixedDt);
+  expect(barracks.auraRange).toBeGreaterThan(0);
+  expect(world.sellTower(beacon.id)).toBeGreaterThan(0);
+  expect(barracks.auraRange).toBe(0);
+  expect(barracks.auraRate).toBe(0);
+  expect(world.setRallyPoint(barracks.id, 9, 0)).toBe(true);
+  const rally = world.soldierSystem.getBarracks(barracks.id)!;
+  const reach = Math.hypot(rally.rallyX - barracks.x, rally.rallyZ - barracks.z);
+  expect(reach).toBeLessThanOrEqual(world.soldierSystem.getBarracks(barracks.id)!.stats.range + 1e-6);
+});
+
