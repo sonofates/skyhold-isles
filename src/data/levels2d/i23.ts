@@ -50,7 +50,7 @@ export const I23 = {
       group('reedpiper', 3, 1.54, 0.9, 1),
       group('draftwing', 6, 0.49, 2.2),
       group('grunt', 12, 0.42, 4.3),
-      { ...group('golem', 9, 0.95, 0, 1), elite: true },
+      { ...group('golem', 9, 0.95, 0.45, 1), elite: true },
     ] },
     { name: 'The Honey Press', clearBonus: 35, groups: [
       group('carrier', 2, 2.21),
