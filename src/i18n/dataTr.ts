@@ -170,6 +170,33 @@ export const DATA_TR: DataTr = {
         'Kızağı Kaldır', 'Son Flama', 'Buzul Muhafızı',
       ],
     },
+    i37: {
+      name: 'Alacakaranlık İskelesi', subtitle: 'Rıhtımın zinciri koptu. Son feribota halat atılana kadar kıvrılan iskele yolunu tut.',
+      waves: [
+        'Son Feribot', 'Durgun Hava', 'Kanca ve Halka', 'Bumba Altı',
+        'Karşı Ağırlık', 'Boş Rıhtım', 'Yük Fenerleri', 'Gece Vardiyası',
+        'Zincir Ambarı', 'Loça Deliği', 'Yan Rüzgâr', 'Kırık Kilit',
+        'Halatı Bağla', 'Son Palamar',
+      ],
+    },
+    i38: {
+      name: 'Kırık Adacıklar', subtitle: 'Üç kaya tek kabloya bağlı. Köprücü kabloyu gererken köprü başlarını savun.',
+      waves: [
+        'Köprüyü Yokla', 'Tahtada Pati İzleri', 'Ölçüm Fenerleri', 'Kablo İşareti',
+        'Kuvars Tozu', 'İlk Köprü Ayağı', 'Tellerin Ezgisi', 'Kayan Kıyı',
+        'Gevşek Pim', 'Dönüş Makarası', 'Üç Fener', 'Uzun Geçiş',
+        'Çapa Pabuçları', 'Son Perçin',
+      ],
+    },
+    i39: {
+      name: 'Gölge Korusu', subtitle: 'Korunun karşılıklı iki ucunda kök mahzenleri açıldı. Güneydeki mantar yataklarını şafağa kadar aydınlık tut.',
+      waves: [
+        'Yaprak Örtüsü', 'Karşı Kıyılar', 'Bal Mantarları', 'Mahzen Basamakları',
+        'Yürüyen Özsu', 'Kara Yapraklar', 'Hasır Küfeler', 'Spor Bulutu',
+        'Gölge Hasadı', 'Kök Düğümü', 'Fener Yatakları', 'Çifte Hasat',
+        'Kül Yağmuru', 'Son Kor',
+      ],
+    },
   },
   towers: {
     archer: {

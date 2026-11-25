@@ -1,0 +1,10 @@
+{
+  "island": "i38",
+  "maxParticles": 10,
+  "glows": [
+    { "id": "survey-lamps", "x": 1083, "y": 600, "rx": 22, "ry": 21, "color": "#ffc975", "minAlpha": 0.08, "maxAlpha": 0.27, "speed": 1.2 }
+  ],
+  "zones": [
+    { "id": "rift-updraft", "kind": "mist", "rect": [1224, 491, 52, 102], "rate": 1, "color": "#bb89e6", "color2": "#9e77cc", "size": 45, "drift": [2, -15], "life": 4, "alpha": 0.19 }
+  ]
+}

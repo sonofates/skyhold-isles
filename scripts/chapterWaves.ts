@@ -1,4 +1,5 @@
 /** Prints every 2D island's chapter, wave count, difficulty, and HP curve endpoints. */
+import { chapterOf, type ChapterId } from '../src/data/chapters.ts';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 
 interface Band {
@@ -8,13 +9,14 @@ interface Band {
   readonly finale?: string;
 }
 
-const BANDS: readonly (Band & { match: (id: string) => boolean })[] = [
-  { label: 'Prologue', min: 1, max: 99, match: (id) => id === 'l1c' },
-  { label: 'Ch 1', min: 8, max: 11, finale: 'i09', match: (id) => /^i0[1-9]$/.test(id) },
-  { label: 'Ch 2', min: 11, max: 13, finale: 'i16', match: (id) => /^i1[0-6]$/.test(id) },
-  { label: 'Ch 3', min: 12, max: 14, finale: 'i24', match: (id) => /^i(1[7-9]|2[0-4])$/.test(id) },
-  { label: 'Ch 4', min: 13, max: 15, finale: 'i36', match: (id) => /^i(2[89]|3[0-6])$/.test(id) },
-];
+const BANDS: Readonly<Record<ChapterId, Band>> = {
+  prologue: { label: 'Prologue', min: 1, max: 99 },
+  ch1: { label: 'Ch 1', min: 8, max: 11, finale: 'i09' },
+  ch2: { label: 'Ch 2', min: 11, max: 13, finale: 'i16' },
+  ch3: { label: 'Ch 3', min: 12, max: 14, finale: 'i24' },
+  ch4: { label: 'Ch 4', min: 13, max: 15, finale: 'i36' },
+  ch5: { label: 'Ch 5', min: 14, max: 16, finale: 'i45' },
+};
 
 function storyHpScale(base: number, growth: number, waveIndex: number): number {
   const linear = base * (1 + waveIndex * growth);
@@ -35,7 +37,8 @@ if (md) {
 }
 
 for (const level of LEVELS_2D) {
-  const band = BANDS.find((b) => b.match(level.id));
+  const chapter = chapterOf(level.id);
+  const band = chapter ? BANDS[chapter.id] : undefined;
   const n = level.waves.length;
   const base = level.enemyHpScale ?? 1;
   const growth = level.waveHpGrowth ?? 0;

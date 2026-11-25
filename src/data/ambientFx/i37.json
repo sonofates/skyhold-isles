@@ -1,0 +1,10 @@
+{
+  "island": "i37",
+  "maxParticles": 8,
+  "glows": [
+    { "id": "cargo-lamps", "x": 1241, "y": 592, "rx": 20, "ry": 23, "color": "#ffbd60", "minAlpha": 0.08, "maxAlpha": 0.28, "speed": 1.3 }
+  ],
+  "zones": [
+    { "id": "below-the-quay", "kind": "mist", "rect": [610, 785, 424, 35], "rate": 0.8, "color": "#bc91df", "color2": "#8673bd", "size": 60, "drift": [22, -4], "life": 3.8, "alpha": 0.16 }
+  ]
+}

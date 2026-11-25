@@ -1,9 +1,11 @@
 import { existsSync } from 'node:fs';
+import manifest from '../../public/art2d/manifest.json';
 import { afterEach, expect, it } from 'vitest';
 import { chapterOf } from '../../src/data/chapters.ts';
 import { CHAPTER_ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { CHAPTER4_ISLANDS } from '../../src/data/levels2d/chapter4.ts';
+import { CHAPTER5_ISLANDS } from '../../src/data/levels2d/chapter5.ts';
 import { NEW_ISLANDS } from '../../src/data/levels2d/newIslands.ts';
 import { islandName, islandSubtitle, islandWaveTitle } from '../../src/i18n/data.ts';
 import { setLocale } from '../../src/i18n/index.ts';
@@ -43,7 +45,20 @@ it.each(CHAPTER4_ISLANDS)('$id uses its shipping chapter roster, wave count and 
   expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.layout2d.entrances.map((_, lane) => lane)));
 });
 
-it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {
+it.each(CHAPTER5_ISLANDS)('$id uses established foes across all its ground lanes', level => {
+  const roster = new Set(LEVELS_2D.filter(l => chapterOf(l.id)?.id !== 'ch5')
+    .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
+  const groups = level.waves.flatMap(w => w.groups);
+  expect(level.difficulty).toBe('Master');
+  expect(level.waves).toHaveLength(14);
+  const chart: Record<string, string> = manifest.paintedUi;
+  expect(chart[`island-${level.id}`]).toBe(`ui/island-${level.id}.webp`);
+  expect(existsSync('public/art2d/' + chart[`island-${level.id}`])).toBe(true);
+  for (const g of groups) expect(roster.has(g.enemyType), g.enemyType).toBe(true);
+  expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.layout2d.paths.map((_, i) => i)));
+});
+
+it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS, ...CHAPTER5_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {
   const titles = () => level.waves.map((_, i) => islandWaveTitle(level, i));
   const english = titles();
   expect(english).toEqual(level.waves.map(w => w.name));

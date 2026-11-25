@@ -99,6 +99,18 @@ const PLACEHOLDER_STORY: Readonly<Record<string, Partial<Record<StoryPart, reado
     intro: [{ ...PELL, key: 'story.i36.intro', art: '/art2d/ui/story-i36-intro-1.webp' }],
     outro: [{ ...PELL, key: 'story.i36.outro', art: '/art2d/ui/story-i36-outro-1.webp' }],
   },
+  i37: {
+    intro: [{ ...PELL, key: 'story.i37.intro', art: '/art2d/ui/story-i37-intro-1.webp' }],
+    outro: [{ ...PELL, key: 'story.i37.outro', art: '/art2d/ui/story-i37-outro-1.webp' }],
+  },
+  i38: {
+    intro: [{ ...PELL, key: 'story.i38.intro', art: '/art2d/ui/story-i38-intro-1.webp' }],
+    outro: [{ ...PELL, key: 'story.i38.outro', art: '/art2d/ui/story-i38-outro-1.webp' }],
+  },
+  i39: {
+    intro: [{ ...PELL, key: 'story.i39.intro', art: '/art2d/ui/story-i39-intro-1.webp' }],
+    outro: [{ ...PELL, key: 'story.i39.outro', art: '/art2d/ui/story-i39-outro-1.webp' }],
+  },
   l1c: {
     intro: [
       { ...PELL, key: 'story.l1c.intro.1', art: '/art2d/ui/story-l1c-intro-1.webp', focus: [0.12, 0.25] },

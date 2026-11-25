@@ -5,6 +5,9 @@
 // Usage: python3 qa/withPreview.py --port=4397 node qa/chaptershots.mjs [--size=1280x800,932x430] [--only=ch2,...]
 import { mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import 'tsx/esm';
+
+const { CHAPTERS, PLAYABLE_ISLAND_IDS: IDS } = await import('../src/data/chapters.ts');
 
 const arg = (k) => process.argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const BASE = arg('base') ?? 'http://127.0.0.1:4381';
@@ -20,7 +23,6 @@ const SIZES = [
   { key: '932x430', w: 932, h: 430, touch: true },
 ].filter((s) => !arg('size') || arg('size').split(',').includes(s.key));
 
-const IDS = ['l1c', ...Array.from({ length: 24 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)];
 /** A 2D save with every island before `upTo` won (stars vary). */
 function save(upTo) {
   const n = IDS.length;
@@ -43,14 +45,17 @@ function save(upTo) {
   });
 }
 /** Cards already seen (so a shot is not covered by a due card), unless a case wants them. */
-const SEEN_ALL = JSON.stringify({ title: ['ch1', 'ch2', 'ch3'], done: ['ch1', 'ch2', 'ch3'] });
+const chapterIds = CHAPTERS.map(chapter => chapter.id);
+const SEEN_ALL = JSON.stringify({ title: chapterIds, done: chapterIds });
 
 const CASES = [
   { key: 'ch1', save: 'i06', q: '' },
   { key: 'ch2', save: 'i13', q: '' },
   { key: 'ch3', save: 'i21', q: '' },
   { key: 'ch3-locked', save: 'i06', q: '&chapter=3' },
-  { key: 'ch4-soon', save: 'i13', q: '&chapter=4' },
+  { key: 'ch4-locked', save: 'i13', q: '&chapter=4' },
+  { key: 'ch5', save: 'i38', q: '' },
+  { key: 'citadel-done', save: 'i37', q: '', seen: JSON.stringify({ title: ['ch1', 'ch2', 'ch3', 'ch4'], done: ['ch1', 'ch2', 'ch3'] }), card: 'chapter2d-next' },
   { key: 'card-title', save: 'i13', q: '&chapter=2&screen=chaptertitle', card: 'chapter2d-title' },
   { key: 'card-done', save: 'i13', q: '&chapter=1&screen=chapterdone', card: 'chapter2d-done' },
   // The natural flow: Chapter 1's finale just won, no card seen yet → "Chapter complete" first.
