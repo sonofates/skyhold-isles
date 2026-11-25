@@ -20,8 +20,12 @@ def bake(island, recipe):
     r, g, b = np.asarray(Image.open(KIT / f'terrain-{island}.webp').convert('RGB'), dtype=np.int16).transpose(2, 0, 1)
     y, x = np.ogrid[:h, :w]
     if island == 'i37':
-        # Reflected violet cloud light below the chain quay, between the pilings.
-        paint = (y > 728) & (b > r + 8) & (b > g + 22) & (r > 55)
+        # Cloud visible behind the moored skiff, through the crane, and below the deck.
+        skiff = (x < 302) & (y > 110) & (y < 680)
+        crane = (x > 702) & (x < 1000) & (y < 147)
+        under_deck = (y > 737) & ((x < 1370) | (y > 821))
+        cloud = (r > g + 19) & (b > r + 19) & (b > g + 49)
+        paint = (skiff | crane | under_deck) & cloud
     elif island == 'i38':
         # Only the fog down in the two fissures, including the gaps beneath the spans.
         rifts = ((x > 400) & (x < 680)) | ((x > 1120) & (x < 1390))
