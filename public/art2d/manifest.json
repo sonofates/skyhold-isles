@@ -1554,7 +1554,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 0.42
+   "shadow": 0.42,
+   "fallback": {
+    "art": "kilnback",
+    "tint": "#9fd4f2",
+    "scale": 0.8
+   }
   },
   "sledguard": {
    "mode": "sheet",
@@ -1576,7 +1581,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 0.48
+   "shadow": 0.48,
+   "fallback": {
+    "art": "warden",
+    "tint": "#a8cce6",
+    "scale": 0.95
+   }
   },
   "glacier_warden": {
    "mode": "sheet",
@@ -1598,7 +1608,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 0.95
+   "shadow": 0.95,
+   "fallback": {
+    "art": "tempest",
+    "tint": "#9fdcff",
+    "scale": 1.05
+   }
   }
  },
  "enemyMap": {

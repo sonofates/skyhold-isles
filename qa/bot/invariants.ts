@@ -575,6 +575,26 @@ export class InvariantMonitor {
       this.assertFinite(t.totalDamageDealt, 'tower.totalDamageDealt');
       this.assertFinite(t.auraRate, 'tower.auraRate');
       this.assertFinite(t.auraRange, 'tower.auraRange');
+      // Chapter four: frost-patch slow in [0, 1); the ice block never outlasts its stun.
+      const frostSlow = t.frostSlow ?? 0;
+      this.assertFinite(frostSlow, 'tower.frostSlow');
+      if (frostSlow < 0 || frostSlow >= 1) {
+        this.record('nan_or_infinity', tick, `tower ${t.id} frostSlow=${frostSlow} outside [0, 1)`);
+      }
+      const frostLock = t.frostLockTimer ?? 0;
+      this.assertFinite(frostLock, 'tower.frostLockTimer');
+      if (frostLock > t.stunTimer + 1e-9) {
+        this.record('nan_or_infinity', tick, `tower ${t.id} frostLockTimer=${frostLock} outlasts stunTimer=${t.stunTimer}`);
+      }
+    }
+    for (const patch of w.enemySystem.frostPatches) {
+      if (!patch.active) continue;
+      this.assertFinite(patch.x, 'frostPatch.x');
+      this.assertFinite(patch.z, 'frostPatch.z');
+      this.assertFinite(patch.timeLeft, 'frostPatch.timeLeft');
+      if (patch.timeLeft > patch.duration + 1e-9) {
+        this.record('nan_or_infinity', tick, `frost patch timeLeft=${patch.timeLeft} > duration=${patch.duration}`);
+      }
     }
 
     let fightingSoldiers = 0;
@@ -953,6 +973,9 @@ export class InvariantMonitor {
           `won run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
         );
       }
+      if (w.enemySystem.frostPatchCount > 0 || w.towers.some((t) => (t.frostSlow ?? 0) > 0)) {
+        this.record('entity_leak', tick, `run end leaked ${w.enemySystem.frostPatchCount} frost patch(es) / frost-slowed towers`);
+      }
       for (let i = 0; i < w.towers.length; i++) {
         const t = w.towers[i];
         if ((t.overhaulTimer ?? 0) > 0 || (t.heroRateBonus ?? 0) > 0) {
@@ -1060,6 +1083,9 @@ export class InvariantMonitor {
           tick,
           `lost run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
         );
+      }
+      if (w.enemySystem.frostPatchCount > 0 || w.towers.some((t) => (t.frostSlow ?? 0) > 0)) {
+        this.record('entity_leak', tick, `run end leaked ${w.enemySystem.frostPatchCount} frost patch(es) / frost-slowed towers`);
       }
       for (let i = 0; i < w.towers.length; i++) {
         const t = w.towers[i];

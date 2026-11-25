@@ -14,6 +14,7 @@ const DEATH_PITCH: Record<EnemyType, number> = {
   splitter: 400, warden: 175, burrower: 145, carrier: 270, blinker: 720,
   golem: 100, mite: 570, hexer: 370, tempest: 82, boss: 70,
   bellrunner: 440, kilnback: 115, reedpiper: 520, draftwing: 680,
+  rimebeetle: 600, sledguard: 140, glacier_warden: 76,
 };
 
 const FIRE_INTERVAL_MS: Partial<Record<TowerType, number>> = {
@@ -582,6 +583,10 @@ export class SoundManager {
       events.on('bossPhase', (e) => this.playBossPhase(e.phase)),
       events.on('hexCharge', () => this.playHexCharge()),
       events.on('towerHexed', () => this.playTowerHexed()),
+      // Chapter four reuses existing cues: frost crack = brittle crack, refreeze = ward, freeze = hex.
+      events.on('frostPatch', () => this.playBrittleCrack()),
+      events.on('guardShieldRestored', () => this.playWardPulse()),
+      events.on('towerFrozen', () => this.playTowerHexed()),
       events.on('abilityTargeted', () => this.playAbilityTarget()),
       events.on('meteorImpact', () => this.playMeteorImpact()),
       events.on('overchargeActivated', () => this.playOvercharge()),

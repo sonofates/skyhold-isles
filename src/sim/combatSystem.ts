@@ -84,6 +84,41 @@ export class CombatSystem {
     }
   }
 
+  /**
+   * Rime Beetle frost: every firing tower inside a live frost patch gets `frostSlow = 1 - rateMul`
+   * (the strongest patch wins; patches never stack). Barracks and Beacons are not affected.
+   */
+  applyFrostPatches(towers: readonly TowerEntity[]): void {
+    const patches = this.enemySystem.frostPatches;
+    let any = false;
+    for (let p = 0; p < patches.length; p++) {
+      if (patches[p].active) {
+        any = true;
+        break;
+      }
+    }
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
+      if (!any) {
+        if (t.frostSlow) t.frostSlow = 0;
+        continue;
+      }
+      let slow = 0;
+      const role = TOWER_DEFS[t.type].role;
+      if (role !== 'barracks' && role !== 'support') {
+        for (let p = 0; p < patches.length; p++) {
+          const patch = patches[p];
+          if (!patch.active) continue;
+          const dx = t.x - patch.x;
+          const dz = t.z - patch.z;
+          if (dx * dx + dz * dz > patch.radius * patch.radius) continue;
+          slow = Math.max(slow, 1 - patch.rateMul);
+        }
+      }
+      t.frostSlow = slow;
+    }
+  }
+
   /** Per tower type fire-rate multiplier (Workshop family upgrades); missing = 1. */
   towerRateMul: Readonly<Partial<Record<TowerType, number>>> = {};
 
@@ -93,6 +128,7 @@ export class CombatSystem {
     const gen = this.resetGen;
 
     this.applyBeaconAuras(towers);
+    this.applyFrostPatches(towers);
 
     _stepTowerIds.length = 0;
     for (let i = 0; i < towers.length; i++) {
@@ -128,10 +164,12 @@ export class CombatSystem {
       }
       if (tower.stunTimer > 0) {
         tower.stunTimer = Math.max(0, tower.stunTimer - dt);
-        if (tower.stunTimer > 0) {
-          continue;
-        }
       }
+      if ((tower.frostLockTimer ?? 0) > 0) {
+        // The ice block never outlasts the stun it shows (cleanses thaw both).
+        tower.frostLockTimer = Math.min(Math.max(0, (tower.frostLockTimer ?? 0) - dt), tower.stunTimer);
+      }
+      if (tower.stunTimer > 0) continue;
 
       // Barracks never shoot: their soldiers fight in SoldierSystem (stun / pop timers tick above).
       if (TOWER_DEFS[tower.type].role === 'barracks') continue;
@@ -163,7 +201,8 @@ export class CombatSystem {
           ((tower.overhaulTimer ?? 0) > 0 ? (tower.overhaulRateBonus ?? 0) : 0);
         tower.cooldownTimer = Math.max(
           0,
-          tower.cooldownTimer - dt * rateMult * supportRate * (this.towerRateMul[tower.type] ?? 1),
+          tower.cooldownTimer -
+            dt * rateMult * supportRate * (this.towerRateMul[tower.type] ?? 1) * (1 - (tower.frostSlow ?? 0)),
         );
       }
 
@@ -290,7 +329,8 @@ export class CombatSystem {
         z: current.z,
       });
 
-      const res = this.enemySystem.applyDamage(current, Math.round(currentDamage));
+      // Tesla chains are shield breakers (Sledge Warden shields take 2x).
+      const res = this.enemySystem.applyDamage(current, Math.round(currentDamage), false, true);
       tower.totalDamageDealt += res.actualDamage;
       if (res.killed) tower.kills++;
       if (this.resetGen !== gen) return;

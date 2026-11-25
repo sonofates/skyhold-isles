@@ -1,5 +1,6 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { TowerType } from '../core/types.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import type { TowerEntity } from '../sim/entities.ts';
 import type { FxLayer } from './fxLayer.ts';
 import { HEIGHT_TO_SCREEN } from './layers.ts';
@@ -48,6 +49,9 @@ export interface SpecialFxStats {
   impact: number;
   beaconPulse: number;
   groundZone: number;
+  frostPatch: number;
+  guardShieldRestored: number;
+  towerFrozen: number;
 }
 
 export function createSpecialFxStats(): SpecialFxStats {
@@ -70,6 +74,9 @@ export function createSpecialFxStats(): SpecialFxStats {
     impact: 0,
     beaconPulse: 0,
     groundZone: 0,
+    frostPatch: 0,
+    guardShieldRestored: 0,
+    towerFrozen: 0,
   };
 }
 
@@ -219,6 +226,35 @@ export function bindSpecialFx(ev: EventBus, ctx: SpecialFxCtx, stats: SpecialFxS
     }
   });
 
+  ev.on('frostPatch', (e) => {
+    stats.frostPatch++;
+    const px = X(e.x);
+    const py = Y(e.z, 0.4);
+    fx.burst('shard', px, py, 8, 14, 90, 0.55, ICE, 220);
+    fx.puffs(px, Y(e.z), 6, 18, 0xe8f8ff);
+  });
+
+  ev.on('guardShieldRestored', (e) => {
+    stats.guardShieldRestored++;
+    const px = X(e.x);
+    const py = Y(e.z, e.y);
+    fx.spawn('wring', px, Y(e.z), 1.2 * ppu, 0, 0, 0.5, WARD);
+    fx.burst('shard', px, py, 6, 10, 60, 0.5, ICE, 120);
+    fx.spawn('flash', px, py, 46, 0, 0, 0.22, CREAM);
+  });
+
+  ev.on('towerFrozen', (e) => {
+    stats.towerFrozen++;
+    const bx = X(e.x);
+    const by = Y(e.z, e.y + 0.6);
+    const tx = X(e.towerX);
+    const ty = Y(e.towerZ, TOWER_BODY_H);
+    fx.beam(bx, by, tx, ty, ICE, 5, 0.45);
+    fx.spawn('wring', tx, Y(e.towerZ), 52, 0, 0, 0.6, ICE);
+    fx.burst('shard', tx, ty, 12, 14, 110, 0.6, ICE, 200);
+    fx.spawn('flash', tx, ty, 60, 0, 0, 0.25, CREAM);
+  });
+
   ev.on('bossSummon', (e) => {
     stats.bossSummon++;
     const px = X(e.x);
@@ -232,7 +268,13 @@ export function bindSpecialFx(ev: EventBus, ctx: SpecialFxCtx, stats: SpecialFxS
     stats.bossPhase++;
     const px = X(e.x);
     const py = Y(e.z, e.y + 1.4);
-    if (e.phase === 1) {
+    if (e.enemyType === 'glacier_warden') {
+      // Both Glacier Warden phases: a frost nova (the freeze beam + summons have their own FX).
+      fx.spawn('wring', px, Y(e.z), e.radius * ppu * 1.4, 0, 0, 0.9, ICE);
+      fx.spawn('wring', px, Y(e.z), e.radius * ppu * 0.8, 0, 0, 0.7, CREAM);
+      fx.burst('shard', px, py, 14, 18, 140, 0.75, ICE, 260);
+      fx.spawn('flash', px, py, 120, 0, 0, 0.3, WARD);
+    } else if (e.phase === 1) {
       fx.spawn('wring', px, Y(e.z), e.radius * ppu, 0, 0, 0.9, WARD);
       fx.spawn('wring', px, Y(e.z), e.radius * ppu * 0.6, 0, 0, 0.7, CREAM);
       fx.burst('shard', px, py, 10, 18, 120, 0.7, ICE, 260);
@@ -246,7 +288,7 @@ export function bindSpecialFx(ev: EventBus, ctx: SpecialFxCtx, stats: SpecialFxS
   });
 
   ev.on('enemyKilled', (e) => {
-    if (e.enemyType !== 'tempest' && e.enemyType !== 'boss') return;
+    if (!ENEMY_DEFS[e.enemyType].isBoss) return;
     const px = X(e.x);
     const py = Y(e.z, e.y + 1.0);
     fx.burst('shard', px, py, 12, 20, 140, 0.8, 0xdfe7f2, 300);

@@ -2,7 +2,7 @@ import type { EnemyType } from '../core/types.ts';
 import type { LevelDef, WaveDef } from './levels/types.ts';
 
 /** Bosses and colossi are already set pieces: Champion Host never empowers them. */
-const NEVER_CHAMPION: ReadonlySet<EnemyType> = new Set<EnemyType>(['boss', 'tempest']);
+const NEVER_CHAMPION: ReadonlySet<EnemyType> = new Set<EnemyType>(['boss', 'tempest', 'glacier_warden']);
 
 /**
  * Champion Host: in every story wave the group with the most foes (ties → the earliest) arrives

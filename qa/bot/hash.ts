@@ -110,6 +110,14 @@ export function hashWorldState(world: SimWorld): string {
     h.f64(t.heroRangeBonus ?? 0);
     h.f64(t.overhaulTimer ?? 0);
     h.f64(t.overhaulRateBonus ?? 0);
+    if ((t.frostSlow ?? 0) > 0) h.f64(t.frostSlow ?? 0);
+    if ((t.frostLockTimer ?? 0) > 0) h.f64(t.frostLockTimer ?? 0);
+  }
+  for (const patch of world.enemySystem.frostPatches) {
+    if (!patch.active) continue;
+    h.f64(patch.x);
+    h.f64(patch.z);
+    h.f64(patch.timeLeft);
   }
 
   // Active enemies: hash active pool order AND sorted-by-uid entity fields.

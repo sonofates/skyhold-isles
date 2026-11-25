@@ -107,6 +107,9 @@ const _enemyShardColors: Record<EnemyType, number> = {
   kilnback: 0xc0643a,
   reedpiper: 0x6f8f3a,
   draftwing: 0x6d5a8f,
+  rimebeetle: 0x9fd8ec,
+  sledguard: 0x5f86a8,
+  glacier_warden: 0x7fc4e8,
 };
 
 export class EffectsRenderer {

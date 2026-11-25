@@ -73,7 +73,7 @@ import { dismissBoot, setBootArtwork, setBootProgress, navigateWithVeil, pickLoa
  *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
  *   ?codex=1          opens the codex (painted art) on load; a Codex button is always top-left
  *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
- *   ?zoo=1            all 19 enemy types walking, specials triggered periodically (labelled)
+ *   ?zoo=1[&types=a,b]  all 22 enemy types (or only `types`) walking, specials triggered periodically (labelled)
  *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
  *   ?towers=aim&type=cannon|archer|ballista|mortar[&tier=N]  turret aim QA (window.__aim, aim overlay)
  *   ?melee=1[&tier=N][&types=a,b][&plot=N][&die=1][&kill=1][&crowd=N]  barracks melee QA
@@ -505,7 +505,12 @@ async function main(): Promise<void> {
       meleeState,
     );
   }
-  else if (q.get('zoo') === '1') hooks = zooHooks();
+  else if (q.get('zoo') === '1') {
+    const only = (q.get('types') ?? '')
+      .split(',')
+      .filter((t): t is EnemyType => (ENEMY_TYPES as readonly string[]).includes(t));
+    hooks = zooHooks(only.length > 0 ? only : undefined);
+  }
   else if (q.get('towers') === 'aim') {
     const type = (['archer', 'cannon', 'ballista', 'mortar'] as const).find((x) => x === q.get('type')) ?? 'cannon';
     const tier = Math.max(1, Math.min(3, Number(q.get('tier') ?? 1) || 1));

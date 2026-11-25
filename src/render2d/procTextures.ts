@@ -36,6 +36,10 @@ export interface ProcTextures {
   readonly bolt: Texture;
   /** Buffed-tower sparkle (small four-point star). */
   readonly star: Texture;
+  /** Frosted-tower marker (ice-blue disc with a white six-arm snowflake). */
+  readonly ice: Texture;
+  /** Rime Beetle frost patch on the ground: pale blue rime with crystal flecks and a crisp rim. */
+  readonly frost: Texture;
 }
 
 function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -343,7 +347,72 @@ export function createProcTextures(): ProcTextures {
   stc.quadraticCurveTo(14.5, 14.5, 16, 0);
   stc.fill();
 
+  const [iceC, ic] = canvas(64, 64);
+  ic.fillStyle = '#1d4a6a';
+  ic.beginPath();
+  ic.arc(32, 32, 27, 0, Math.PI * 2);
+  ic.fill();
+  ic.fillStyle = '#7cc8ea';
+  ic.beginPath();
+  ic.arc(32, 32, 23, 0, Math.PI * 2);
+  ic.fill();
+  ic.strokeStyle = '#ffffff';
+  ic.lineCap = 'round';
+  ic.lineWidth = 4;
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2 - Math.PI / 2;
+    const cx = Math.cos(a);
+    const sy = Math.sin(a);
+    ic.beginPath();
+    ic.moveTo(32, 32);
+    ic.lineTo(32 + cx * 17, 32 + sy * 17);
+    ic.stroke();
+    // Little barbs two thirds of the way out.
+    const bx = 32 + cx * 11;
+    const by = 32 + sy * 11;
+    for (const side of [-1, 1]) {
+      const b = a + side * 0.75;
+      ic.beginPath();
+      ic.moveTo(bx, by);
+      ic.lineTo(bx + Math.cos(b) * 6, by + Math.sin(b) * 6);
+      ic.stroke();
+    }
+  }
+
+  const [frostC, fc] = canvas(256, 256);
+  const fg = fc.createRadialGradient(128, 128, 0, 128, 128, 126);
+  fg.addColorStop(0, 'rgba(236,250,255,0.85)');
+  fg.addColorStop(0.55, 'rgba(206,238,255,0.62)');
+  fg.addColorStop(0.9, 'rgba(170,220,248,0.5)');
+  fg.addColorStop(1, 'rgba(170,220,248,0)');
+  fc.fillStyle = fg;
+  fc.beginPath();
+  fc.arc(128, 128, 126, 0, Math.PI * 2);
+  fc.fill();
+  // Crystal flecks: short white strokes on a fixed golden-angle spiral (deterministic).
+  fc.strokeStyle = 'rgba(255,255,255,0.9)';
+  fc.lineCap = 'round';
+  for (let k = 0; k < 46; k++) {
+    const a = k * 2.399963;
+    const r = 112 * Math.sqrt((k + 0.5) / 46);
+    const x = 128 + Math.cos(a) * r;
+    const y = 128 + Math.sin(a) * r;
+    const len = 4 + (k % 4) * 2;
+    fc.lineWidth = 1.5 + (k % 3) * 0.6;
+    fc.beginPath();
+    fc.moveTo(x - Math.cos(a * 3) * len, y - Math.sin(a * 3) * len);
+    fc.lineTo(x + Math.cos(a * 3) * len, y + Math.sin(a * 3) * len);
+    fc.stroke();
+  }
+  fc.strokeStyle = 'rgba(120,190,235,0.9)';
+  fc.lineWidth = 4;
+  fc.beginPath();
+  fc.arc(128, 128, 121, 0, Math.PI * 2);
+  fc.stroke();
+
   return {
+    ice: Texture.from(iceC),
+    frost: Texture.from(frostC),
     wring: Texture.from(wringC),
     orb: Texture.from(orb),
     crater: Texture.from(crater),

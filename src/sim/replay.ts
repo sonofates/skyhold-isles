@@ -226,6 +226,15 @@ export function computeSimStateHash(world: SimWorld): string {
     h.u32(t.shotCount);
     h.f64(t.overhaulTimer ?? 0);
     h.f64(t.overhaulRateBonus ?? 0);
+    // Chapter-four state only when present, so hashes of older replays stay unchanged.
+    if ((t.frostSlow ?? 0) > 0) h.f64(t.frostSlow ?? 0);
+    if ((t.frostLockTimer ?? 0) > 0) h.f64(t.frostLockTimer ?? 0);
+  }
+  for (const patch of world.enemySystem.frostPatches) {
+    if (!patch.active) continue;
+    h.f64(patch.x);
+    h.f64(patch.z);
+    h.f64(patch.timeLeft);
   }
 
   const barracks = world.soldierSystem.barracks;

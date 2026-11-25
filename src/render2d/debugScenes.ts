@@ -10,7 +10,7 @@ import { sectorOf, yawToScreenAngle } from './turret.ts';
 
 /**
  * QA / recording scenes on the real SimWorld (no fakes, so the event wiring is exercised):
- *   ?zoo=1               all 15 enemy types (+ elites) walking L1c, specials triggered periodically
+ *   ?zoo=1[&types=a,b]   every enemy type (+ elites), or only `types`, walking L1c, specials triggered periodically
  *   ?towers=1[&tier=N]   every tower type built and firing at a stream of tough enemies; without
  *                        `tier` the whole set cycles T1 → T2 → T3 every 9 s
  *   ?towers=aim&type=T[&tier=N]  one directional tower, one immortal target hopping around it by
@@ -48,11 +48,13 @@ const ZOO_HP = 9;
 const TICKS_PER_SEC = 60;
 
 /** `?zoo=1`: every type walking, specials forced on a timetable (seconds since spawn). */
-export function zooHooks(): Game2DHooks {
+export function zooHooks(only?: readonly EnemyType[]): Game2DHooks {
   const slots: ZooSlot[] = [];
-  ENEMY_TYPES.forEach((type, i) => slots.push({ type, elite: false, lane: i % 2, uid: -1, born: 0, nextSpawn: i * 58, fired: 0 }));
-  for (const [i, type] of (['grunt', 'brute', 'healer'] as const).entries()) {
-    slots.push({ type, elite: true, lane: (i + 1) % 2, uid: -1, born: 0, nextSpawn: 900 + i * 58, fired: 0 });
+  (only ?? ENEMY_TYPES).forEach((type, i) => slots.push({ type, elite: false, lane: i % 2, uid: -1, born: 0, nextSpawn: i * 58, fired: 0 }));
+  if (!only) {
+    for (const [i, type] of (['grunt', 'brute', 'healer'] as const).entries()) {
+      slots.push({ type, elite: true, lane: (i + 1) % 2, uid: -1, born: 0, nextSpawn: 900 + i * 58, fired: 0 });
+    }
   }
   const byUid = new Map<number, ZooSlot>();
   const alive = new Set<number>();
@@ -108,6 +110,20 @@ function force(world: SimWorld, e: EnemyEntity, slot: ZooSlot, age: number): voi
       break;
     case 'boss':
       if (step(1, 8)) e.hp = Math.min(e.hp, e.maxHp * 0.48);
+      break;
+    case 'glacier_warden':
+      // Both phases: tower freeze + 3 Rime Beetles each.
+      // Late enough that it has walked well into the map (it is slow).
+      if (step(1, 22)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
+      else if (step(2, 30)) e.hp = Math.min(e.hp, e.maxHp * 0.31);
+      break;
+    case 'rimebeetle':
+      // Dies mid-road: frost patch decal + snowflakes on the towers it covers.
+      if (step(1, 8)) e.hp = Math.min(e.hp, 1);
+      break;
+    case 'sledguard':
+      // Crack the shield to half so the ice bar reads, then let it refreeze.
+      if (step(1, 3)) sys.applyDamage(e, Math.round(e.shield * 0.5), true);
       break;
     case 'carrier':
       if (step(1, 9)) e.hp = Math.min(e.hp, 2);

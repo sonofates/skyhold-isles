@@ -35,8 +35,11 @@ export function airTowerNames(): string {
 /** Hint per enemy type, most urgent first. The first type present in the wave wins. */
 const HINT_ORDER: readonly EnemyType[] = [
   'boss',
+  'glacier_warden',
   'tempest',
   'hexer',
+  'sledguard',
+  'rimebeetle',
   'reedpiper',
   'carrier',
   'draftwing',
@@ -94,6 +97,12 @@ function hintFor(type: EnemyType): string {
       return 'Pipers lift frost. Stun them mid-tune.';
     case 'draftwing':
       return `Moths draft in a line. ${airTowerNames()} hit air; Tesla breaks the chain.`;
+    case 'glacier_warden':
+      return 'Boss wave. It freezes a tower at each phase; Overcharge thaws it.';
+    case 'sledguard':
+      return 'Sledge shields refreeze when left alone. Tesla and Mortar crack them fast.';
+    case 'rimebeetle':
+      return 'Rime Beetles leave frost that slows towers. Kill them before your towers.';
   }
 }
 

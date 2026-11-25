@@ -120,7 +120,7 @@ export function mutatedGroupCount(
 }
 
 /** Types that are boss-class: mutators never multiply their counts. */
-export const ENDLESS_UNSCALED_TYPES: readonly EnemyType[] = ['boss', 'tempest'];
+export const ENDLESS_UNSCALED_TYPES: readonly EnemyType[] = ['boss', 'tempest', 'glacier_warden'];
 
 /**
  * Units a single spawn can bring along mid-wave (split children, escorts, raiders, mites), used to
@@ -131,6 +131,8 @@ export const ENDLESS_POOL_EXTRA: Readonly<Partial<Record<EnemyType, number>>> = 
   boss: 2,
   carrier: 2,
   tempest: 6,
+  // Glacier Warden: 3 Rime Beetles at each of its two phases.
+  glacier_warden: 6,
 };
 
 export function poolWeight(type: EnemyType): number {

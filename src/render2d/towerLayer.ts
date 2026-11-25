@@ -96,6 +96,8 @@ export interface TurretReportRow {
 }
 
 const JAM_TINT = 0xb9a0d8;
+/** Glacier Warden freeze: the tower reads as encased in pale ice. */
+const ICE_LOCK_TINT = 0xbfe6ff;
 /**
  * Ring-convention art without an attack sheet keeps only a gentle vertical squash of the kick
  * (anchored at the ring bottom, so the ring stays on the plot): this share of the profile's squash.
@@ -140,6 +142,8 @@ interface TowerView {
   jam: Sprite | null;
   aura: Sprite | null;
   star: Sprite | null;
+  /** Frost marker: small snowflake (Rime Beetle patch slow) or big one on an ice-locked tower. */
+  ice: Sprite | null;
   tier: number;
   kick: number;
   prof: FireProfile;
@@ -484,6 +488,7 @@ export class TowerLayer {
       jam: null,
       aura: null,
       star: null,
+      ice: null,
       tier: 0,
       kick: 0,
       prof: fireProfile(t.type),
@@ -514,16 +519,18 @@ export class TowerLayer {
     return v;
   }
 
-  private overlay(v: TowerView, slot: 'jam' | 'aura' | 'star', on: boolean): Sprite | null {
+  private overlay(v: TowerView, slot: 'jam' | 'aura' | 'star' | 'ice', on: boolean): Sprite | null {
     let s = v[slot];
     if (!on) {
       if (s) s.visible = false;
       return null;
     }
     if (!s) {
-      s = new Sprite(slot === 'jam' ? this.tex.jam : slot === 'aura' ? this.tex.orb : this.tex.star);
+      s = new Sprite(
+        slot === 'jam' ? this.tex.jam : slot === 'aura' ? this.tex.orb : slot === 'ice' ? this.tex.ice : this.tex.star,
+      );
       s.anchor.set(0.5);
-      if (slot !== 'jam') s.blendMode = 'add';
+      if (slot !== 'jam' && slot !== 'ice') s.blendMode = 'add';
       (slot === 'aura' ? this.layers.shadows : this.layers.air).addChild(s);
       v[slot] = s;
     }
@@ -810,6 +817,8 @@ export class TowerLayer {
       v.kick = Math.max(0, v.kick - dt / v.prof.dur);
       const ring = art ? art.rings[Math.max(1, Math.min(3, t.tier)) - 1] : null;
       const jammed = t.stunTimer > 0;
+      const iceLocked = (t.frostLockTimer ?? 0) > 0;
+      const frosted = iceLocked || (t.frostSlow ?? 0) > 0;
       const buffed = t.auraRate > 0 || t.auraRange > 0;
       if (!(art && ring && this.syncRing(v, t, ring, art, simDt, py))) {
         // Legacy art: height + anchor placement and the full procedural kick.
@@ -855,12 +864,13 @@ export class TowerLayer {
         v.sprite.rotation += Math.sin(time * 31) * 0.012;
       }
       let tint = art ? art.tint : 0xffffff;
-      if (jammed) tint = mixTint(tint, JAM_TINT, 0.45 + 0.1 * Math.sin(time * 12));
+      if (iceLocked) tint = mixTint(tint, ICE_LOCK_TINT, 0.6);
+      else if (jammed) tint = mixTint(tint, JAM_TINT, 0.45 + 0.1 * Math.sin(time * 12));
       v.sprite.tint = tint;
       if (v.turret) v.turret.tint = tint;
 
       // Jam marker: a spinning magenta ring with a bolt over the silenced tower.
-      const jam = this.overlay(v, 'jam', jammed);
+      const jam = this.overlay(v, 'jam', jammed && !iceLocked);
       if (jam) {
         const fade = Math.min(1, t.stunTimer / 0.4);
         jam.position.set(px, v.topY - 16 + Math.sin(time * 5) * 2);
@@ -868,6 +878,24 @@ export class TowerLayer {
         jam.alpha = fade * (0.8 + 0.2 * Math.sin(time * 16));
         jam.rotation = Math.sin(time * 3) * 0.2;
         jam.zIndex = py + 1;
+      }
+      // Frost: a small snowflake beside a tower slowed by a frost patch; a big steady one over a
+      // tower the Glacier Warden froze solid (it replaces the jam marker).
+      const ice = this.overlay(v, 'ice', frosted);
+      if (ice) {
+        if (iceLocked) {
+          const fade = Math.min(1, (t.frostLockTimer ?? 0) / 0.4);
+          ice.position.set(px, v.topY - 18);
+          ice.scale.set((40 / 64) * (0.75 + 0.25 * fade));
+          ice.alpha = fade;
+          ice.rotation = 0;
+        } else {
+          ice.position.set(px + ppu * 0.7, v.midY - ppu * 0.2 + Math.sin(time * 3 + t.id) * 1.5);
+          ice.scale.set(24 / 64);
+          ice.alpha = 0.95;
+          ice.rotation = Math.sin(time * 1.5 + t.id) * 0.25;
+        }
+        ice.zIndex = py + 1.5;
       }
       // Beacon buff: a warm ground glow and a drifting sparkle on buffed towers.
       const aura = this.overlay(v, 'aura', buffed);
@@ -896,6 +924,7 @@ export class TowerLayer {
         v.jam?.destroy();
         v.aura?.destroy();
         v.star?.destroy();
+        v.ice?.destroy();
         this.views.delete(id);
       }
     }
@@ -966,15 +995,17 @@ export class TowerLayer {
     return { x: v.px - half, y: v.topY, w: half * 2, h: bottom - v.topY };
   }
 
-  /** QA: towers currently drawn with the jam marker / buff glow. */
-  markers(): { jammed: number; buffed: number } {
+  /** QA: towers currently drawn with the jam marker / buff glow / frost marker. */
+  markers(): { jammed: number; buffed: number; frosted: number } {
     let jammed = 0;
     let buffed = 0;
+    let frosted = 0;
     for (const v of this.views.values()) {
       if (v.jam?.visible) jammed++;
       if (v.aura?.visible) buffed++;
+      if (v.ice?.visible) frosted++;
     }
-    return { jammed, buffed };
+    return { jammed, buffed, frosted };
   }
 
   /** QA: ring-convention towers' drawn ring vs their plot ring (layout px), by tower id. */

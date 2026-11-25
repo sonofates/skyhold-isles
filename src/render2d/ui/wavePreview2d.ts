@@ -39,7 +39,7 @@ export function waveChips(p: WavePreview | null): WaveChip[] {
       type: it.enemyType,
       count: it.count,
       elite: it.eliteCount ?? 0,
-      boss: !!def && (def.type === 'boss' || def.type === 'tempest'),
+      boss: !!def && def.isBoss === true,
       flying: !!def?.flying,
       armored: (def?.armor ?? 0) >= ARMORED_MIN,
     };

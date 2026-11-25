@@ -1,5 +1,5 @@
 import type { EnemyType, TowerType } from '../../core/types.ts';
-import { CHAPTER_ENEMY_DEFS, type ChapterEnemyType, ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
+import { CHAPTER4_ENEMY_DEFS, CHAPTER_ENEMY_DEFS, type ChapterEnemyType, ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
 import { getTowerTierStats, specializationsFor, type TowerSpecializationDef, TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import { ELITE_SEEN_ID, enemySeenId, towerSeenId, type SeenId } from '../../platform/contentStorage.ts';
 
@@ -37,6 +37,21 @@ export const ENEMY_LORE: Record<EnemyType | ChapterEnemyType, EnemyLore> = {
     blurb: 'Flies faster in the wake of another moth.',
     counter: CHAPTER_ENEMY_DEFS.draftwing.counterHint,
     tags: ['Air', 'Swarm'],
+  },
+  rimebeetle: {
+    blurb: 'Leaves a 3 s frost patch when it dies. Towers inside fire 30% slower.',
+    counter: CHAPTER4_ENEMY_DEFS.rimebeetle.counterHint,
+    tags: ['Ground', 'Frost'],
+  },
+  sledguard: {
+    blurb: 'Ice shield worth 40% of its health; refreezes after 4 s without damage.',
+    counter: CHAPTER4_ENEMY_DEFS.sledguard.counterHint,
+    tags: ['Ground', 'Shielded'],
+  },
+  glacier_warden: {
+    blurb: 'At 66% and 33% health: freezes the nearest tower for 4 s, wakes 3 Rime Beetles.',
+    counter: CHAPTER4_ENEMY_DEFS.glacier_warden.counterHint,
+    tags: ['Ground', 'Boss', 'Armored'],
   },
   grunt: {
     blurb: 'Balanced foot soldier marching the road.',

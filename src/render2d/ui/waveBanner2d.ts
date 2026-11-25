@@ -21,7 +21,7 @@ export type WaveCallout =
  * (naming the boss that leads it, most islands end on one); ordinary and Endless waves get none.
  */
 export function waveCallout(types: readonly EnemyType[], waveIndex: number, storyWaves: number, endless: boolean): WaveCallout {
-  const boss = types.find((ty) => ty === 'boss' || ty === 'tempest' || ENEMY_DEFS[ty]?.type === 'boss');
+  const boss = types.find((ty) => ty === 'boss' || ENEMY_DEFS[ty]?.isBoss === true);
   const final = !endless && storyWaves > 1 && waveIndex === storyWaves - 1;
   if (final) return boss ? { kind: 'final', boss: enemyName(boss) } : { kind: 'final' };
   if (boss) return { kind: 'boss', name: enemyName(boss) };

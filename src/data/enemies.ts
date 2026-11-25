@@ -8,7 +8,13 @@ type ChapterAbility =
   | { kind: 'momentum'; runUpSec: number; speedBonus: number }
   | { kind: 'ceramic'; chip: number; resetSec: number }
   | { kind: 'refrain'; radius: number; interval: number; channelSec: number }
-  | { kind: 'draft'; reach: number; spacing: number; coastSec: number; speedBonus: number };
+  | { kind: 'draft'; reach: number; spacing: number; coastSec: number; speedBonus: number }
+  /** Rime Beetle: leaves a frost patch on death; towers inside fire at `rateMul` for `patchSec`. */
+  | { kind: 'rime'; patchRadius: number; patchSec: number; rateMul: number }
+  /** Sledge Warden: own shield pool (fraction of max HP), full refill after `regenSec` unhurt. */
+  | { kind: 'guard'; shieldFrac: number; regenSec: number; breakerMul: number }
+  /** Glacier Warden: at each HP threshold freezes the nearest tower and summons Rime Beetles. */
+  | { kind: 'glacier'; thresholds: readonly [number, number]; freezeSec: number; summonCount: number };
 
 export interface EnemyDef<T extends EnemyType | ChapterEnemyType = EnemyType> {
   readonly type: T;
@@ -106,6 +112,47 @@ export const CHAPTER_ENEMY_MELEE = {
   reedpiper: { block: 'block', holdCost: 1, damage: 4, rate: 0.85 },
   draftwing: { block: 'ignore', holdCost: 1, damage: 0, rate: 0 },
 } as const satisfies Record<ChapterEnemyType, MeleeProfile>;
+
+// Chapter-four roster (i28–i36, Frostveil Archipelago; docs/chapter4-plan.md). Spread after the
+// chapter-two roster into ENEMY_DEFS / ENEMY_TYPES and into ENEMY_MELEE. Numbers: docs/handoff-ch4-foes.md.
+export const CHAPTER4_ENEMY_TYPES = ['rimebeetle', 'sledguard', 'glacier_warden'] as const;
+export type Chapter4EnemyType = typeof CHAPTER4_ENEMY_TYPES[number];
+
+export const CHAPTER4_ENEMY_DEFS = {
+  rimebeetle: {
+    type: 'rimebeetle', name: 'Rime Beetle',
+    description: 'A frost-shelled beetle. When it falls, its shell bursts into a patch of rime that numbs nearby towers for a moment.',
+    counterHint: 'Kill it before it reaches your tower cluster. Long-reach towers such as the ballista and mortar fire from outside the frost.',
+    maxHp: 150, speed: 1.9, armor: 3, reward: 7, livesCost: 1,
+    flying: false, radius: 0.44, height: 0.92,
+    ability: { kind: 'rime', patchRadius: 3.2, patchSec: 3, rateMul: 0.7 },
+  },
+  sledguard: {
+    type: 'sledguard', name: 'Sledge Warden',
+    description: 'Hauls an ice-plated sledge shield. The shield takes every hit first and freezes back together after a few quiet seconds.',
+    counterHint: 'Keep up steady damage so the shield never refreezes. Tesla chains and mortar blasts crack the shield twice as fast.',
+    maxHp: 270, speed: 1.4, armor: 4, reward: 11, livesCost: 2,
+    flying: false, radius: 0.55, height: 1.3,
+    ability: { kind: 'guard', shieldFrac: 0.4, regenSec: 4, breakerMul: 2 },
+  },
+  glacier_warden: {
+    type: 'glacier_warden', name: 'Glacier Warden',
+    description:
+      'Keeper of the Frostveil citadel. At two-thirds and one-third health it freezes the nearest tower solid and wakes three Rime Beetles from the ice.',
+    counterHint: 'Spread towers along both sides of the road and save the hero and abilities for each phase. Overcharge thaws a frozen tower.',
+    maxHp: 1800, speed: 0.95, armor: 8, reward: 60, livesCost: 6,
+    flying: false, radius: 0.9, height: 2.15,
+    isBoss: true,
+    phaseThresholds: [0.66, 0.33],
+    ability: { kind: 'glacier', thresholds: [0.66, 0.33], freezeSec: 4, summonCount: 3 },
+  },
+} as const satisfies { [T in Chapter4EnemyType]: EnemyDef<T> };
+
+export const CHAPTER4_ENEMY_MELEE = {
+  rimebeetle: { block: 'block', holdCost: 1, damage: 9, rate: 1.0 },
+  sledguard: { block: 'block', holdCost: 2, damage: 20, rate: 0.75 },
+  glacier_warden: { block: 'block', holdCost: 3, damage: 42, rate: 0.75, sweep: true },
+} as const satisfies Record<Chapter4EnemyType, MeleeProfile>;
 
 /** Empowered elite variant multipliers (wave groups with `elite: true`). */
 export const ELITE_MODIFIERS = {
@@ -353,6 +400,8 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
   },
   // Chapter two. Kept last so key order matches the pre-integration roster + appended chapter.
   ...CHAPTER_ENEMY_DEFS,
+  // Chapter four, appended after chapter two for the same reason.
+  ...CHAPTER4_ENEMY_DEFS,
 };
 
 export const ENEMY_TYPES: readonly EnemyType[] = [
@@ -370,6 +419,9 @@ export const ENEMY_TYPES: readonly EnemyType[] = [
   'mite',
   'hexer',
   ...CHAPTER_ENEMY_TYPES,
+  'rimebeetle',
+  'sledguard',
   'tempest',
+  'glacier_warden',
   'boss',
 ];

@@ -260,6 +260,22 @@ export const DATA_TR: DataTr = {
       desc: 'Gök yolunda önündeki güvenin kanat çırpışlarıyla oluşan hava akımına girip hızlanır.',
       counter: 'Zincir şimşekle sürüyü dağıt. Öndeki güveyi düşürürsen arkasındaki de yavaşlar.',
     },
+    // Chapter four (Kırağı Takımadası).
+    rimebeetle: {
+      name: 'Kırağı Böceği',
+      desc: 'Kırağı kabuklu bir böcek. Düştüğü yerde kabuğu dağılır ve yere bir kırağı lekesi bırakır; leke yakındaki kuleleri bir süre uyuşturur.',
+      counter: 'Kule kümene varmadan öldür. Balista ve Havan gibi uzun menzilli kuleler kırağının dışından ateş eder.',
+    },
+    sledguard: {
+      name: 'Kalkanlı Kızakçı',
+      desc: 'Buz kaplı bir kızak kalkanı taşır. Her darbeyi önce kalkan karşılar; birkaç sessiz saniyenin ardından kalkan yeniden donup kapanır.',
+      counter: 'Kalkan yeniden donmasın diye hasarı kesme. Tesla zinciri ve Havan patlaması kalkanı iki kat hızlı kırar.',
+    },
+    glacier_warden: {
+      name: 'Buzul Muhafızı',
+      desc: 'Kırağı Kalesi’nin bekçisi. Canı üçte ikiye ve üçte bire indiğinde en yakın kuleyi buz kesip dondurur ve buzdan üç Kırağı Böceği uyandırır.',
+      counter: 'Kuleleri yolun iki yanına yay; kahramanı ve yetenekleri her evreye sakla. Aşırı Şarj donmuş kuleyi çözer.',
+    },
   },
   tags: {
     Ground: 'Kara',
@@ -274,6 +290,8 @@ export const DATA_TR: DataTr = {
     Swarm: 'Sürü',
     Disables: 'Susturur',
     Boss: 'Elebaşı',
+    Frost: 'Ayaz',
+    Shielded: 'Kalkanlı',
     'Air + Ground': 'Hava + Kara',
     'Single target': 'Tek hedef',
     'Ground only': 'Yalnız kara',

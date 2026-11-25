@@ -175,6 +175,32 @@ export interface GameEventMap {
     towerZ: number;
     duration: number;
   };
+  /** A Rime Beetle died and left a frost patch: towers inside fire slower for `duration` s. */
+  frostPatch: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    duration: number;
+  };
+  /** A Sledge Warden's shield pool refroze to full after a quiet spell. */
+  guardShieldRestored: {
+    enemyId: number;
+    x: number;
+    y: number;
+    z: number;
+  };
+  /** The Glacier Warden froze a tower solid for `duration` seconds (a tower stun). */
+  towerFrozen: {
+    enemyId: number;
+    towerId: number;
+    x: number;
+    y: number;
+    z: number;
+    towerX: number;
+    towerZ: number;
+    duration: number;
+  };
   bossSummon: {
     x: number;
     y: number;
