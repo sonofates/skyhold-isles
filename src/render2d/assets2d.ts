@@ -705,6 +705,26 @@ export async function loadHeroArt(manifest: ArtManifest, base: string, heroId: s
   };
 }
 
+const lateEnemyLoads = new WeakMap<object, Set<string>>();
+
+/**
+ * Safety net for a story run's enemy subset (enemyArtSet.ts): a foe whose art this run did not
+ * load (a spawn the subset missed) draws the default stand-in, and its own sheets load now so
+ * the next ones of its kind show their art. Warns once per key: the subset needs that foe added.
+ */
+export function loadEnemyArtLate(art: LoadedArt, key: string): void {
+  const spec = art.manifest.enemies[key];
+  if (!spec || art.enemies[key]) return;
+  let started = lateEnemyLoads.get(art.enemies);
+  if (!started) lateEnemyLoads.set(art.enemies, (started = new Set()));
+  if (started.has(key)) return;
+  started.add(key);
+  console.warn(`[art2d] enemy art "${key}" was not in this run's set (enemyArtSet.ts); loading it late`);
+  void loadEnemy(art.baseUrl, key, spec, [], art.present as Set<string>).then((rt) => {
+    (art.enemies as Record<string, EnemyArtRuntime>)[key] = rt;
+  });
+}
+
 /**
  * Loads public/art2d/manifest.json and everything it references for one map. Missing optional
  * files fall back (see manifest.ts); a missing manifest or map throws.
@@ -717,6 +737,12 @@ export async function loadArt(
   heroId: string | null = null,
   onManifest?: (manifest: ArtManifest) => void,
   onProgress?: (fraction: number) => void,
+  /**
+   * Manifest enemy keys to load (enemyArtSet.ts), or null for every enemy. A function so the set
+   * can be picked from the parsed manifest (enemyMap). Keys left out are neither fetched nor
+   * uploaded; `LoadedArt.enemies` lists the loaded ones only.
+   */
+  enemyKeys: ((manifest: ArtManifest) => ReadonlySet<string>) | null = null,
 ): Promise<LoadedArt> {
   const raw = await tryJson(manifestUrl);
   if (!raw) throw new Error(`art manifest not found: ${manifestUrl}`);
@@ -724,6 +750,7 @@ export async function loadArt(
   for (const [base, variant] of Object.entries(variants)) manifest = withArtVariant(manifest, base, variant);
   bootPhase('manifest');
   onManifest?.(manifest);
+  const wantEnemies = enemyKeys?.(manifest) ?? null;
   const base = dirOf(manifestUrl);
   const notes: string[] = [];
   const present = new Set<string>();
@@ -754,7 +781,7 @@ export async function loadArt(
       ),
     ),
     Promise.all(
-      Object.entries(manifest.enemies).map(
+      Object.entries(manifest.enemies).filter(([key]) => !wantEnemies || wantEnemies.has(key)).map(
         async ([key, spec]) => [key, await track(loadEnemy(base, key, spec, notes, present))] as const,
       ),
     ),
@@ -791,8 +818,24 @@ export async function loadArt(
   });
   const has = (p: string): boolean => present.has(p);
 
+  // A subset run: an enemy whose own art is not there yet draws its manifest fallback chain
+  // (below), so the chain's keys are loaded too (rare: every enemy has its art today).
+  const enemyEntries: (readonly [string, EnemyArtRuntime])[] = [...enemyList];
+  if (wantEnemies) {
+    const loadedKeys = new Set(enemyList.map(([k]) => k));
+    const extra = new Set<string>();
+    for (const [key, rt] of enemyList) {
+      if (enemyHasArt(rt.spec, has)) continue;
+      for (const k of resolveEnemyArt(manifest, key, has).chain) if (!loadedKeys.has(k)) extra.add(k);
+    }
+    for (const key of extra) {
+      const spec = manifest.enemies[key];
+      if (spec) enemyEntries.push([key, await loadEnemy(base, key, spec, notes, present)] as const);
+    }
+  }
+
   // Enemies whose art has not landed yet draw a tinted raider / brute / kite (manifest fallback).
-  const ownEnemies = Object.fromEntries(enemyList) as Record<string, EnemyArtRuntime>;
+  const ownEnemies = Object.fromEntries(enemyEntries) as Record<string, EnemyArtRuntime>;
   const enemies: Record<string, EnemyArtRuntime> = {};
   for (const [key, rt] of Object.entries(ownEnemies)) {
     if (enemyHasArt(rt.spec, has)) {

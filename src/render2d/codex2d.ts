@@ -11,8 +11,11 @@ import { hudButtonsLayout } from './uiLayout.ts';
 export function codexEnemyUrl(art: LoadedArt, id: string): string | null {
   const def = ENEMY_DEFS[id as keyof typeof ENEMY_DEFS];
   if (!def) return null;
-  const rt = art.enemies[enemyArtFor(art.manifest, def.type, def.flying).art];
-  if (!rt || !art.present.has(rt.frontFile)) return null;
+  const key = enemyArtFor(art.manifest, def.type, def.flying).art;
+  const rt = art.enemies[key];
+  // A foe this run does not load (enemyArtSet.ts): the codex still shows its front sprite file.
+  if (!rt) return art.manifest.enemies[key] ? art.baseUrl + art.manifest.enemies[key].file : null;
+  if (!art.present.has(rt.frontFile)) return null;
   return art.baseUrl + rt.frontFile;
 }
 
