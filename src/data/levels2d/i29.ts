@@ -17,7 +17,7 @@ export const I29 = {
   flightPath: [],
   decorationSeed: 1494,
   startingGold: 405,
-  enemyHpScale: 2.904,
+  enemyHpScale: 2.96,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Cold Hearths', clearBonus: 25, groups: [
@@ -42,19 +42,19 @@ export const I29 = {
     ] },
     { name: 'Fish Under Glass', clearBonus: 34, groups: [
       { ...group('kilnback', 5, 1.04), elite: true }, group('reedpiper', 3, 1.37, 2.8),
-      group('rimebeetle', 6, 0.9, 4.4, 1),
+      group('rimebeetle', 7, 1.05, 3.4, 1),
     ] },
     { name: 'At the Hatch', clearBonus: 36, groups: [
       group('golem', 5, 1.16, 0, 1), group('hexer', 4, 1.3, 0.75),
       group('carrier', 2, 2.38, 2.8, 1),
     ] },
     { name: 'Cinders on Snow', clearBonus: 38, groups: [
-      { ...group('splitter', 8, 0.76), elite: true }, group('runner', 13, 0.47, 0.75, 1),
+      { ...group('splitter', 8, 0.76), elite: true, hpScale: 1.2 }, group('runner', 13, 0.47, 0.75, 1),
       group('burrower', 8, 0.78, 2.8),
     ] },
     { name: 'The Racks Fill', clearBonus: 39, groups: [
       { ...group('warden', 6, 1.14, 0, 1), elite: true }, group('reedpiper', 4, 1.32, 2.8, 1),
-      group('rimebeetle', 6, 0.9, 4.4),
+      group('rimebeetle', 7, 1.15, 2.2),
     ] },
     { name: 'Borrowed Coals', clearBonus: 41, groups: [
       { ...group('bellrunner', 10, 0.5), elite: true }, group('golem', 6, 1.12, 0.75, 1),
@@ -65,12 +65,13 @@ export const I29 = {
       group('hexer', 4, 1.24, 2.8, 1),
     ] },
     { name: 'The Draught Changes', clearBonus: 46, groups: [
-      { ...group('kilnback', 7, 0.97), elite: true }, group('reedpiper', 4, 1.27, 0.75, 1),
-      { ...group('burrower', 7, 0.75, 2.8), elite: true }, group('mite', 16, 0.25, 5, 1),
-      group('rimebeetle', 5, 0.9, 6.2),
+      // Spread the island's pressure (docs/handoff-ch4-spread-i29-i30.md): a small, hard tortoise column is the first wall.
+      { ...group('kilnback', 4, 0.97), elite: true, hpScale: 2.4 }, group('reedpiper', 4, 1.27, 0.75, 1),
+      { ...group('burrower', 6, 0.75, 2.8), elite: true }, group('mite', 16, 0.25, 5, 1),
+      group('rimebeetle', 7, 1.15, 2.6),
     ] },
     { name: 'Smoke Above the Lake', clearBonus: 60, groups: [
-      { ...group('golem', 8, 1.08, 0, 1), elite: true }, group('healer', 4, 1.23, 0.75),
+      { ...group('golem', 2, 1.08, 0, 1), elite: true, hpScale: 3.5 }, group('healer', 4, 1.23, 0.75),
       { ...group('splitter', 9, 0.71, 2.8, 1), elite: true }, group('bellrunner', 11, 0.48, 5),
     ] },
   ],
