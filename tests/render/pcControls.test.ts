@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { getSfxVolume, resetMusicPrefsCache, setSfxVolume, SFX_PREFS_KEY } from '../../src/audio/musicPrefs.ts';
 import { isSteamOverlayHotkey, shouldPauseOnBlur, type BlurPauseInput } from '../../src/render2d/pausePolicy.ts';
 import { ABILITY_KEYS } from '../../src/render2d/ui/abilities2d.ts';
-import { FPS_CAPS, GRAPHICS_KEY, loadGraphics, parseGraphics, saveGraphics } from '../../src/render2d/ui/graphicsSettings.ts';
+import { autoUiScale, FPS_CAPS, GRAPHICS_KEY, loadGraphics, parseGraphics, saveGraphics } from '../../src/render2d/ui/graphicsSettings.ts';
 import { HERO_KEYS } from '../../src/render2d/ui/heroKeys.ts';
 import {
   actionForKey,
@@ -139,6 +139,17 @@ describe('PC settings persistence', () => {
     expect(loadGraphics()).toMatchObject({ fpsCap: 144, uiScale: 1.2, reducedMotion: true });
     expect(parseGraphics({ fpsCap: 75 }).fpsCap).toBe(0);
     expect(parseGraphics({ fpsCap: 120 }).fpsCap).toBe(120);
+  });
+
+  it('the PC build starts with a larger interface on screens taller than 1080p', () => {
+    expect(autoUiScale(720)).toBe(1);
+    expect(autoUiScale(1080)).toBe(1);
+    expect(autoUiScale(1200)).toBe(1.1);
+    expect(autoUiScale(1440)).toBe(1.3);
+    expect(autoUiScale(2160)).toBe(1.3);
+    expect(autoUiScale(NaN)).toBe(1);
+    // Outside the shell (no window.skyholdDesktop) the default stays 100 %.
+    expect(loadGraphics().uiScale).toBe(1);
   });
 
   it('the effects (SFX) volume is its own setting, clamped and persisted', () => {

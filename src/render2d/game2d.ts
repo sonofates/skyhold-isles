@@ -1545,7 +1545,16 @@ export class Game2D {
 
   /** Desktop right click: with the hero selected, a move order that keeps it selected. */
   rightClick(x: number, y: number): void {
-    if (this.end.visible || this.stepper.paused || !this.heroSel || this.replayCursor) return;
+    if (this.end.visible || this.replayCursor) return;
+    if (!this.heroSel) {
+      // PC convention: right click cancels — it closes the build ring and the foe card.
+      if (this.ring.isOpen || this.inspecting) {
+        this.closeRing();
+        this.clearInspect();
+      }
+      return;
+    }
+    if (this.stepper.paused) return;
     if (this.ring.isOpen) this.closeRing();
     this.heroMoveAt(x, y);
   }

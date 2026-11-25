@@ -2566,7 +2566,7 @@
 /* Rebindable battle keys (Settings → Controls): the cap is a button; "Press a key…" while waiting. */
 .pu-key.pu-key-bind {
   border: 0;
-  color: inherit;
+  color: var(--cream);
   cursor: pointer;
 }
 
@@ -2578,6 +2578,7 @@
 .pu-key.pu-key-bind.waiting {
   background: linear-gradient(#ffe08a, #d9a640);
   color: #4a2a12;
+  text-shadow: none;
   font-size: calc(var(--s) * 1.05);
 }
 

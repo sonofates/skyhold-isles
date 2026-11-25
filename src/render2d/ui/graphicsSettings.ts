@@ -57,9 +57,27 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-export function defaultGraphics(reduced = prefersReducedMotion()): GraphicsSettings {
+export function defaultGraphics(reduced = prefersReducedMotion(), uiScale = shellDefaultUiScale()): GraphicsSettings {
   // Unlimited (= the display's refresh rate) is what the game always did, so it stays the default.
-  return { renderScale: null, effects: 'normal', fpsCap: 0, showFps: false, reducedMotion: reduced, uiScale: 1 };
+  return { renderScale: null, effects: 'normal', fpsCap: 0, showFps: false, reducedMotion: reduced, uiScale };
+}
+
+/**
+ * Default interface size for a screen `screenH` CSS px tall: the painted UI is sized for 1080p (its
+ * unit stops growing there), so taller PC screens start larger — 1200p → 110 %, 1440p and up → 130 %
+ * — and keep the same share of the screen. Players change it in Settings → General.
+ */
+export function autoUiScale(screenH: number): number {
+  return Number.isFinite(screenH) && screenH > 1080 ? clampUiScale(Math.floor((screenH / 1080) * 20) / 20) : 1;
+}
+
+/** The PC build (Electron shell) picks the default from the display; the browser / phones keep 100 %. */
+function shellDefaultUiScale(): number {
+  try {
+    return typeof window !== 'undefined' && window.skyholdDesktop && typeof screen !== 'undefined' ? autoUiScale(screen.height) : 1;
+  } catch {
+    return 1;
+  }
 }
 
 /** Clamps / repairs a stored object (anything unknown → the default). */
