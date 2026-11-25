@@ -17,7 +17,8 @@ import { BALANCE } from '../src/data/balance.ts';
 import { DIFFICULTIES, DIFFICULTY_IDS, starsAwarded, type DifficultyId } from '../src/data/difficulty.ts';
 import { ENEMY_DEFS } from '../src/data/enemies.ts';
 import type { LevelDef } from '../src/data/levels/index.ts';
-import { LEVELS_2D, registeredChapterIslands } from '../src/data/levels2d/index.ts';
+import { chapterOf } from '../src/data/chapters.ts';
+import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import {
   ITEMS,
   ITEM_IDS,
@@ -1245,7 +1246,7 @@ async function main(): Promise<void> {
 
     // Step 7: Balance & Economy Verdict Checks.
     if (selectedIndices.length === LEVELS_2D.length) {
-      const chapterTwo = new Set([...registeredChapterIslands().map((l) => l.id), 'i27']);
+      const chapterTwo = new Set(LEVELS_2D.filter(l => chapterOf(l.id)?.id === 'ch3').map(l => l.id));
       const hardBeltCampaign = LEVELS_2D.map((l) => beltMap.get(`${l.id}:hard:campaign`)!);
       const hardBaseCampaign = LEVELS_2D.map((l) => baselineWaveMap.get(`${l.id}:hard:campaign`)!.out);
       const hardBeltWins = hardBeltCampaign.filter((r) => r.outcome === 'won');

@@ -17,6 +17,7 @@ export interface Level2DJson {
   readonly plots: readonly (readonly number[])[];
   readonly pxPerUnit?: number;
   readonly plotRadiusPx?: number;
+  readonly phoneFrame?: readonly number[];
   readonly flightPath?: readonly (readonly number[])[];
   /** Optional goal gate (castle): prop, facing, front layer (see gates.ts). */
   readonly goalGate?: unknown;
@@ -54,6 +55,15 @@ export function parseLevel2D(json: Level2DJson): Level2DLayout {
     num(sa[2], 'safeArea.w'),
     num(sa[3], 'safeArea.h'),
   ] as const;
+
+  const frame = json.phoneFrame;
+  const phoneFrame = frame && [
+    num(frame[0], 'phoneFrame.x'), num(frame[1], 'phoneFrame.y'),
+    num(frame[2], 'phoneFrame.w'), num(frame[3], 'phoneFrame.h'),
+  ] as const;
+  if (phoneFrame && (phoneFrame[2] <= 0 || phoneFrame[3] <= 0)) {
+    throw new Level2DError('phoneFrame must have positive dimensions');
+  }
 
   const toWorld = (px: number, py: number): WorldPoint => ({ x: (px - w / 2) / ppu, z: (py - h / 2) / ppu });
   const pt = (p: readonly number[], what: string): WorldPoint => {
@@ -101,6 +111,7 @@ export function parseLevel2D(json: Level2DJson): Level2DLayout {
     imageSize: [w, h],
     pxPerUnit: ppu,
     safeArea,
+    ...(phoneFrame ? { phoneFrame } : {}),
     entrances,
     goal,
     paths,

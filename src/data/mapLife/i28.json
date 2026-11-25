@@ -1,0 +1,6 @@
+{
+  "island": "i28",
+  "wind": { "mask": "life/i28-snow.webp", "dir": [0.96, -0.28], "strength": 1.10, "gustPeriod": 5.4, "gustSpeed": 170, "breezeFreq": 1.2, "sheen": 0.036 },
+  "water": { "mask": "life/i28-ice.webp", "strength": 0.28, "dir": [-0.94, 0.34], "flowSpeed": 0.56, "rippleScale": 0.8, "glintColor": "#d3eeff", "glintStrength": 0.14, "glintSpeed": 0.73 },
+  "dust": { "count": 4, "dir": [0.96, -0.28], "speed": 33, "alpha": 0.12, "tint": "#eaf3ff", "tint2": "#cadcf4", "sizeRange": [135, 250], "bands": [[540, 125, 481, 105], [703, 636, 542, 68]] }
+}

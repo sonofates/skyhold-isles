@@ -1,4 +1,4 @@
-// QA script (Bug 1): checks all 28 islands (l1c, i01-i27) across desktop (2000x991), MacBook
+// QA script (Bug 1): checks selected campaign islands across desktop (2000x991), MacBook
 // (1440x900) and phone landscape (844x390, 932x430) at the default view. For every tower plot
 // (plot circle using plotLayer's plotRadius and plot centre), verifies whether it sits under any
 // visible HUD element's DOM rect or canvas HUD rect, prints per-island/per-viewport covered counts,
@@ -6,16 +6,12 @@
 //
 // Usage:
 //   python3 qa/withPreview.py --port=4395 node qa/plotCoverCheck.mjs [--shots=docs/qa/bugs1] [--prefix=after-bug1]
-// Add --new-islands for six battle screenshots and plot checks on i25–i27 only.
+//   node qa/plotCoverCheck.mjs --layout-only --ids=i28,i29,i30
+// --new-islands takes battle screenshots at 1280×800 and 932×430. Override its i25–i27 defaults with --ids and --shots.
 import { mkdirSync } from 'node:fs';
+import 'tsx/esm';
 
-let playwrightMod;
-try {
-  playwrightMod = await import('playwright');
-} catch {
-  playwrightMod = await import('/tmp/anim-i02-pw/node_modules/playwright/index.mjs');
-}
-const { chromium } = playwrightMod;
+const { LEVELS_2D } = await import('../src/data/levels2d/index.ts');
 
 const arg = (k) => process.argv.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 3);
 const BASE = arg('base') ?? 'http://127.0.0.1:4395';
@@ -25,11 +21,10 @@ const SHOT_ISLANDS = new Set((arg('shotIslands') ?? 'i13,i08,i03').split(','));
 if (SHOTS) mkdirSync(SHOTS, { recursive: true });
 
 const newIslands = process.argv.includes('--new-islands');
-const battleDir = 'docs/new-islands-shots';
+const battleDir = SHOTS ?? 'docs/new-islands-shots';
 if (newIslands) mkdirSync(battleDir, { recursive: true });
 
-const ALL_ISLANDS = ['l1c', ...Array.from({ length: 27 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)];
-const IDS = newIslands ? ['i25', 'i26', 'i27'] : (arg('ids') ?? ALL_ISLANDS.join(',')).split(',');
+const IDS = arg('ids')?.split(',') ?? (newIslands ? ['i25', 'i26', 'i27'] : LEVELS_2D.map(level => level.id));
 const VIEWPORTS = newIslands ? [
   { key: '1280x800', w: 1280, h: 800, dpr: 1, desktop: 1, touch: false },
   { key: '932x430', w: 932, h: 430, dpr: 2, desktop: 0, touch: true },
@@ -39,6 +34,48 @@ const VIEWPORTS = newIslands ? [
   { key: '844x390', w: 844, h: 390, dpr: 2, desktop: 0, touch: true },
   { key: '932x430', w: 932, h: 430, dpr: 2, desktop: 0, touch: true },
 ].filter((v) => !arg('sizes') || arg('sizes').split(',').includes(v.key));
+
+// Exercise both belt widths using the same initial camera and dock as the renderer.
+// The browser path below additionally measures live DOM elements.
+if (process.argv.includes('--layout-only')) {
+  const { ENEMY_DEFS } = await import('../src/data/enemies.ts');
+  const { primaryWaveEntrance, waveEntranceCounts } = await import('../src/render2d/lanePath.ts');
+  const { hardShapes, coveredPlotIndices, fullBleedFitItems } = await import('../src/render2d/fullBleed.ts');
+  const { firstSpawnPointPx, phoneCameraFit } = await import('../src/render2d/phoneCamera.ts');
+  const { hudDock, dockPieces } = await import('../src/render2d/hudDock.ts');
+  const { KIT_PLAQUE_SLOTS, NO_INSETS } = await import('../src/render2d/uiLayout.ts');
+  let covered = 0;
+  for (const id of IDS) {
+    const level = LEVELS_2D.find(island => island.id === id);
+    if (!level?.layout2d) throw new Error(`Unknown 2D island ${id}`);
+    const layout = level.layout2d;
+    const shapes = hardShapes(layout);
+    const entrances = waveEntranceCounts(level.waves[0].groups, layout.paths, layout.flightPath, type => ENEMY_DEFS[type].flying);
+    const spawn = firstSpawnPointPx(layout, primaryWaveEntrance(entrances)?.path);
+    for (const vp of VIEWPORTS) {
+      for (const items of [0, 3]) {
+        const makeDock = itemMode => hudDock(vp.w, vp.h, NO_INSETS, {
+          plaqueAspect: 1024 / 294, plaqueSlots: KIT_PLAQUE_SLOTS, bannerAspect: 512 / 152,
+          hero: true, items, itemMode,
+        });
+        const { fit, dock } = vp.touch ? phoneCameraFit(vp.w, vp.h, layout, makeDock, shapes, spawn)
+          : fullBleedFitItems(vp.w, vp.h, layout, makeDock, shapes);
+        const hits = coveredPlotIndices(shapes.plots, fit, Object.values(dockPieces(dock)), 3);
+        covered += hits.length;
+        console.log(`${id} ${vp.key} items=${items} covered=${hits.length}${hits.length ? ' plots=' + hits.join(',') : ''}`);
+      }
+    }
+  }
+  process.exit(covered > 0 ? 1 : 0);
+}
+
+let playwrightMod;
+try {
+  playwrightMod = await import('playwright');
+} catch {
+  playwrightMod = await import('/tmp/anim-i02-pw/node_modules/playwright/index.mjs');
+}
+const { chromium } = playwrightMod;
 
 const ARGS = ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'];
 const browser = await chromium.launch({ args: ARGS, executablePath: process.env.CHROMIUM_PATH || undefined });

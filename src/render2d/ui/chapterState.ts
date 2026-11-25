@@ -15,7 +15,7 @@ export interface ChapterState {
   readonly page: ChapterPage;
   /** Any of the chapter's own islands is unlocked (always false for a "coming soon" chapter). */
   readonly opened: boolean;
-  /** The finale was won (the last registered island when the finale is missing). */
+  /** The finale was won. */
   readonly complete: boolean;
   /** Any of its own islands was won at least once. */
   readonly played: boolean;
@@ -33,7 +33,7 @@ export function chapterStates(states: readonly IslandState[]): ChapterState[] {
   return pages.map((page) => {
     const chapter = page.chapter;
     const own = page.own.map((i) => states[i]).filter((s): s is IslandState => !!s);
-    const finale = own.find((s) => s.level.id === chapter.finale) ?? own[own.length - 1];
+    const finale = own.find((s) => s.level.id === chapter.finale);
     return {
       chapter,
       page,

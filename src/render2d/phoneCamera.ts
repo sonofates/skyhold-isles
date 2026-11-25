@@ -190,7 +190,10 @@ export function phoneCameraLimits(
   const keyCap = Math.min(keyCapX, keyCapY);
 
   const want = Math.max(minScale * PHONE_MIN_INITIAL_BOOST, bboxCover, Math.min(minTapScale, minScale * 1.45));
-  const defaultScale = Math.max(minScale, Math.min(want, keyCap, minScale * PHONE_MAX_INITIAL_BOOST));
+  // Some paintings carry their landmarks and build pads out to the rim.
+  const frame = screenW > screenH ? layout.phoneFrame : undefined;
+  const frameCap = frame ? Math.min(screenW / frame[2], screenH / frame[3]) : Infinity;
+  const defaultScale = Math.max(minScale, Math.min(want, keyCap, frameCap, minScale * PHONE_MAX_INITIAL_BOOST));
   const maxScale = Math.max(defaultScale * 1.5, Math.min(PHONE_MAX_SCALE_CAP, minScale * PHONE_MAX_ZOOM_FACTOR));
 
   return { minScale, defaultScale, maxScale, playable };
@@ -243,8 +246,9 @@ export function phoneCameraFit(
   const scale = limits.defaultScale;
   const pan = strictPanRange(screenW, screenH, iw, ih, scale);
 
-  const cx = limits.playable.x + limits.playable.w / 2;
-  const cy = limits.playable.y + limits.playable.h / 2;
+  const frame = screenW > screenH ? layout.phoneFrame : undefined;
+  const cx = frame ? frame[0] + frame[2] / 2 : limits.playable.x + limits.playable.w / 2;
+  const cy = frame ? frame[1] + frame[3] / 2 : limits.playable.y + limits.playable.h / 2;
   const centred = clampPan(pan, screenW / 2 - cx * scale, screenH / 2 - cy * scale);
   let ox = centred.x;
   let oy = centred.y;

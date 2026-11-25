@@ -1,6 +1,6 @@
 import type { HeroId, ProgressData } from '../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
-import { CHAPTERS, PROLOGUE } from '../data/chapters.ts';
+import { CHAPTERS, PLAYABLE_ISLAND_IDS } from '../data/chapters.ts';
 import { ENDLESS_TIERS, endlessWavesCleared } from '../data/endlessMutators.ts';
 import { HERO_DEFS, HERO_IDS, HERO_MAX_LEVEL, heroLevelFromXp } from '../data/heroes.ts';
 import { LEVELS, type LevelDef } from '../data/levels/index.ts';
@@ -48,9 +48,6 @@ function toUpperSnake(camel: string): string {
 
 /** Chapter 3, "Bell & Lantern Isles" (src/data/chapters.ts): i17-i23, i27, i24. */
 const CHAPTER_THREE_ISLAND_IDS: readonly string[] = CHAPTERS.find((c) => c.id === 'ch3')?.islands ?? [];
-/** Islands of the playable chapters (the Prologue included); "coming soon" chapters do not count. */
-const PLAYABLE_ISLAND_COUNT = PROLOGUE.islands.length +
-  CHAPTERS.filter((c) => c.status === 'playable').reduce((n, c) => n + c.islands.length, 0);
 const CHAPTER_THREE_SET: ReadonlySet<string> = new Set<string>(CHAPTER_THREE_ISLAND_IDS);
 const FINALE_BOSS_ISLAND_ID = 'i24';
 
@@ -402,14 +399,12 @@ const fullCampaignThreeStarAchievements: readonly SteamAchievementDef[] = [
   {
     id: 'STARS_ALL_ISLANDS',
     name: 'Constellation Complete',
-    description: `Earn 3 stars on all ${PLAYABLE_ISLAND_COUNT} Skyhold islands`,
+    description: `Earn 3 stars on all ${PLAYABLE_ISLAND_IDS.length} Skyhold islands`,
     category: 'stars',
     isEarned: (progress, levels) => {
-      if (levels.length < PLAYABLE_ISLAND_COUNT) return false;
-      for (let i = 0; i < levels.length; i++) {
-        if (safeBestStarsAt(progress, i) < 3) return false;
-      }
-      return true;
+      if (levels.length < PLAYABLE_ISLAND_IDS.length) return false;
+      const mastered = new Set(levels.filter((_, index) => safeBestStarsAt(progress, index) === 3).map(level => level.id));
+      return PLAYABLE_ISLAND_IDS.every(id => mastered.has(id));
     },
   },
 ];

@@ -89,7 +89,7 @@ function assertProgressInvariants(
 
 /**
  * Pure headless campaign save/load mid-progress sweep covering:
- * - Incremental progression across every island in chapter order (`l1c` -> `i24`, Prologue -> Chapter 3)
+ * - Incremental progression across every island in chapter order (`l1c` -> `i30`, Prologue -> Frostveil)
  * - Difficulty wins (`Easy` 1★ cap & `bestLives` preservation, `Normal` 1–3★, `Hard` ribbons)
  * - Hero unlocks (`bran` -> `wren` -> `mira` -> `tobb` -> `sela`), XP/levels, skill nodes & respec
  * - Workshop purchases, Daily Squall streaks on Chapter 2 islands, Endless records
@@ -193,7 +193,7 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
       if (withNode) p.heroes = withNode.heroes;
     }
 
-    if (lvl.id === 'i16' || lvl.id === 'i20' || lvl.id === 'i24') {
+    if (['i16', 'i20', 'i24', 'i28', 'i30'].includes(lvl.id)) {
       assertProgressInvariants(p, `mid-campaign-${lvl.id}`, violations);
       const code = encodeSaveCode2D(p, LEVELS_2D);
       const decoded = decodeSaveCode2D(code, LEVELS_2D);
@@ -219,14 +219,14 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
         }
 
         // Verify mid-campaign URL + hero resolution (`?level=i17&diff=hard`) works seamlessly from decoded save.
-        const nextId = lvl.id === 'i16' ? 'i17' : 'i24';
+        const nextId = LEVELS_2D[idx + 1]?.id ?? lvl.id;
         const resolved = resolveQueryRun2D(
           new URLSearchParams(`level=${nextId}&diff=hard`),
           decoded.progress,
           { nowMs: baseDayMs, levels: LEVELS_2D, warn: () => undefined },
         );
         const heroRun = resolveHeroForRun(decoded.progress, null, null, LEVELS_2D);
-        if (!resolved.level || resolved.runConfig.difficulty !== 'hard' || !heroRun) {
+        if (resolved.level?.id !== nextId || resolved.runConfig.difficulty !== 'hard' || !heroRun) {
           violations.push({
             kind: 'save_roundtrip',
             tick: 0,

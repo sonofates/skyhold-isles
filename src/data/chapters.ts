@@ -7,9 +7,7 @@
  * never change, so saves, stars, the Daily and challenges keep working; a chapter is only an
  * ordering and grouping layer on top of the ids.
  *
- * A chapter slot whose island is not registered yet (an island still being painted, e.g. i25)
- * is skipped: the chapter then holds 7 or 8 islands and still works. Chapters 4 and 5 are on the
- * chart as "coming soon": no islands, not playable.
+ * Unregistered chapter slots are skipped. Frostveil opens after Lastlight Head.
  *
  * Pure data, no DOM and no i18n runtime (only the message key names).
  */
@@ -34,6 +32,8 @@ export interface ChapterDef {
   readonly islands: readonly string[];
   /** The island whose win completes the chapter (and opens the next one). */
   readonly finale: string | null;
+  /** Last published slot when the rest of this chapter is still in production. */
+  readonly playableThrough?: string;
   /** `soon` = on the chart, fogged, no islands yet. */
   readonly status: 'playable' | 'soon';
   /** Accent colour of the chapter's tab and cards (css). */
@@ -93,9 +93,10 @@ export const CHAPTERS: readonly ChapterDef[] = [
     n: 4,
     nameKey: 'chapter.ch4.name',
     blurbKey: 'chapter.ch4.blurb',
-    islands: [],
-    finale: null,
-    status: 'soon',
+    islands: ['i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36'],
+    finale: 'i36',
+    playableThrough: 'i30',
+    status: 'playable',
     accent: '#7cc3d8',
     sea: [0.96, 1.06, 1.15, 0.5],
   },
@@ -114,6 +115,10 @@ export const CHAPTERS: readonly ChapterDef[] = [
 
 /** Every island slot in campaign order: the Prologue, then each chapter's islands. */
 export const CAMPAIGN_ORDER: readonly string[] = [...PROLOGUE.islands, ...CHAPTERS.flatMap((c) => c.islands)];
+
+/** Published slots for metadata consumers that do not load the 2D game. */
+export const PLAYABLE_ISLAND_IDS = [PROLOGUE, ...CHAPTERS].filter(c => c.status === 'playable')
+  .flatMap(c => c.playableThrough ? c.islands.slice(0, c.islands.indexOf(c.playableThrough) + 1) : c.islands);
 
 /**
  * The flat 2D island order every save before chapters was written in (`l1c`, `i01`-`i24`). A save

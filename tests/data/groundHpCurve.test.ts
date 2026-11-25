@@ -4,7 +4,7 @@ import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { WaveSystem } from '../../src/sim/waveSystem.ts';
 
-// Neutral story HP multipliers at 795ad793, including the late-wave escalation.
+// Neutral story HP multipliers, including the late-wave escalation.
 // Keep both endpoints fixed even if the number of waves or the runtime formula changes.
 const baseline = [
   ['l1c', 1.38, 3.396703],
@@ -35,6 +35,9 @@ const baseline = [
   ['i25', 2.1, 5.048363],
   ['i26', 2.31, 6.162879],
   ['i27', 1.62, 4.443197],
+  ['i28', 1.98, 5.430574],
+  ['i29', 2.93, 8.036153],
+  ['i30', 2.215, 6.075112],
 ] as const;
 
 // Named finale formations have their own HP on top of the story curve.
