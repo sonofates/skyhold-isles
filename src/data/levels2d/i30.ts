@@ -25,15 +25,15 @@ export const I30 = {
       group('runner', 10, 0.51), group('bellrunner', 7, 0.55, 1.8, 1),
     ] },
     { name: 'Red Pennant', clearBonus: 27, groups: [
-      group('warden', 4, 1.24, 0, 1), group('brute', 5, 1.08, 0.75),
-      group('mite', 13, 0.29, 2.8, 1),
+      group('warden', 3, 1.24, 0.75), group('brute', 5, 1.08, 0.75),
+      group('mite', 12, 0.29, 3.6, 1),
     ] },
     { name: 'Needles on the Wind', clearBonus: 29, groups: [
       group('draftwing', 4, 0.97), group('kilnback', 5, 1.08, 0.75, 1),
       group('reedpiper', 2, 1.42, 2.8), group('rimebeetle', 5, 0.9, 2.8),
     ] },
     { name: 'Two Ruts', clearBonus: 31, groups: [
-      group('golem', 4, 1.2, 0, 1), group('healer', 3, 1.37, 0.75),
+      group('golem', 3, 1.2), group('healer', 3, 1.37, 0.75),
       group('burrower', 7, 0.82, 2.8, 1), group('rimebeetle', 5, 0.54, 4.4),
     ] },
     { name: 'The Trestle Sings', clearBonus: 32, groups: [
@@ -57,9 +57,10 @@ export const I30 = {
       group('blinker', 8, 0.66, 2.8),
     ] },
     { name: 'Blue Cornice', clearBonus: 41, groups: [
+      // Spread the island's pressure (docs/handoff-ch4-spread-i29-i30.md): flyers, golems and tortoises split the late losses.
       { ...group('burrower', 8, 0.77, 0, 1), elite: true }, group('hexer', 4, 1.25, 0.75),
-      group('draftwing', 5, 0.89, 2.8, 1), group('bellrunner', 12, 0.5, 5),
-      group('rimebeetle', 6, 0.9, 6.2, 1),
+      { ...group('draftwing', 6, 0.89, 2.8, 1), hpScale: 2.1 }, group('bellrunner', 12, 0.5, 5),
+      group('rimebeetle', 6, 1.05, 3.4),
     ] },
     { name: 'Cold Iron', clearBonus: 43, groups: [
       { ...group('splitter', 8, 0.73), elite: true }, group('kilnback', 7, 0.98, 0.75, 1),
@@ -67,13 +68,13 @@ export const I30 = {
     ] },
     { name: 'Set the Brake', clearBonus: 46, groups: [
       { ...group('brute', 8, 0.96, 0, 1), elite: true }, group('warden', 5, 1.1, 0.75),
-      { ...group('golem', 3, 1.09, 2.8, 1), elite: true }, group('mite', 17, 0.25, 5),
-      group('rimebeetle', 6, 0.9, 6.2),
+      { ...group('golem', 2, 1.09, 2.8, 1), elite: true, hpScale: 2.6 }, group('mite', 17, 0.25, 5),
+      group('rimebeetle', 6, 1.05, 3.4),
     ] },
     { name: 'Lamps Below the Ridge', clearBonus: 60, groups: [
-      { ...group('kilnback', 9, 0.95), elite: true }, group('reedpiper', 4, 1.26, 0.75, 1),
-      { ...group('golem', 7, 1.08, 2.8), elite: true }, { ...group('bellrunner', 11, 0.48, 5, 1), elite: true },
-      { ...group('rimebeetle', 6, 0.54, 6.2), elite: true },
+      { ...group('kilnback', 4, 0.95), elite: true, hpScale: 3.2 }, group('reedpiper', 4, 1.26, 0.75, 1),
+      group('golem', 3, 1.08, 2.8), { ...group('bellrunner', 11, 0.48, 5, 1), elite: true },
+      { ...group('rimebeetle', 6, 1.1, 3.4, 1), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

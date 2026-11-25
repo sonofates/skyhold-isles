@@ -54,7 +54,7 @@ const finaleHp: Record<string, Record<string, number>> = {
   i02: { boss: 1.5 }, i04: { boss: 1.6 }, i05: { boss: 1.3 },
   i10: { boss: 2.5 },
   i17: { 'golem:1': 0.8 }, i22: { golem: 1.8 }, i24: { tempest: 2 }, i27: { 'golem:1': 2 },
-  i29: { golem: 3.5 },
+  i29: { golem: 3.5 }, i30: { kilnback: 3.2 },
   i31: { sledguard: 1.85 }, i32: { sledguard: 3.5 }, i33: { kilnback: 3.5 },
   i34: { golem: 3 }, i35: { kilnback: 2.4 }, i36: { glacier_warden: 1.15, sledguard: 3 },
   i37: { golem: 3.4 }, i38: { sledguard: 3 }, i39: { 'kilnback:1': 2.8 },
