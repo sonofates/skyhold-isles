@@ -557,7 +557,7 @@ const dailyAchievements: readonly SteamAchievementDef[] = [
 
 /**
  * Chapters 4 and 5 (added for the PC release, 2026-11-25), on the Chapter 3 pattern: first clear,
- * all cleared, all three-starred, plus the chapter-4 boss island. Island lists come from
+ * all cleared, all three-starred, plus the chapter-4 boss island (Chapter 5: first clear only). Island lists come from
  * src/data/chapters.ts by id, so islands still being authored count once they exist; a chapter is
  * only "cleared" when every island it lists is present and cleared. Appended after the older
  * entries so no existing index or ID moves. IDs are proposals until the owner publishes them in
@@ -631,7 +631,10 @@ const lateChapterAchievements: readonly SteamAchievementDef[] = [
       return idx >= 0 && isIslandClearedAt(progress, idx);
     },
   },
-  ...chapterSetAchievements('ch5', 'FIVE', 5, { landing: 'Into the Dusk', cleared: 'Eclipse Skies Charted', stars: 'Light Beyond the Eclipse' }),
+  // Chapter 5 is still being authored (i40–i45): only its first clear for now. CHAPTER_FIVE_CLEARED /
+  // _THREE_STARS (and a BOSS_I45_CLEARED) come with its last island (proposals in the handoff), so a
+  // fully finished save can always earn every listed achievement (qa/bot/saveSweep.ts).
+  ...chapterSetAchievements('ch5', 'FIVE', 5, { landing: 'Into the Dusk', cleared: 'Eclipse Skies Charted', stars: 'Light Beyond the Eclipse' }).slice(0, 1),
 ];
 
 export const STEAM_ACHIEVEMENTS: readonly SteamAchievementDef[] = [

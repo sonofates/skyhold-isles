@@ -3,7 +3,7 @@
  *
  * Verifies both:
  *  1. Default launch (`http://skyhold.local/2d.html` -> title screen with the PC Quit plank -> World Map,
- *     >= 25 islands over the chapter pages, no store UI, Steam preload bridge, all 65 achievements loaded from `desktop/achievements.json`, 0 failed HTTP/bundle loads).
+ *     >= 25 islands over the chapter pages, no store UI, Steam preload bridge, all 63 achievements loaded from `desktop/achievements.json`, 0 failed HTTP/bundle loads).
  *  2. Gameplay launch on Chapter-Two Boss `i24` (`?level=i24&diff=hard&hero=sela&herolevel=20` ->
  *     Pixi v8 WebGL2 canvas, 0 missing art files, Sela active, Steam preload bridge, 0 failed loads).
  */
@@ -81,7 +81,7 @@ function main(): void {
     worldMap.scene !== 'worldMap' ||
     !worldMap.hasBridge ||
     !worldMap.secureContext ||
-    worldMap.achievementsLoaded < 65 ||
+    worldMap.achievementsLoaded < 63 ||
     worldMap.failedLoads !== 0 ||
     (worldMap.islands ?? 0) < 25 ||
     !worldMap.titleQuit ||
@@ -99,7 +99,7 @@ function main(): void {
     bossGame.hero !== 'sela' ||
     !bossGame.hasBridge ||
     !bossGame.secureContext ||
-    bossGame.achievementsLoaded < 65 ||
+    bossGame.achievementsLoaded < 63 ||
     bossGame.failedLoads !== 0 ||
     !bossGame.art ||
     bossGame.art.filesMissing !== 0 ||

@@ -21,7 +21,7 @@ and hardens the shell. No island / level / chapter data, enemies, balance or sto
 | Electron window | Fixed 1440x810, min 960x540, default menu (reload / DevTools / zoom accelerators), DevTools in production, no state memory | Window **size / position / maximised / fullscreen persisted** (`<userData>/window-state.json`, repaired against current monitors), first launch fullscreen (16:9 window behind it), min 960x540, **F11 and Alt+Enter** toggle fullscreen, **no menu** (Win/Linux; minimal app menu on macOS), **DevTools off when packaged** (`SKYHOLD_DEVTOOLS=1` for a dev checkout), reload / print / zoom / view-source shortcuts blocked, Ctrl+wheel zoom reset, `show` on `ready-to-show`, title pinned |
 | Crash / console safety | none | Renderer crash → reload (≤3/min) then a message box; startup failure → message box; main-process errors and crashes logged to `<userData>/logs/shell.log` (256 KB cap) |
 | Security | contextIsolation, sandbox, no nodeIntegration, offline protocol, origin-checked IPC | + `webviewTag:false`, `navigateOnDragDrop:false`, `will-attach-webview` denied, window.open denied app-wide, IPC channel **allow-list** (`desktop/shellCore.cjs` `IPC_CHANNELS`, test keeps preload/main in sync, every handler origin-checks) |
-| Steam | 58 achievements 1:1 with json, cloud merge, overlay enable | **65** achievements (7 proposed for ch4/ch5, §4), **rich presence** `status` ("Charting the sky islands" / "Defending <island>" / "In the main menu"); all no-ops without Steam |
+| Steam | 58 achievements 1:1 with json, cloud merge, overlay enable | **63** achievements (5 added for ch4/ch5, §4), **rich presence** `status` ("Charting the sky islands" / "Defending <island>" / "In the main menu"); all no-ops without Steam |
 
 ## 2. Files
 
@@ -33,15 +33,14 @@ and hardens the shell. No island / level / chapter data, enemies, balance or sto
 - `src/render2d/pausePolicy.ts` (new), `src/render2d/ui/gameMenu2d.ts` (new: map Esc menu + `confirmQuit`), `runControls2d.ts` (Quit plank), `titleScreen.ts` (Quit plank), `worldMap.ts` (Esc menu, presence), `main2d.ts` (Quit wiring, presence).
 - `src/render2d/ui/metaScreens.ts` (Settings rows), `graphicsSettings.ts` (FPS caps, `autoUiScale`), `paintedUi.css` (rebind caps), `src/audio/musicPrefs.ts` + `soundManager.ts` (SFX bus), `src/render2d/renderResolution.ts` (`isDesktopClient` true in the shell), `src/i18n/en.ts` + `tr.ts` (21 new keys, 2 reworded).
 - `src/platform/achievements.ts`, `desktop/achievements.json` (regenerated), `scripts/exportAchievements.ts` + `npm run steam:achievements`; `npm run desktop:smoke` (existing `scripts/qaDesktopSmoke.ts`).
-- Tests: `tests/render/pcControls.test.ts`, `tests/platform/desktopShell.test.ts` (new); `steamAdapter.test.ts` (count 58 → 65), `n2Ui.test.ts` (pad X now sends the bound `N`).
+- Tests: `tests/render/pcControls.test.ts`, `tests/platform/desktopShell.test.ts` (new); `steamAdapter.test.ts` (count 58 → 63), `n2Ui.test.ts` (pad X now sends the bound `N`).
 - QA: `qa/pcshots.mjs`, shots in `docs/pc-shots/`.
 
 ## 3. Verification
 
 - Unit: settings persistence (FPS caps, UI scale, reduced motion, SFX volume, broken storage), key bindings (normalise, swap, persist, repair, live HUD constants, belt / pad), pause-on-blur + overlay hotkey, shell policy (window state incl. unplugged monitor, vsync switches, F11/Alt+Enter/DevTools/blocked keys, App ID, sanitisers, presence, IPC allow-list ↔ preload ↔ main, hardening strings, owner-gated identity unchanged), ch4/ch5 achievements by island id.
 - Browser QA, ONE Chromium, `python3 qa/withPreview.py --port=4417 node qa/pcshots.mjs --sizes=…` at **1920x1080, 1280x720, 2560x1440, 1680x1050 (16:10)**, shell simulated by a fake `window.skyholdDesktop`: title menu (+Quit → confirm → shell quit), world map, Esc menu, Settings × 4 tabs (no haptics, no store text, SFX slider, Display mode + VSync reach the shell, 144 cap, rebind Meteor→B persisted then Reset, Esc closes), battle HUD, ring open → right click closes, Esc → pause menu with Quit, Resume, blur pauses, Space resumes, a rebound P pauses. **0 problems** at all four sizes. Smallest Settings text: 14 px at 720p, ~20 px at 1080p, ~26 px at 1440p (auto 130 %).
-- Electron / AppImage: see §6 (filled in after the run).
-- Gate: see §6.
+- Electron / AppImage and the full gate: §6.
 
 ## 4. Achievements proposed for Chapters 4 / 5 (owner-gated IDs)
 
@@ -54,10 +53,8 @@ Appended after the existing 58 (no index or ID moved), same pattern as Chapter 3
 | `CHAPTER_FOUR_THREE_STARS` | Rime and Radiance | Earn 3 stars on every Chapter 4 island |
 | `BOSS_I36_CLEARED` | Warden of the Ice Gate | Defeat the Glacier Warden and clear the last Frostveil island |
 | `CHAPTER_FIVE_LANDING` | Into the Dusk | Clear your first Chapter 5 island |
-| `CHAPTER_FIVE_CLEARED` | Eclipse Skies Charted | Clear all 9 Chapter 5 islands |
-| `CHAPTER_FIVE_THREE_STARS` | Light Beyond the Eclipse | Earn 3 stars on every Chapter 5 island |
 
-Chapter 5 "cleared / three stars" need every island `CHAPTERS.ch5.islands` lists (i37–i45) to exist, so they cannot unlock while i40–i45 are being authored. Not added (proposal only): `BOSS_I45_CLEARED` (Eclipse Sovereign, once i45 exists), `HARD_BOSS_I36`. If the owner renames or drops any of the 7 before publishing in Steamworks, edit `lateChapterAchievements` and run `npm run steam:achievements`. Achievement icons (256² colour + grey) still needed for all 65.
+**Proposed, not added** (Chapter 5 is still being authored; the save sweep `qa/bot/saveSweep.ts` requires a finished save to earn every listed achievement, and an early unlock on Steam is permanent): `CHAPTER_FIVE_CLEARED` "Eclipse Skies Charted", `CHAPTER_FIVE_THREE_STARS` "Light Beyond the Eclipse" (both already written: drop the `.slice(0, 1)` in `lateChapterAchievements` once i45 is in `LEVELS_2D`), `BOSS_I45_CLEARED` (Eclipse Sovereign), `HARD_BOSS_I36`. If the owner renames or drops any ID before publishing in Steamworks, edit `lateChapterAchievements` and run `npm run steam:achievements`. Achievement icons (256² colour + grey) still needed for all 63.
 
 ## 5. Mobile / free leftovers on desktop and web
 
@@ -65,7 +62,10 @@ Store, "full adventure" ribbons, crystal packs and Restore purchases are all beh
 
 ## 6. Packaging, smoke and gate results
 
-(see below)
+- `npm run desktop:build:linux` builds `release/Skyhold Isles-1.0.0.AppImage` (x64, ~372 MB) on Hermes. `release/` was deleted afterwards (disk ~93 % full).
+- `npm run desktop:smoke` (Xvfb, SwiftShader, no Steam client → `isSteam:false`, standalone): **packaged AppImage** → title screen with the Quit plank → world map (39 islands across the chapter pages), no store UI, `skyholdSteam` + `skyholdDesktop` bridges, secure context, 0 failed loads, **DevTools off, no menu**; i24 Hard boss run boots with 129/129 art files. Run on the 65-achievement commit; after trimming to 63 the same smoke was re-run on the `electron .` path (same result, DevTools on there as it is unpackaged). Before this branch the smoke was already broken (it stopped at the title screen and counted only one chapter page).
+- Gate: `npx tsc --noEmit` ✓, `npm run lint` ✓, `npx vitest run` ✓ (150 files, 2054 tests, 15 skipped), `npm run sim:balance` ✓ (56 levels), `npm run sim:items -- --workers=2` ✓, `npm run sim:difficulty` ✓, `npm run build` ✓.
+- Not run here: Windows / macOS packaging (`desktop:build:win` / `:mac` need those hosts), a live Steam client.
 
 ## 7. Open — needs the owner
 

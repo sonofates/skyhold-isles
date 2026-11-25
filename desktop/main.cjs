@@ -655,7 +655,7 @@ function createMainWindow(ses, distDir) {
             menu: Menu.getApplicationMenu() === null ? 'none' : 'app',
           };
           const badScene = probe.scene === 'worldMap' && (!probe.titleQuit || probe.storeVisible);
-          if (badScene || !probe.hasBridge || !probe.hasDesktop || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 65) {
+          if (badScene || !probe.hasBridge || !probe.hasDesktop || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 63) {
             console.error('[smoke] Invariant failed:', JSON.stringify({ summary, failedLoads }));
             app.exit(1);
             return;

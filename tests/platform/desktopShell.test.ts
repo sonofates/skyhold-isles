@@ -161,7 +161,7 @@ describe('Electron shell policy (desktop/shellCore.cjs)', () => {
 });
 
 describe('Steam achievements for Chapters 4 and 5', () => {
-  const late = ['CHAPTER_FOUR_LANDING', 'CHAPTER_FOUR_CLEARED', 'CHAPTER_FOUR_THREE_STARS', 'BOSS_I36_CLEARED', 'CHAPTER_FIVE_LANDING', 'CHAPTER_FIVE_CLEARED', 'CHAPTER_FIVE_THREE_STARS'];
+  const late = ['CHAPTER_FOUR_LANDING', 'CHAPTER_FOUR_CLEARED', 'CHAPTER_FOUR_THREE_STARS', 'BOSS_I36_CLEARED', 'CHAPTER_FIVE_LANDING'];
 
   it('are appended after the older 58 (no existing index moves) and listed in desktop/achievements.json', () => {
     expect(STEAM_ACHIEVEMENTS.slice(58).map((a) => a.id)).toEqual(late);
@@ -189,7 +189,7 @@ describe('Steam achievements for Chapters 4 and 5', () => {
     expect(earned.has('CHAPTER_FOUR_THREE_STARS')).toBe(true);
     expect(earned.has('BOSS_I36_CLEARED')).toBe(true);
     expect(earned.has('CHAPTER_FIVE_LANDING')).toBe(false);
-    // Chapter 5: landing as soon as one of its islands is cleared; "cleared" needs every listed island to exist.
+    // Chapter 5: landing as soon as one of its islands is cleared (cleared / 3-star wait for i45).
     const present5 = ch5.filter((id) => idx(id) >= 0);
     expect(present5.length).toBeGreaterThan(0);
     for (const id of present5) {
@@ -198,6 +198,6 @@ describe('Steam achievements for Chapters 4 and 5', () => {
     }
     earned = new Set(earnedSteamAchievementIds(p, LEVELS_2D));
     expect(earned.has('CHAPTER_FIVE_LANDING')).toBe(true);
-    expect(earned.has('CHAPTER_FIVE_CLEARED')).toBe(present5.length === ch5.length);
+    expect(STEAM_ACHIEVEMENTS.some((a) => a.id === 'CHAPTER_FIVE_CLEARED')).toBe(false);
   });
 });
