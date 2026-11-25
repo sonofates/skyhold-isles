@@ -24,6 +24,7 @@ import {
 } from './progress2d.ts';
 import { storyBeats, type StoryPart } from './storyBeats.ts';
 import { showStory } from './storyPanels.ts';
+import { navigateWithVeil } from './transition2d.ts';
 
 /** The island after `levelId` on the world map route (undefined at the end / off the list). */
 export function nextIsland2D(levelId: string, levels: readonly LevelDef[] = LEVELS_2D): LevelDef | undefined {
@@ -76,6 +77,17 @@ export function isMastered(levelId: string): boolean {
 /** Records a campaign, challenge, Daily Squall, or Endless run outcome into the 2D save. */
 export function recordRunOutcome(outcome: RunOutcome2D): RunResultRecord2D {
   return recordRunResult2D(outcome);
+}
+
+/**
+ * The campaign was just completed (`RunResultRecord2D.campaignComplete`, the `campaignComplete`
+ * hook): after the finale's outro (`afterStory`) or a short beat over the end board, the ending's
+ * story beats and credits roll (ending2d.ts), then the world map with its "Campaign complete" card.
+ */
+export function playEndingAfterWin(manifest: MapsManifest | null, baseUrl: string, afterStory: boolean): void {
+  window.setTimeout(() => {
+    void import('./ending2d.ts').then((m) => m.playEnding(manifest, () => navigateWithVeil(worldMapHref()), { baseUrl }));
+  }, afterStory ? 250 : 900);
 }
 
 /**

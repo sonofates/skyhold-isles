@@ -132,6 +132,11 @@ export interface ProgressData {
    * unlocks `CHALLENGE_*` Steam achievements.
    */
   wonChallenges?: string[];
+  /**
+   * 2D: the last chapter's finale was won (the campaign is complete, docs/handoff-ending.md). Only
+   * ever `true` or absent; a save written before the flag reads it from the finale's win.
+   */
+  campaignComplete?: true;
 }
 
 export interface Vec3 {

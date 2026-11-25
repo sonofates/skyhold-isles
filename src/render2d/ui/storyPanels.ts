@@ -15,9 +15,27 @@ export interface StoryCard {
   revealed(): number;
 }
 
-export function showStory(level: LevelDef, part: StoryPart, beats: readonly StoryBeat[], mapUrl: string | null, onDone: () => void): StoryCard {
-  const sheet = openSheet(islandName(level), { cls: 'pu-story', testid: 'story2d', onClose: onDone, modal: true, closeButton: false });
-  const kicker = el('div', 'pu-story-kicker pu-ink-soft', {}, part === 'intro' ? t('story.before') : t('story.after'));
+/** Words of a storybook card that is not an island's (the ending, ending2d.ts). */
+export interface StoryCardOptions {
+  readonly title?: string;
+  readonly kicker?: string;
+  /** Label of the button on the last panel. */
+  readonly lastLabel?: string;
+  readonly testid?: string;
+}
+
+export function showStory(
+  level: LevelDef | null,
+  part: StoryPart,
+  beats: readonly StoryBeat[],
+  mapUrl: string | null,
+  onDone: () => void,
+  opts: StoryCardOptions = {},
+): StoryCard {
+  const testid = opts.testid ?? 'story2d';
+  const title = opts.title ?? (level ? islandName(level) : '');
+  const sheet = openSheet(title, { cls: 'pu-story', testid, onClose: onDone, modal: true, closeButton: false });
+  const kicker = el('div', 'pu-story-kicker pu-ink-soft', {}, opts.kicker ?? (part === 'intro' ? t('story.before') : t('story.after')));
   const strip = el('div', 'pu-story-strip');
   const panels: HTMLDivElement[] = [];
   const vignettes: HTMLDivElement[] = [];
@@ -39,12 +57,12 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
     panels.push(p);
     vignettes.push(v);
   });
-  const skip = plank(t('story.skip'), { kind: 'small', testid: 'story2d-skip' });
-  const next = plank(t('story.next'), { kind: 'primary', icon: 'play', testid: 'story2d-next' });
+  const skip = plank(t('story.skip'), { kind: 'small', testid: `${testid}-skip` });
+  const next = plank(t('story.next'), { kind: 'primary', icon: 'play', testid: `${testid}-next` });
   const actions = el('div', 'pu-story-actions', {}, skip, next);
   sheet.body.append(kicker, strip, actions);
 
-  const imageSize = level.layout2d?.imageSize ?? ([1846, 852] as const);
+  const imageSize = level?.layout2d?.imageSize ?? ([1846, 852] as const);
   const frame = (): void => {
     vignettes.forEach((v, i) => {
       // Layout size (not getBoundingClientRect: the card pops in with a scale transform).
@@ -63,7 +81,7 @@ export function showStory(level: LevelDef, part: StoryPart, beats: readonly Stor
       p.classList.toggle('current', i === shown - 1);
     });
     const last = shown >= panels.length;
-    next.querySelector('span:last-child')!.textContent = last ? (part === 'intro' ? t('story.toBattle') : t('story.onward')) : t('story.next');
+    next.querySelector('span:last-child')!.textContent = last ? (opts.lastLabel ?? (part === 'intro' ? t('story.toBattle') : t('story.onward'))) : t('story.next');
   };
   const advance = (): void => {
     if (shown >= panels.length) {
