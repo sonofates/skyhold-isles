@@ -14,6 +14,7 @@
  */
 import { ABILITY_KEYS } from './abilities2d.ts';
 import { HERO_KEYS } from './heroKeys.ts';
+import { domKeyFor, keyFor } from './keyBindings.ts';
 import { keyDir, navScope, pickInDirection, setGameNav, type NavDir, type PadButton } from './navFocus.ts';
 import './padCursor.css';
 
@@ -60,20 +61,21 @@ export function nearestPoint(p: { x: number; y: number }, pts: readonly { x: num
 /** Pad buttons → the key the run already understands (null = handled here or by default). */
 export function padKey(b: PadButton): string | null {
   switch (b) {
+    // The keys as bound right now (Settings → Controls), so a rebind never breaks the pad.
     case 'x':
-      return 'n';
+      return domKeyFor(keyFor('wave'));
     case 'y':
-      return HERO_KEYS.select;
+      return domKeyFor(HERO_KEYS.select);
     case 'lb':
-      return ABILITY_KEYS.meteor;
+      return domKeyFor(ABILITY_KEYS.meteor);
     case 'rb':
-      return ABILITY_KEYS.overcharge;
+      return domKeyFor(ABILITY_KEYS.overcharge);
     case 'lt':
-      return HERO_KEYS.skill0;
+      return domKeyFor(HERO_KEYS.skill0);
     case 'rt':
-      return HERO_KEYS.skill1;
+      return domKeyFor(HERO_KEYS.skill1);
     case 'start':
-      return ' ';
+      return domKeyFor(keyFor('pause'));
     case 'b':
       return 'Escape'; // i18n-ignore (key name)
     default:

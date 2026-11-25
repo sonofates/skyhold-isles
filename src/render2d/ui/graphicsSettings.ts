@@ -17,13 +17,16 @@ import type { QualityLevel } from '../../core/types.ts';
 import type { GraphicsPrefs, QualityTier } from '../renderResolution.ts';
 
 export type EffectsDensity = 'low' | 'normal' | 'high';
-export type FpsCap = 30 | 60 | 0;
+export type FpsCap = 30 | 60 | 120 | 144 | 0;
+
+/** The caps Settings → Graphics offers (0 = unlimited: the display's refresh rate, i.e. vsync). */
+export const FPS_CAPS: readonly FpsCap[] = [30, 60, 120, 144, 0];
 
 export interface GraphicsSettings {
   /** Canvas resolution 0.5..1, or null = Auto (full resolution, the game may trim it on phones). */
   renderScale: number | null;
   effects: EffectsDensity;
-  /** Frame-rate cap: 30, 60, or 0 = unlimited (the display's own refresh rate). */
+  /** Frame-rate cap: 30, 60, 120, 144, or 0 = unlimited (the display's own refresh rate). */
   fpsCap: FpsCap;
   showFps: boolean;
   /** No screen shake, no large flashes, calmer UI pulses. */
@@ -54,9 +57,27 @@ function prefersReducedMotion(): boolean {
   }
 }
 
-export function defaultGraphics(reduced = prefersReducedMotion()): GraphicsSettings {
+export function defaultGraphics(reduced = prefersReducedMotion(), uiScale = shellDefaultUiScale()): GraphicsSettings {
   // Unlimited (= the display's refresh rate) is what the game always did, so it stays the default.
-  return { renderScale: null, effects: 'normal', fpsCap: 0, showFps: false, reducedMotion: reduced, uiScale: 1 };
+  return { renderScale: null, effects: 'normal', fpsCap: 0, showFps: false, reducedMotion: reduced, uiScale };
+}
+
+/**
+ * Default interface size for a screen `screenH` CSS px tall: the painted UI is sized for 1080p (its
+ * unit stops growing there), so taller PC screens start larger — 1200p → 110 %, 1440p and up → 130 %
+ * — and keep the same share of the screen. Players change it in Settings → General.
+ */
+export function autoUiScale(screenH: number): number {
+  return Number.isFinite(screenH) && screenH > 1080 ? clampUiScale(Math.floor((screenH / 1080) * 20) / 20) : 1;
+}
+
+/** The PC build (Electron shell) picks the default from the display; the browser / phones keep 100 %. */
+function shellDefaultUiScale(): number {
+  try {
+    return typeof window !== 'undefined' && window.skyholdDesktop && typeof screen !== 'undefined' ? autoUiScale(screen.height) : 1;
+  } catch {
+    return 1;
+  }
 }
 
 /** Clamps / repairs a stored object (anything unknown → the default). */
@@ -66,7 +87,7 @@ export function parseGraphics(raw: unknown, defaults: GraphicsSettings = default
   return {
     renderScale: typeof scale === 'number' && Number.isFinite(scale) ? Math.round(Math.max(0.5, Math.min(1, scale)) * 20) / 20 : null,
     effects: o.effects === 'low' || o.effects === 'normal' || o.effects === 'high' ? o.effects : defaults.effects,
-    fpsCap: o.fpsCap === 30 || o.fpsCap === 60 || o.fpsCap === 0 ? o.fpsCap : defaults.fpsCap,
+    fpsCap: (FPS_CAPS as readonly unknown[]).includes(o.fpsCap) ? (o.fpsCap as FpsCap) : defaults.fpsCap,
     showFps: typeof o.showFps === 'boolean' ? o.showFps : defaults.showFps,
     reducedMotion: typeof o.reducedMotion === 'boolean' ? o.reducedMotion : defaults.reducedMotion,
     uiScale: o.uiScale === undefined ? defaults.uiScale : clampUiScale(o.uiScale),

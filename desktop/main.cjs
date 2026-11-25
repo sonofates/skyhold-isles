@@ -3,34 +3,11 @@
 const fs = require('node:fs');
 const fsp = require('node:fs/promises');
 const path = require('node:path');
-const { app, BrowserWindow, ipcMain, nativeImage, session } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, screen, session } = require('electron');
+const core = require('./shellCore.cjs');
 
-const DEFAULT_STEAM_APP_ID = 480;
-const BUNDLE_ORIGIN = 'http://skyhold.local';
+const { BUNDLE_ORIGIN, DEFAULT_STEAM_APP_ID, MIN_WINDOW, isAllowedAppOrigin, resolveDistFile, sanitizeAchievementId, sanitizeSlot } = core;
 const SESSION_PARTITION = 'persist:skyhold';
-
-function resolveSteamAppId(env = process.env) {
-  const raw = env.STEAM_APP_ID;
-  if (raw !== undefined && raw !== '') {
-    const parsed = Number.parseInt(String(raw).trim(), 10);
-    if (Number.isFinite(parsed) && parsed > 0) return parsed;
-  }
-  return DEFAULT_STEAM_APP_ID;
-}
-
-function sanitizeSlot(slot) {
-  if (typeof slot !== 'string') return null;
-  const trimmed = slot.trim();
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
-  return trimmed;
-}
-
-function sanitizeAchievementId(id) {
-  if (typeof id !== 'string') return null;
-  const trimmed = id.trim();
-  if (!/^[a-zA-Z0-9_-]{1,64}$/.test(trimmed)) return null;
-  return trimmed;
-}
 
 const MIME_BY_EXT = {
   '.html': 'text/html; charset=utf-8',
@@ -62,20 +39,78 @@ function mimeFor(filePath) {
   return MIME_BY_EXT[path.extname(filePath).toLowerCase()] || 'application/octet-stream';
 }
 
-const appId = resolveSteamAppId();
+const isSmokeTest = process.env.SKYHOLD_SMOKE_TEST === '1';
+const devTools = core.devToolsAllowed(app.isPackaged);
+const appId = core.resolveSteamAppId();
 let steamClient = null;
 let isSteam = false;
 let overlayActive = false;
+
+// --- small JSON files in userData (window state, shell prefs) and a crash log --------------------
+
+function userFile(name) {
+  return path.join(app.getPath('userData'), name);
+}
+
+function readJson(name) {
+  try {
+    return JSON.parse(fs.readFileSync(userFile(name), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function writeJson(name, value) {
+  if (isSmokeTest) return;
+  try {
+    fs.mkdirSync(app.getPath('userData'), { recursive: true });
+    const file = userFile(name);
+    fs.writeFileSync(`${file}.tmp`, JSON.stringify(value));
+    fs.renameSync(`${file}.tmp`, file);
+  } catch {
+    // read-only profile: the game still runs, it just forgets the window
+  }
+}
+
+/** Appends a line to `<userData>/logs/shell.log` (crashes, unresponsive renderer, main errors). */
+function logLine(message) {
+  const line = `${new Date().toISOString()} ${message}\n`;
+  console.error(`[shell] ${message}`);
+  try {
+    const dir = path.join(app.getPath('userData'), 'logs');
+    fs.mkdirSync(dir, { recursive: true });
+    const file = path.join(dir, 'shell.log');
+    // Keep the log small: start over past 256 KB.
+    if (fs.existsSync(file) && fs.statSync(file).size > 256 * 1024) fs.writeFileSync(file, '');
+    fs.appendFileSync(file, line);
+  } catch {
+    // ignore
+  }
+}
+
+process.on('uncaughtException', (err) => {
+  logLine(`uncaughtException: ${err && err.stack ? err.stack : String(err)}`);
+});
+process.on('unhandledRejection', (err) => {
+  logLine(`unhandledRejection: ${err && err.stack ? err.stack : String(err)}`);
+});
+
+// Shell prefs are read before `ready`: vsync is a Chromium switch.
+let shellPrefs = core.parseShellPrefs(readJson('shell-prefs.json'));
+
+// --- Steam ------------------------------------------------------------------------------------
+
+function broadcast(channel, value) {
+  for (const win of BrowserWindow.getAllWindows()) {
+    if (!win.isDestroyed()) win.webContents.send(channel, value);
+  }
+}
 
 function broadcastOverlay(active) {
   const next = Boolean(active);
   if (next === overlayActive) return;
   overlayActive = next;
-  for (const win of BrowserWindow.getAllWindows()) {
-    if (!win.isDestroyed()) {
-      win.webContents.send('steam:overlay-changed', overlayActive);
-    }
-  }
+  broadcast('steam:overlay-changed', overlayActive);
 }
 
 function initSteamworks() {
@@ -115,13 +150,14 @@ function configureChromiumSwitches() {
   // Mark bundled offline origin secure so navigator.clipboard (Save Code / Share) works while
   // keeping BUNDLE_ORIGIN stable for existing persist:skyhold localStorage data.
   app.commandLine.appendSwitch('unsafely-treat-insecure-origin-as-secure', BUNDLE_ORIGIN);
+  for (const sw of core.chromiumSwitchesFor(shellPrefs)) app.commandLine.appendSwitch(sw);
 
-  if (process.env.SKYHOLD_SWIFTSHADER === '1' || process.env.SKYHOLD_SMOKE_TEST === '1') {
+  if (process.env.SKYHOLD_SWIFTSHADER === '1' || isSmokeTest) {
     app.commandLine.appendSwitch('use-gl', 'angle');
     app.commandLine.appendSwitch('use-angle', 'swiftshader');
   }
   if (process.platform === 'linux') {
-    let lowShm = process.env.SKYHOLD_SMOKE_TEST === '1';
+    let lowShm = isSmokeTest;
     if (!lowShm && typeof fs.statfsSync === 'function') {
       try {
         const st = fs.statfsSync('/dev/shm');
@@ -138,7 +174,6 @@ function configureChromiumSwitches() {
 
 configureChromiumSwitches();
 
-const isSmokeTest = process.env.SKYHOLD_SMOKE_TEST === '1';
 const gotSingleInstanceLock = isSmokeTest ? true : app.requestSingleInstanceLock();
 if (!gotSingleInstanceLock) {
   app.quit();
@@ -167,6 +202,18 @@ const knownAchievementIds = (() => {
   }
   return null;
 })();
+
+function isTrustedIpcSender(event) {
+  const senderUrl =
+    (event && event.senderFrame && event.senderFrame.url) ||
+    (event && event.sender && typeof event.sender.getURL === 'function' ? event.sender.getURL() : '');
+  return isAllowedAppOrigin(senderUrl);
+}
+
+function windowOf(event) {
+  const win = event && event.sender ? BrowserWindow.fromWebContents(event.sender) : null;
+  return win && !win.isDestroyed() ? win : null;
+}
 
 ipcMain.on('steam:get-status', (event) => {
   if (!isTrustedIpcSender(event)) {
@@ -244,39 +291,56 @@ ipcMain.handle('steam:cloud-write', async (event, rawSlot, rawJson) => {
   }
 });
 
-function resolveDistFile(distDir, urlPathname) {
-  let decoded = '/';
+// Steam rich presence: a plain `status` line ("Defending <island>") when Steam is running.
+let lastPresence = '';
+ipcMain.on('steam:set-presence', (event, req) => {
+  if (!isTrustedIpcSender(event) || !isSteam || !steamClient) return;
+  const status = core.presenceStatus(req);
+  if (!status || status === lastPresence) return;
+  lastPresence = status;
   try {
-    decoded = decodeURIComponent(urlPathname || '/');
+    if (steamClient.localplayer && typeof steamClient.localplayer.setRichPresence === 'function') {
+      steamClient.localplayer.setRichPresence('status', status);
+    }
   } catch {
-    return null;
+    // presence is cosmetic
   }
-  if (decoded.includes('\0')) return null;
-  const rel = decoded === '/' ? '2d.html' : decoded.replace(/^\/+/, '');
-  const resolved = path.resolve(distDir, rel);
-  const rootWithSep = distDir.endsWith(path.sep) ? distDir : distDir + path.sep;
-  if (resolved !== distDir && !resolved.startsWith(rootWithSep)) return null;
-  return resolved;
+});
+
+// --- desktop shell IPC (window mode, vsync, quit) ------------------------------------------------
+
+function windowMode(win) {
+  return win && win.isFullScreen() ? 'fullscreen' : 'windowed';
 }
 
-function isAllowedAppOrigin(rawOrigin) {
-  if (!rawOrigin) return false;
-  try {
-    const origin = new URL(rawOrigin).origin;
-    if (origin === BUNDLE_ORIGIN) return true;
-    const devUrl = process.env.STEAM_DEV_URL;
-    return Boolean(devUrl && origin === new URL(devUrl).origin);
-  } catch {
-    return false;
+ipcMain.on('desktop:get-state', (event) => {
+  if (!isTrustedIpcSender(event)) {
+    event.returnValue = null;
+    return;
   }
-}
+  event.returnValue = { mode: windowMode(windowOf(event)), vsync: shellPrefs.vsync, platform: process.platform };
+});
 
-function isTrustedIpcSender(event) {
-  const senderUrl =
-    (event && event.senderFrame && event.senderFrame.url) ||
-    (event && event.sender && typeof event.sender.getURL === 'function' ? event.sender.getURL() : '');
-  return isAllowedAppOrigin(senderUrl);
-}
+ipcMain.handle('desktop:set-window-mode', async (event, mode) => {
+  const win = windowOf(event);
+  if (!isTrustedIpcSender(event) || !win || !core.isWindowMode(mode)) return windowMode(win);
+  win.setFullScreen(mode === 'fullscreen');
+  return mode;
+});
+
+ipcMain.handle('desktop:set-vsync', async (event, on) => {
+  if (!isTrustedIpcSender(event) || typeof on !== 'boolean') return shellPrefs.vsync;
+  shellPrefs = { ...shellPrefs, vsync: on };
+  writeJson('shell-prefs.json', shellPrefs);
+  return shellPrefs.vsync;
+});
+
+ipcMain.on('desktop:quit', (event) => {
+  if (!isTrustedIpcSender(event)) return;
+  app.quit();
+});
+
+// --- bundle protocol & session -------------------------------------------------------------------
 
 const ALLOWED_PERMISSIONS = new Set(['clipboard-sanitized-write', 'clipboard-read', 'fullscreen']);
 
@@ -291,6 +355,7 @@ function configureSessionPermissions(ses) {
 }
 
 function registerBundleProtocol(ses, distDir) {
+  // Offline only: nothing but the bundled files ever loads (no https, no other hosts).
   ses.protocol.handle('https', () => new Response('Blocked external request', { status: 403 }));
   ses.protocol.handle('http', async (request) => {
     const parsed = new URL(request.url);
@@ -335,13 +400,131 @@ function loadWindowIcon(distDir) {
   }
 }
 
+/** No browser menu (reload / zoom / DevTools accelerators); macOS keeps the standard app menu. */
+function installMenu() {
+  if (process.platform !== 'darwin') {
+    Menu.setApplicationMenu(null);
+    return;
+  }
+  Menu.setApplicationMenu(
+    Menu.buildFromTemplate([
+      { role: 'appMenu', submenu: [{ role: 'about' }, { type: 'separator' }, { role: 'hide' }, { role: 'hideOthers' }, { role: 'unhide' }, { type: 'separator' }, { role: 'quit' }] },
+      { role: 'editMenu' },
+      { label: 'Window', submenu: [{ role: 'minimize' }, { role: 'togglefullscreen' }, { role: 'close' }] },
+    ]),
+  );
+}
+
+// --- the window ---------------------------------------------------------------------------------
+
+function displayAreas() {
+  try {
+    const primary = screen.getPrimaryDisplay();
+    const all = screen.getAllDisplays();
+    return [primary, ...all.filter((d) => d.id !== primary.id)].map((d) => d.workArea);
+  } catch {
+    return [];
+  }
+}
+
+function trackWindowState(win, initial) {
+  let normal = { width: initial.width, height: initial.height, x: initial.x, y: initial.y };
+  let timer = null;
+  const save = () => {
+    timer = null;
+    if (win.isDestroyed()) return;
+    writeJson('window-state.json', {
+      ...normal,
+      maximized: win.isMaximized(),
+      mode: windowMode(win),
+    });
+  };
+  const capture = () => {
+    if (win.isDestroyed()) return;
+    if (!win.isFullScreen() && !win.isMaximized() && !win.isMinimized()) {
+      const b = win.getBounds();
+      normal = { width: b.width, height: b.height, x: b.x, y: b.y };
+    }
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(save, 400);
+  };
+  const modeChanged = () => {
+    capture();
+    if (!win.isDestroyed()) win.webContents.send('desktop:window-mode-changed', windowMode(win));
+  };
+  win.on('resize', capture);
+  win.on('move', capture);
+  win.on('maximize', capture);
+  win.on('unmaximize', capture);
+  win.on('enter-full-screen', modeChanged);
+  win.on('leave-full-screen', modeChanged);
+  win.on('close', () => {
+    if (timer) clearTimeout(timer);
+    save();
+  });
+}
+
+function hardenWebContents(win) {
+  const wc = win.webContents;
+  wc.setWindowOpenHandler(() => ({ action: 'deny' }));
+  wc.on('will-navigate', (event, targetUrl) => {
+    if (!isAllowedAppOrigin(targetUrl)) event.preventDefault();
+  });
+  wc.on('will-attach-webview', (event) => event.preventDefault());
+  wc.on('before-input-event', (event, input) => {
+    const action = core.shellKeyAction(input, { devTools });
+    if (action === 'fullscreen') {
+      event.preventDefault();
+      win.setFullScreen(!win.isFullScreen());
+    } else if (action === 'devtools') {
+      event.preventDefault();
+      wc.toggleDevTools();
+    } else if (action === 'block') {
+      event.preventDefault();
+    }
+  });
+  // Ctrl+wheel / pinch must not zoom the page: the game has its own Interface size setting.
+  wc.on('zoom-changed', () => wc.setZoomLevel(0));
+  wc.on('did-finish-load', () => {
+    wc.setZoomLevel(0);
+    void wc.setVisualZoomLevelLimits(1, 1).catch(() => undefined);
+  });
+  // A crashed renderer reloads (at most 3 times a minute), then the player gets a message.
+  const crashes = [];
+  wc.on('render-process-gone', (_event, details) => {
+    const reason = details && details.reason;
+    logLine(`render-process-gone: ${reason} (exitCode ${details && details.exitCode})`);
+    if (reason === 'clean-exit' || win.isDestroyed()) return;
+    const now = Date.now();
+    while (crashes.length && now - crashes[0] > 60_000) crashes.shift();
+    crashes.push(now);
+    if (crashes.length <= 3 && !isSmokeTest) {
+      wc.reload();
+      return;
+    }
+    if (!isSmokeTest) {
+      dialog.showErrorBox('Skyhold Isles', `The game stopped unexpectedly (${reason}). Your progress is saved. A log was written to ${path.join(app.getPath('userData'), 'logs', 'shell.log')}.`);
+    }
+    app.exit(1);
+  });
+  wc.on('unresponsive', () => logLine('renderer unresponsive'));
+  wc.on('responsive', () => logLine('renderer responsive again'));
+}
+
 function createMainWindow(ses, distDir) {
   const winIcon = loadWindowIcon(distDir);
+  const state = isSmokeTest
+    ? { width: 1440, height: 810, maximized: false, mode: 'windowed' }
+    : core.parseWindowState(readJson('window-state.json'), displayAreas());
   const win = new BrowserWindow({
-    width: 1440,
-    height: 810,
-    minWidth: 960,
-    minHeight: 540,
+    width: state.width,
+    height: state.height,
+    ...(state.x !== undefined && state.y !== undefined ? { x: state.x, y: state.y } : { center: true }),
+    minWidth: MIN_WINDOW.width,
+    minHeight: MIN_WINDOW.height,
+    fullscreen: state.mode === 'fullscreen',
+    fullscreenable: true,
+    show: false,
     title: 'Skyhold Isles',
     backgroundColor: '#3d5e27',
     autoHideMenuBar: true,
@@ -352,21 +535,18 @@ function createMainWindow(ses, distDir) {
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true,
+      webviewTag: false,
+      navigateOnDragDrop: false,
       spellcheck: false,
+      devTools,
     },
   });
-
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  win.webContents.on('will-navigate', (event, targetUrl) => {
-    try {
-      const u = new URL(targetUrl);
-      const devOrigin = process.env.STEAM_DEV_URL ? new URL(process.env.STEAM_DEV_URL).origin : null;
-      const allowed = u.origin === BUNDLE_ORIGIN || (devOrigin !== null && u.origin === devOrigin);
-      if (!allowed) event.preventDefault();
-    } catch {
-      event.preventDefault();
-    }
-  });
+  if (state.maximized && state.mode !== 'fullscreen') win.maximize();
+  win.once('ready-to-show', () => win.show());
+  // The page title would replace the window title; keep the game's name.
+  win.on('page-title-updated', (event) => event.preventDefault());
+  hardenWebContents(win);
+  trackWindowState(win, state);
 
   const devUrl = process.env.STEAM_DEV_URL;
   const query = process.env.SKYHOLD_QUERY ? `?${process.env.SKYHOLD_QUERY.replace(/^\?/, '')}` : '';
@@ -381,7 +561,9 @@ function createMainWindow(ses, distDir) {
     void win.loadURL(`${BUNDLE_ORIGIN}/2d.html${query}`);
   }
 
-  if (process.env.SKYHOLD_SMOKE_TEST === '1') {
+  if (isSmokeTest) {
+    // Headless smoke runs never get a real `ready-to-show` paint guarantee: show at once.
+    win.show();
     const failedLoads = [];
     win.webContents.on('console-message', (ev) => {
       if (ev && typeof ev === 'object' && 'message' in ev) {
@@ -393,7 +575,8 @@ function createMainWindow(ses, distDir) {
       console.error(`[renderer:did-fail-load] ${code} ${desc} ${url}`);
     });
     const expectsGameplay = Boolean(query);
-    const deadline = Date.now() + 25_000;
+    // SwiftShader on a busy CI box: the title, then the map, can take a while.
+    const deadline = Date.now() + 75_000;
     const poll = async () => {
       if (win.isDestroyed()) return;
       try {
@@ -403,6 +586,7 @@ function createMainWindow(ses, distDir) {
             const boot = bootEl ? bootEl.textContent : null;
             if (bootEl) return { ready: false, boot, href: location.href };
             const hasBridge = Boolean(window.skyholdSteam);
+            const hasDesktop = Boolean(window.skyholdDesktop);
             const secureContext = Boolean(window.isSecureContext);
             const isSteamVal = window.skyholdSteam ? window.skyholdSteam.isSteam : null;
             const appIdVal = window.skyholdSteam ? window.skyholdSteam.appId : null;
@@ -415,6 +599,7 @@ function createMainWindow(ses, distDir) {
                 ready: true,
                 scene: 'game',
                 hasBridge,
+                hasDesktop,
                 secureContext,
                 isSteam: isSteamVal,
                 appId: appIdVal,
@@ -424,18 +609,36 @@ function createMainWindow(ses, distDir) {
                 hero: heroSim ? heroSim.heroId : null,
               };
             }
-            if (!${JSON.stringify(expectsGameplay)} && window.__map && typeof window.__map.islands === 'function') {
-              const islands = window.__map.islands();
+            // The title screen comes first in a fresh session: check its PC Quit plank, then go on.
+            if (window.__title && !window.__map && typeof window.__title.state === 'function') {
+              const phase = window.__title.state().phase;
+              if (phase === 'tap') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+              if (phase === 'menu') {
+                window.__smokeTitleQuit = Boolean(document.querySelector('[data-testid="title2d-quit"]'));
+                const go = document.querySelector('[data-testid="title2d-continue"], [data-testid="title2d-new"]');
+                if (go && !window.__smokeTitleGo) {
+                  window.__smokeTitleGo = true;
+                  setTimeout(() => go.click(), 400);
+                }
+              }
+              return { ready: false, title: phase, href: location.href };
+            }
+            if (!${JSON.stringify(expectsGameplay)} && window.__map && typeof window.__map.chapters === 'function') {
+              const chapters = window.__map.chapters();
               const layout = typeof window.__map.layout === 'function' ? window.__map.layout() : null;
-              if (Array.isArray(islands) && islands.length >= 25 && layout !== null) {
+              const islands = Array.isArray(chapters) ? chapters.reduce((n, c) => n + (c.total || 0), 0) : 0;
+              if (islands >= 25 && layout !== null) {
                 return {
                   ready: true,
                   scene: 'worldMap',
                   hasBridge,
+                  hasDesktop,
                   secureContext,
                   isSteam: isSteamVal,
                   appId: appIdVal,
-                  islands: islands.length,
+                  islands,
+                  titleQuit: window.__smokeTitleQuit === true,
+                  storeVisible: Boolean(document.querySelector('[data-testid^="store"], [data-testid="set2d-store"]')),
                 };
               }
             }
@@ -448,8 +651,11 @@ function createMainWindow(ses, distDir) {
             ...probe,
             achievementsLoaded: achievementsCount,
             failedLoads: failedLoads.length,
+            devTools,
+            menu: Menu.getApplicationMenu() === null ? 'none' : 'app',
           };
-          if (!probe.hasBridge || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 58) {
+          const badScene = probe.scene === 'worldMap' && (!probe.titleQuit || probe.storeVisible);
+          if (badScene || !probe.hasBridge || !probe.hasDesktop || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 63) {
             console.error('[smoke] Invariant failed:', JSON.stringify({ summary, failedLoads }));
             app.exit(1);
             return;
@@ -478,15 +684,28 @@ function createMainWindow(ses, distDir) {
   return win;
 }
 
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('will-attach-webview', (event) => event.preventDefault());
+  contents.setWindowOpenHandler(() => ({ action: 'deny' }));
+});
+
 if (gotSingleInstanceLock) {
   app.whenReady().then(() => {
+    installMenu();
     const distDir = path.resolve(__dirname, '..', 'dist');
     const ses = session.fromPartition(SESSION_PARTITION);
     configureSessionPermissions(ses);
     if (!process.env.STEAM_DEV_URL) {
       registerBundleProtocol(ses, distDir);
     }
-    createMainWindow(ses, distDir);
+    try {
+      createMainWindow(ses, distDir);
+    } catch (err) {
+      logLine(`startup failed: ${err && err.stack ? err.stack : String(err)}`);
+      if (!isSmokeTest) dialog.showErrorBox('Skyhold Isles', `The game could not start: ${err instanceof Error ? err.message : String(err)}`);
+      app.exit(1);
+      return;
+    }
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) createMainWindow(ses, distDir);

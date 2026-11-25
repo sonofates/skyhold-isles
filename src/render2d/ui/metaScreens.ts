@@ -3,7 +3,7 @@
  * 3D build's logic modules (src/data/workshop, src/game/progression + feats, src/data/daily,
  * src/platform/storage settings). Only the views are new; every rule comes from those modules.
  */
-import { getMusicVolume, setMusicVolume } from '../../audio/musicPrefs.ts';
+import { getMusicVolume, getSfxVolume, setMusicVolume, setSfxVolume } from '../../audio/musicPrefs.ts';
 import type { GameSettings, ProgressData } from '../../core/types.ts';
 import { challengesForLevel, type ChallengeId } from '../../data/challenges.ts';
 import { liveStreak, utcDayNumber, type DailyChallenge } from '../../data/daily.ts';
@@ -16,10 +16,10 @@ import { markFeatsSeen, unseenFeats } from './featSeen.ts';
 import { isIslandMastered, starWallet } from '../../game/progression.ts';
 import { isTouchDevice, loadSettings, saveSettings } from '../../platform/storage.ts';
 import { isDesktopClient } from '../renderResolution.ts';
-import { ABILITY_KEYS } from './abilities2d.ts';
-import { HERO_KEYS } from './heroKeys.ts';
-import { ITEM_KEYS } from './marketModel.ts';
-import { announceGraphicsChange, clampUiScale, loadGraphics, reapplyGraphicsSettings, saveGraphics, UI_SCALE_MAX, UI_SCALE_MIN, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
+import { desktopBridge, type DesktopWindowMode } from '../../platform/desktopShell.ts';
+import { eventKey, keyFor, loadKeyBindings, rebind, resetKeyBindings, saveKeyBindings, type KeyAction } from './keyBindings.ts';
+import { keyName } from './padBadges.ts';
+import { announceGraphicsChange, clampUiScale, FPS_CAPS, loadGraphics, reapplyGraphicsSettings, saveGraphics, UI_SCALE_MAX, UI_SCALE_MIN, type EffectsDensity, type FpsCap, type GraphicsSettings } from './graphicsSettings.ts';
 import { branchName, challengeDesc, challengeName, difficultyName, featDesc, featName, islandName, upgradeName, upgradeRankText } from '../../i18n/data.ts';
 import { getLocale, LANGUAGE_NAMES, LOCALES, pct, setLocale, shortDate, t, type Locale, type MsgKey } from '../../i18n/index.ts';
 import { reapplyLocaleSetting, saveLocaleSetting } from '../../i18n/localeSetting.ts';
@@ -423,7 +423,14 @@ function isSettingsTab(v: unknown): v is SettingsTab {
  * A row of small planks, one checked (the language picker's look): Quality, Effects, FPS cap.
  * Picking one re-checks the row and calls `onPick`.
  */
-function choice<T extends string | number>(options: readonly (readonly [T, string])[], current: T, aria: string, testid: string, onPick: (v: T) => void): HTMLElement {
+function choice<T extends string | number>(
+  options: readonly (readonly [T, string])[],
+  current: T,
+  aria: string,
+  testid: string,
+  onPick: (v: T) => void,
+  onButton?: (v: T, b: HTMLButtonElement) => void,
+): HTMLElement {
   const box = el('div', 'pu-tabs pu-lang pu-choice', { role: 'radiogroup', 'aria-label': aria, 'data-testid': testid });
   const buttons: HTMLButtonElement[] = [];
   const mark = (v: T): void =>
@@ -438,6 +445,7 @@ function choice<T extends string | number>(options: readonly (readonly [T, strin
       mark(v);
       onPick(v);
     });
+    onButton?.(v, b);
     buttons.push(b);
     box.append(b);
   }
@@ -522,15 +530,20 @@ export function openSettings(ctx: SettingsContext): Sheet {
           save();
         }),
       ),
-      row(
-        t('set.haptics'),
-        t('set.hapticsNote'),
-        toggle(s.haptics, t('set.haptics'), 'set2d-haptics', (v) => {
-          s.haptics = v;
-          save();
-        }),
-      ),
     ];
+    // Vibration means nothing on a PC: the row only shows where a finger plays.
+    if (touch) {
+      rows.push(
+        row(
+          t('set.haptics'),
+          t('set.hapticsNote'),
+          toggle(s.haptics, t('set.haptics'), 'set2d-haptics', (v) => {
+            s.haptics = v;
+            save();
+          }),
+        ),
+      );
+    }
     // First-play tips and new-foe notes come back (coach on the first island, New tags, toasts).
     const tips = plank(t('set.tipsAgain'), { kind: 'small', testid: 'set2d-tips' });
     tips.addEventListener('click', () => {
@@ -577,9 +590,15 @@ export function openSettings(ctx: SettingsContext): Sheet {
       setMusicVolume(Math.round(v * 100) / 100);
       musicVal.textContent = pct(getMusicVolume());
     });
+    const sfxVal = el('span', 'pu-slider-val pu-ink', {}, pct(getSfxVolume()));
+    const sfx = slider(getSfxVolume(), t('set.sfxAria'), 'set2d-sfx', (v) => {
+      setSfxVolume(Math.round(v * 100) / 100);
+      sfxVal.textContent = pct(getSfxVolume());
+    });
     const volRow = row(t('set.volume'), t('set.volumeNote'), flex(vol, val));
     const musicRow = row(t('set.music'), t('set.musicNote'), flex(music, musicVal));
-    mixRows.push(volRow, musicRow);
+    const sfxRow = row(t('set.sfx'), t('set.sfxNote'), flex(sfx, sfxVal), 'set2d-sfx-row');
+    mixRows.push(volRow, musicRow, sfxRow);
     dimWhenMuted();
     return [
       row(
@@ -593,6 +612,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
       ),
       volRow,
       musicRow,
+      sfxRow,
     ];
   };
 
@@ -665,11 +685,7 @@ export function openSettings(ctx: SettingsContext): Sheet {
         t('set.fpsCap'),
         t('set.fpsCapNote'),
         choice<FpsCap>(
-          [
-            [30, '30'],
-            [60, '60'],
-            [0, t('set.fpsUnlimited')],
-          ],
+          FPS_CAPS.map((c) => [c, c === 0 ? t('set.fpsUnlimited') : String(c)] as const),
           g.fpsCap,
           t('set.fpsCap'),
           'set2d-fpscap',
@@ -717,7 +733,45 @@ export function openSettings(ctx: SettingsContext): Sheet {
       ),
       shakeRow,
     );
-    if (desktop && fullscreenSupported()) {
+    const shell = desktopBridge();
+    if (shell) {
+      // PC build: windowed / borderless fullscreen through the shell (F11 / Alt+Enter too), and
+      // vsync, a startup switch of the shell (applies after a restart).
+      const modeButtons: [DesktopWindowMode, HTMLElement][] = [];
+      const mode = choice<DesktopWindowMode>(
+        [
+          ['windowed', t('set.displayWindowed')],
+          ['fullscreen', t('set.displayFullscreen')],
+        ],
+        shell.getWindowMode(),
+        t('set.display'),
+        'set2d-display',
+        (v) => void shell.setWindowMode(v),
+        (v, b) => modeButtons.push([v, b]),
+      );
+      const off = shell.onWindowModeChange((m) => {
+        if (!mode.isConnected) return off();
+        for (const [v, b] of modeButtons) {
+          b.setAttribute('aria-checked', String(v === m));
+          b.setAttribute('aria-selected', String(v === m));
+        }
+      });
+      rows.push(row(t('set.display'), t('set.displayNote'), mode, 'set2d-display-row'));
+      const startVsync = shell.getVsync();
+      const vsyncNote = el('small', 'pu-ink-soft', {}, t('set.vsyncNote'));
+      rows.push(
+        el(
+          'div',
+          'pu-set-row',
+          { 'data-testid': 'set2d-vsync-row' },
+          el('div', 'pu-ink', {}, t('set.vsync'), vsyncNote),
+          toggle(startVsync, t('set.vsync'), 'set2d-vsync', (v) => {
+            void shell.setVsync(v);
+            vsyncNote.textContent = v === startVsync ? t('set.vsyncNote') : t('set.vsyncRestart');
+          }),
+        ),
+      );
+    } else if (desktop && fullscreenSupported()) {
       const fs = toggle(!!document.fullscreenElement, t('set.fullscreen'), 'set2d-fullscreen', (v) => {
         const done = v ? document.documentElement.requestFullscreen() : document.exitFullscreen();
         void done.catch(() => fs.setAttribute('aria-checked', String(!!document.fullscreenElement)));
@@ -747,20 +801,84 @@ export function openSettings(ctx: SettingsContext): Sheet {
     const phone = touch && !desktop;
     const line = (k: MsgKey): HTMLElement => el('div', 'pu-key-row pu-ink', {}, t(k));
     if (touch) out.push(section(t('set.touch'), line('touch.build'), line('touch.hero'), line('touch.ability'), line('touch.cancel'), line(phone ? 'touch.panPhone' : 'touch.pan'), ...(phone ? [line('touch.zoom')] : [])));
+    // Battle keys are rebindable (keyBindings.ts): each cap is a button; click it, press a key.
+    const bindCaps: [KeyAction, HTMLButtonElement][] = [];
+    let capturing: { action: KeyAction; cap: HTMLButtonElement } | null = null;
+    const paintCaps = (): void => {
+      for (const [a, cap] of bindCaps) {
+        const waiting = capturing?.cap === cap;
+        cap.textContent = waiting ? t('set.rebindWait') : keyName(keyFor(a));
+        cap.classList.toggle('waiting', waiting);
+      }
+    };
+    const swallowUp = (e: KeyboardEvent): void => {
+      // The key that was just bound must not also press the focused cap on its way up (Space).
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      window.removeEventListener('keyup', swallowUp, true);
+    };
+    const stopCapture = (): void => {
+      window.removeEventListener('keydown', onCaptureKey, true);
+      capturing = null;
+      paintCaps();
+    };
+    const onCaptureKey = (e: KeyboardEvent): void => {
+      // Settings closed (or the tab changed) while waiting: let go of the keyboard.
+      if (!capturing || !capturing.cap.isConnected) {
+        stopCapture();
+        return;
+      }
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      if (e.key === 'Escape') {
+        stopCapture();
+        return;
+      }
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      const k = eventKey(e);
+      if (!k) return; // not bindable (arrows, Tab, F-keys…): keep waiting
+      saveKeyBindings(rebind(loadKeyBindings(), capturing.action, k));
+      window.addEventListener('keyup', swallowUp, true);
+      stopCapture();
+    };
+    const bindCap = (action: KeyAction, what: string): HTMLButtonElement => {
+      const cap = el('button', 'pu-key pu-letter pu-key-bind', { type: 'button', 'data-testid': `set2d-key-${action}`, 'aria-label': t('key.rebindAria', { what }) }, keyName(keyFor(action)));
+      cap.addEventListener('click', () => {
+        if (capturing) stopCapture();
+        capturing = { action, cap };
+        window.addEventListener('keydown', onCaptureKey, true);
+        paintCaps();
+      });
+      cap.addEventListener('blur', () => {
+        if (capturing?.cap === cap) stopCapture();
+      });
+      bindCaps.push([action, cap]);
+      return cap;
+    };
+    const bindRow = (actions: readonly KeyAction[], what: string): HTMLElement =>
+      el('div', 'pu-key-row', {}, el('span', 'pu-key-caps', {}, ...actions.map((a) => bindCap(a, what))), el('span', 'pu-ink', {}, what));
+    const resetKeys = plank(t('set.keysReset'), { kind: 'small', testid: 'set2d-keys-reset' });
+    resetKeys.addEventListener('click', () => {
+      resetKeyBindings();
+      paintCaps();
+      resetKeys.querySelector('span')!.textContent = t('set.keysResetDone');
+    });
     if (!phone) out.push(
       section(
         t('set.keyboard'),
-        keyRow([t('key.space')], t('key.pause')),
-        keyRow(['1'], t('key.speed1')),
-        keyRow(['2'], t('key.speed2')),
-        keyRow(['3'], t('key.speed3')),
-        keyRow(['N'], t('key.wave')),
-        keyRow([ABILITY_KEYS.meteor], t('key.meteor')),
-        keyRow([ABILITY_KEYS.overcharge], t('key.overcharge')),
-        keyRow([...ITEM_KEYS], t('key.item')),
-        keyRow([HERO_KEYS.select], t('key.heroSelect')),
-        keyRow([HERO_KEYS.skill0], t('key.heroSkill1')),
-        keyRow([HERO_KEYS.skill1], t('key.heroSkill2')),
+        el('div', 'pu-key-row pu-key-note pu-ink-soft', {}, t('set.rebindNote')),
+        bindRow(['pause'], t('key.pause')),
+        bindRow(['speed1'], t('key.speed1')),
+        bindRow(['speed2'], t('key.speed2')),
+        bindRow(['speed3'], t('key.speed3')),
+        bindRow(['wave'], t('key.wave')),
+        bindRow(['meteor'], t('key.meteor')),
+        bindRow(['overcharge'], t('key.overcharge')),
+        bindRow(['item0', 'item1', 'item2'], t('key.item')),
+        bindRow(['heroSelect'], t('key.heroSelect')),
+        bindRow(['heroSkill0'], t('key.heroSkill1')),
+        bindRow(['heroSkill1'], t('key.heroSkill2')),
+        el('div', 'pu-key-row', {}, resetKeys),
         keyRow([t('key.esc')], t('key.cancel')),
         keyRow(['↑', '↓', '←', '→'], t('key.cursor')),
         keyRow([t('key.enter')], t('key.cursorPress')),

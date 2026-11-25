@@ -38,6 +38,8 @@ import { anySheetOpen, el, glyph, img, KIT, medal, roundButton, starsRow } from 
 import { fetchMapsManifest, islandMapUrl, prefetchLevelArt, type MapsManifest } from './islandArt.ts';
 import { routeMarks, scrollToCentre, worldMapLayout, type RouteMark, type WorldMapLayout } from './mapLayout.ts';
 import { dailyFor2D, openDaily, openLogbook, openSettings, openWorkshop, type MetaContext } from './metaScreens.ts';
+import { escOpensGameMenu, openGameMenu } from './gameMenu2d.ts';
+import { setPresence } from '../../platform/desktopShell.ts';
 import { unseenFeats } from './featSeen.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
 import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
@@ -791,6 +793,10 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
       // Past the route's end the arrows turn the chapter page (not while walking the chapter tabs).
       if (!inBar && atEdge(dir) && (dir < 0 ? page > 0 : page < pages.length - 1)) showPage(page + dir);
       else if (!inBar) panBy(dir);
+    } else if (escOpensGameMenu(e)) {
+      // PC: Esc with nothing open shows the game menu (Resume / Settings / Quit game).
+      e.preventDefault();
+      openGameMenu({ openSettings: () => openSettings(ctx) });
     }
   });
 
@@ -800,6 +806,7 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   const frontierIdx = Math.max(0, Math.min(levels.length - 1, progress.unlockedLevelIndex));
   page = Number.isInteger(qChapter) && qChapter >= 1 && qChapter <= pages.length ? qChapter - 1 : pageOfIsland(pages, frontierIdx);
   refresh();
+  setPresence('map');
   window.__map = {
     layout: () => layout,
     islands: () =>

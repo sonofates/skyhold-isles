@@ -570,7 +570,8 @@ describe('Steam achievements map, cloud hydration, and desktop config invariants
       'CROWN_ALL_ISLANDS',
     ];
     expect(STEAM_ACHIEVEMENTS.slice(0, legacy28.length).map((a) => a.id)).toEqual(legacy28);
-    expect(STEAM_ACHIEVEMENTS.length).toBe(58);
+    // 58 before the PC release + 5 for Chapters 4 and 5 (appended, tests/platform/desktopShell.test.ts).
+    expect(STEAM_ACHIEVEMENTS.length).toBe(63);
 
     const fresh25 = createDefaultProgress(LEVELS_2D.length);
     fresh25.heroes = createFreshHeroSaveData();

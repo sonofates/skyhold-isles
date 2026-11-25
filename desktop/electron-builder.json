@@ -10,6 +10,7 @@
     "!dist/sw.js",
     "desktop/main.cjs",
     "desktop/preload.cjs",
+    "desktop/shellCore.cjs",
     "desktop/achievements.json",
     "package.json",
     "!node_modules/**/*",

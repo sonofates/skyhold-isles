@@ -288,5 +288,30 @@
     "id": "DAILY_TOTAL_20",
     "name": "Weatherproof Warden",
     "description": "Win 20 Daily Squalls"
+  },
+  {
+    "id": "CHAPTER_FOUR_LANDING",
+    "name": "First Thaw",
+    "description": "Clear your first Chapter 4 island"
+  },
+  {
+    "id": "CHAPTER_FOUR_CLEARED",
+    "name": "Frostveil Charted",
+    "description": "Clear all 9 Chapter 4 islands"
+  },
+  {
+    "id": "CHAPTER_FOUR_THREE_STARS",
+    "name": "Rime and Radiance",
+    "description": "Earn 3 stars on every Chapter 4 island"
+  },
+  {
+    "id": "BOSS_I36_CLEARED",
+    "name": "Warden of the Ice Gate",
+    "description": "Defeat the Glacier Warden and clear the last Frostveil island"
+  },
+  {
+    "id": "CHAPTER_FIVE_LANDING",
+    "name": "Into the Dusk",
+    "description": "Clear your first Chapter 5 island"
   }
 ]

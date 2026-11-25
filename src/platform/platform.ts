@@ -24,6 +24,8 @@ export interface SteamBridge {
   cloudWrite(slot: string, json: string): Promise<boolean>;
   getOverlayActive?(): boolean;
   onOverlayChange?(listener: (active: boolean) => void): () => void;
+  /** Steam rich presence (`status` line); see src/platform/desktopShell.ts `setPresence`. */
+  setPresence?(state: string, island?: string): void;
 }
 
 export type MobilePlatformName = 'ios' | 'android' | 'web';

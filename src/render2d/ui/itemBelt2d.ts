@@ -25,7 +25,8 @@ import { ItemFx } from '../itemFx.ts';
 import type { Rect } from '../uiLayout.ts';
 import { anySheetOpen, el, img, KIT } from './dom.ts';
 import { readMarket2D } from './market2d.ts';
-import { beltIds, beltKeyIndex, beltPress, beltStateKey, beltView, itemIconUrl, type BeltRunState, type BeltSlotView } from './marketModel.ts';
+import { beltIds, beltKeyIndex, beltPress, beltStateKey, beltView, itemIconUrl, itemKeys, type BeltRunState, type BeltSlotView } from './marketModel.ts';
+import { badgeLabel, eventKey } from './keyBindings.ts';
 import { tipKey } from './padBadges.ts';
 import './itemBelt2d.css';
 
@@ -113,7 +114,7 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
     btn.append(frame, icon, pips, stockEl, lock, cancel);
     let keyChip: HTMLSpanElement | null = null;
     if (opts.desktop) {
-      keyChip = el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, ['Z', 'X', 'C'][i] ?? '');
+      keyChip = el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true' }, badgeLabel(itemKeys()[i] ?? ''));
       btn.append(keyChip);
     }
     btn.addEventListener('click', (e) => {
@@ -431,7 +432,7 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
         return;
       }
       if (e.repeat || !visible) return;
-      const i = beltKeyIndex(e.key, slots.length);
+      const i = beltKeyIndex(eventKey(e) ?? '', slots.length);
       if (i >= 0) {
         e.preventDefault();
         press(slots[i].id);
@@ -457,8 +458,9 @@ export function mountItemBelt2D(game: Game2D, opts: ItemBeltOptions): ItemBelt2D
   };
   const currentView = (): BeltSlotView[] => beltView(slots.map((s) => s.id), game.world.itemSystem.belt(), stock, runState());
   const sync = (s: Slot, v: BeltSlotView): void => {
-    const key = `${v.state}|${v.uses}|${v.owned}|${v.state === 'reserve' ? need : 0}`;
+    const key = `${v.state}|${v.uses}|${v.owned}|${v.state === 'reserve' ? need : 0}|${v.key}`;
     if (key === s.key) return;
+    if (s.keyChip) s.keyChip.textContent = badgeLabel(v.key);
     // A locked charge opening is a moment: pop the medallion (and buzz on a phone).
     if (s.view?.state === 'reserve' && v.state !== 'reserve' && v.uses > 0) {
       s.btn.classList.remove('cast-pop');

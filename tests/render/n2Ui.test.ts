@@ -204,7 +204,8 @@ describe('pad cursor (padCursor.ts)', () => {
   it('nearest target and the pad buttons the run understands', () => {
     expect(nearestPoint({ x: 0, y: 0 }, [])).toBe(-1);
     expect(nearestPoint({ x: 10, y: 10 }, [{ x: 100, y: 0 }, { x: 12, y: 14 }, { x: -50, y: 9 }])).toBe(1);
-    expect(padKey('x')).toBe('n');
+    // The bound keys (keyBindings.ts defaults; the horn's N is the binding label, matched case-free).
+    expect(padKey('x')).toBe('N');
     expect(padKey('y')).toBe('H');
     expect(padKey('lb')).toBe('Q');
     expect(padKey('rb')).toBe('W');

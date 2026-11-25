@@ -107,7 +107,10 @@ export function isDesktopClient(query?: URLSearchParams): boolean {
   const forced = query?.get('desktop');
   if (forced === '1') return true;
   if (forced === '0') return false;
-  if (typeof window === 'undefined' || typeof window.matchMedia !== 'function') return false;
+  if (typeof window === 'undefined') return false;
+  // The PC build (Electron shell) is always a desktop, touchscreen laptop or not.
+  if (window.skyholdDesktop) return true;
+  if (typeof window.matchMedia !== 'function') return false;
   const mq = (q: string): boolean => window.matchMedia(q).matches;
   return mq('(pointer: fine)') && mq('(hover: hover)') && !mq('(pointer: coarse)');
 }

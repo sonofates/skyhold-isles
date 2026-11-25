@@ -13,11 +13,19 @@ import type { AbilityId } from '../../core/types.ts';
 import { ABILITY_DEFS, ABILITY_IDS, computeMeteorDamage } from '../../data/abilities.ts';
 import { num, pct, t } from '../../i18n/index.ts';
 import type { SimWorld } from '../../sim/world.ts';
+import { keyFor } from './keyBindings.ts';
 
 export { ABILITY_IDS };
 
-/** Desktop shortcuts (1 / 2 already pick the game speed). */
-export const ABILITY_KEYS: Readonly<Record<AbilityId, string>> = { meteor: 'Q', overcharge: 'W' };
+/** Desktop shortcuts, live from Settings → Controls (keyBindings.ts; default Q / W). */
+export const ABILITY_KEYS: Readonly<Record<AbilityId, string>> = {
+  get meteor(): string {
+    return keyFor('meteor');
+  },
+  get overcharge(): string {
+    return keyFor('overcharge');
+  },
+};
 
 /** The slice of SimWorld the abilities read (a real SimWorld in game and tests). */
 export type AbilityWorld = Pick<SimWorld, 'mods' | 'outcome' | 'waveSystem' | 'abilitySystem' | 'towers' | 'castMeteor' | 'castOvercharge'>;
