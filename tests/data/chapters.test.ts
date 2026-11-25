@@ -65,11 +65,11 @@ describe('chapter list', () => {
       expect(c.islands, c.id).toHaveLength(9);
       expect(c.islands.at(-1), c.id).toBe(c.finale);
     }
-    expect(CHAPTERS.map((c) => c.finale)).toEqual(['i09', 'i16', 'i24', null, null]);
-    for (const c of CHAPTERS.slice(3)) {
-      expect(c.status).toBe('soon');
-      expect(c.islands).toEqual([]);
-    }
+    expect(CHAPTERS.map((c) => c.finale)).toEqual(['i09', 'i16', 'i24', 'i36', null]);
+    // Chapter 4 (docs/chapter4-plan.md): nine slots i28-i36, coming soon until its islands land.
+    expect(CHAPTERS[3].islands).toEqual(Array.from({ length: 9 }, (_, i) => `i${28 + i}`));
+    for (const c of CHAPTERS.slice(3)) expect(c.status).toBe('soon');
+    expect(CHAPTERS[4].islands).toEqual([]);
     expect(new Set(CAMPAIGN_ORDER).size).toBe(CAMPAIGN_ORDER.length);
   });
 
