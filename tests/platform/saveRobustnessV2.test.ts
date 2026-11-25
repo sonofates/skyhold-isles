@@ -175,6 +175,8 @@ function buildRich25IslandSave(): ProgressData {
     p.challengeClears[i] = challengesForLevel(LEVELS_2D[i]).slice(0, (i % 2) + 1);
   }
   p.workshop = maxedWorkshopRanks();
+  // Every island is won, the campaign finale (i45) included: such a save is complete (docs/handoff-ending.md).
+  p.campaignComplete = true;
   p.daily = { lastDay: 20_620, streak: 9, bestStreak: 14, total: 23 };
   p.heroes = {
     selectedHero: 'sela',

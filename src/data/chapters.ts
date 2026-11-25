@@ -107,7 +107,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     blurbKey: 'chapter.ch5.blurb',
     islands: ['i37', 'i38', 'i39', 'i40', 'i41', 'i42', 'i43', 'i44', 'i45'],
     finale: 'i45',
-    playableThrough: 'i42',
+    playableThrough: 'i45',
     status: 'playable',
     accent: '#8a6cc8',
     sea: [0.78, 0.68, 1.0, 0.7],

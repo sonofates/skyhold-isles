@@ -1,4 +1,4 @@
-"""Bake the Eclipse Skies wind masks and their decoded test fixtures."""
+"""Bake the Eclipse Skies surface masks and their decoded test fixtures."""
 import argparse
 import json
 from pathlib import Path
@@ -40,13 +40,23 @@ def bake(island, recipe):
     elif island == 'i41':
         # Violet cloud banks below the ruined west and east parapets.
         paint = ((x < 390) | (x > 1480)) & (y > 615) & (b > r + 15) & (b > g + 22) & (r > 65)
-    else:
+    elif island == 'i42':
         # The heated bed of the chain trough between the two lower counterweight houses.
         paint = (x > 625) & (x < 1230) & (y > 645) & (y < 760) & (r > 91) & (r > g + 34) & (g > b + 12)
+    elif island == 'i43':
+        # Incandescent metal in the rim channels and on the face of the anvil.
+        rim = (x < 285) | (x > 1560) | (y < 157) | (y > 685)
+        paint = rim & (r > 159) & (r > g + 47) & (g > b + 17)
+    elif island == 'i44':
+        # The violet cloud below the library's cutaway vaults.
+        paint = (y > 745) & (b > r + 16) & (b > g + 28)
+    else:
+        # Cloud banks beneath the throne terrace, between the surviving piers.
+        paint = (y > 744) & (b > r + 11) & (b > g + 18)
     mask = ImageChops.darker(roads, ImageChops.invert(solids))
     mask = ImageChops.darker(mask, Image.fromarray(np.uint8(paint) * 255))
     mask = ImageChops.darker(mask, mask.filter(ImageFilter.GaussianBlur(2)))
-    stem = 'haze' if island in ('i40', 'i42') else 'sway'
+    stem = 'haze' if island in ('i40', 'i42', 'i43') else 'sway'
     path = ART / f'life/{island}-{stem}.webp'
     mask.resize((w // 2, h // 2), Image.Resampling.BOX).save(path, lossless=True, method=6)
     write_fixture(island, stem, path)
@@ -54,7 +64,7 @@ def bake(island, recipe):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('islands', nargs='+', choices=['i37', 'i38', 'i39', 'i40', 'i41', 'i42'])
+    parser.add_argument('islands', nargs='+', choices=['i37', 'i38', 'i39', 'i40', 'i41', 'i42', 'i43', 'i44', 'i45'])
     recipes = json.loads((ROOT / 'tools/map-compose/campaign.json').read_text())
     for island in parser.parse_args().islands:
         bake(island, recipes[island])

@@ -161,7 +161,7 @@ describe('Electron shell policy (desktop/shellCore.cjs)', () => {
 });
 
 describe('Steam achievements for Chapters 4 and 5', () => {
-  const late = ['CHAPTER_FOUR_LANDING', 'CHAPTER_FOUR_CLEARED', 'CHAPTER_FOUR_THREE_STARS', 'BOSS_I36_CLEARED', 'CHAPTER_FIVE_LANDING'];
+  const late = ['CHAPTER_FOUR_LANDING', 'CHAPTER_FOUR_CLEARED', 'CHAPTER_FOUR_THREE_STARS', 'BOSS_I36_CLEARED', 'CHAPTER_FIVE_LANDING', 'CHAPTER_FIVE_CLEARED', 'CHAPTER_FIVE_THREE_STARS'];
 
   it('are appended after the older 58 (no existing index moves) and listed in desktop/achievements.json', () => {
     expect(STEAM_ACHIEVEMENTS.slice(58).map((a) => a.id)).toEqual(late);
@@ -189,15 +189,26 @@ describe('Steam achievements for Chapters 4 and 5', () => {
     expect(earned.has('CHAPTER_FOUR_THREE_STARS')).toBe(true);
     expect(earned.has('BOSS_I36_CLEARED')).toBe(true);
     expect(earned.has('CHAPTER_FIVE_LANDING')).toBe(false);
-    // Chapter 5: landing as soon as one of its islands is cleared (cleared / 3-star wait for i45).
-    const present5 = ch5.filter((id) => idx(id) >= 0);
-    expect(present5.length).toBeGreaterThan(0);
-    for (const id of present5) {
+    // Chapter 5: landing on its first clear; cleared / 3-star need all nine (i37..i45 by id).
+    expect(ch5.every((id) => idx(id) >= 0)).toBe(true);
+    p.clears[idx('i37')] = 1;
+    p.bestStars[idx('i37')] = 3;
+    earned = new Set(earnedSteamAchievementIds(p, LEVELS_2D));
+    expect(earned.has('CHAPTER_FIVE_LANDING')).toBe(true);
+    expect(earned.has('CHAPTER_FIVE_CLEARED')).toBe(false);
+    for (const id of ch5.filter((x) => x !== 'i45')) {
       p.clears[idx(id)] = 1;
       p.bestStars[idx(id)] = 3;
     }
     earned = new Set(earnedSteamAchievementIds(p, LEVELS_2D));
-    expect(earned.has('CHAPTER_FIVE_LANDING')).toBe(true);
-    expect(STEAM_ACHIEVEMENTS.some((a) => a.id === 'CHAPTER_FIVE_CLEARED')).toBe(false);
+    expect(earned.has('CHAPTER_FIVE_CLEARED')).toBe(false);
+    p.clears[idx('i45')] = 1;
+    p.bestStars[idx('i45')] = 2;
+    earned = new Set(earnedSteamAchievementIds(p, LEVELS_2D));
+    expect(earned.has('CHAPTER_FIVE_CLEARED')).toBe(true);
+    expect(earned.has('CHAPTER_FIVE_THREE_STARS')).toBe(false);
+    p.bestStars[idx('i45')] = 3;
+    earned = new Set(earnedSteamAchievementIds(p, LEVELS_2D));
+    expect(earned.has('CHAPTER_FIVE_THREE_STARS')).toBe(true);
   });
 });

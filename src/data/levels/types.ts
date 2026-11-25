@@ -89,6 +89,8 @@ export interface LevelDef {
   readonly startingGold: number;
   readonly enemyHpScale?: number;
   readonly waveHpGrowth?: number;
+  /** Each listed foe must be stopped to win this island's story encounter. */
+  readonly defeatOnStoryLeak?: readonly EnemyType[];
   /** Optional hex casting reach in world units for maps with sheltered build sites. */
   readonly hexRadius?: number;
   readonly waves: readonly WaveDef[];

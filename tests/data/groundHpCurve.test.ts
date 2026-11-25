@@ -50,6 +50,9 @@ const baseline = [
   ['i40', 2.65, 8.444509],
   ['i41', 1.7, 5.417232],
   ['i42', 2.16, 6.883071],
+  ['i43', 3.22, 10.260875],
+  ['i44', 1.8, 6.166085],
+  ['i45', 1.8, 6.166085],
 ] as const;
 
 // Named opening packs (Dusk Hounds) carry their own HP on top of the story curve.
@@ -67,6 +70,7 @@ const finaleHp: Record<string, Record<string, number>> = {
   i34: { golem: 3 }, i35: { kilnback: 2.4 }, i36: { glacier_warden: 1.15, sledguard: 3 },
   i37: { golem: 2.81, sledguard: 1.3 }, i38: { sledguard: 2.75 }, i39: { 'kilnback:1': 3.54, duskhound: 1.5 },
   i40: { sledguard: 2.1 }, i41: { 'golem:1': 2.9 }, i42: { 'kilnback:1': 2.4 },
+  i43: { sledguard: 3.4 }, i44: { 'sledguard:1': 6.12 }, i45: { eclipse_sovereign: 1.35, 'duskhound:2': 8 },
 };
 
 it.each(baseline)('%s keeps its first and last story wave ground HP within ten percent', (id, first, last) => {

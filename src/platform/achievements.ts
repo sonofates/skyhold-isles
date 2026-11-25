@@ -631,10 +631,9 @@ const lateChapterAchievements: readonly SteamAchievementDef[] = [
       return idx >= 0 && isIslandClearedAt(progress, idx);
     },
   },
-  // Chapter 5 is still being authored (i40–i45): only its first clear for now. CHAPTER_FIVE_CLEARED /
-  // _THREE_STARS (and a BOSS_I45_CLEARED) come with its last island (proposals in the handoff), so a
-  // fully finished save can always earn every listed achievement (qa/bot/saveSweep.ts).
-  ...chapterSetAchievements('ch5', 'FIVE', 5, { landing: 'Into the Dusk', cleared: 'Eclipse Skies Charted', stars: 'Light Beyond the Eclipse' }).slice(0, 1),
+  // Chapter 5 is complete (i37–i45): first clear, all nine cleared and all nine at three stars.
+  // A BOSS_I45_CLEARED / CAMPAIGN_COMPLETE pair stays an owner-gated proposal (docs/handoff-ending.md).
+  ...chapterSetAchievements('ch5', 'FIVE', 5, { landing: 'Into the Dusk', cleared: 'Eclipse Skies Charted', stars: 'Light Beyond the Eclipse' }),
 ];
 
 export const STEAM_ACHIEVEMENTS: readonly SteamAchievementDef[] = [

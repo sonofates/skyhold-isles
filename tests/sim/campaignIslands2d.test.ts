@@ -323,6 +323,7 @@ describe('per-chapter wave-count curve and adjustWaveCount', () => {
       { ids: ['i35', 'i36'], min: 15, max: 15 },
       { ids: ['i37', 'i38', 'i39'], min: 14, max: 14 },
       { ids: ['i40', 'i41', 'i42'], min: 15, max: 15 },
+      { ids: ['i43', 'i44', 'i45'], min: 15, max: 16 },
     ] as const;
     for (const { ids: chapterIds, min, max } of chapters) {
       const counts = chapterIds.map((id) => getLevelById(id)!.waves.length);

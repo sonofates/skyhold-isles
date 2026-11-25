@@ -35,8 +35,8 @@ import { pageFrontier } from '../../src/render2d/ui/worldMap.ts';
 
 const ids = (levels: readonly { id: string }[]): string[] => levels.map((l) => l.id);
 const FROSTVEIL = ['i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36'];
-const ECLIPSE = ['i37', 'i38', 'i39', 'i40', 'i41', 'i42'];
-const UNPUBLISHED = ['i43', 'i44', 'i45'];
+const ECLIPSE_SLOTS = ['i37', 'i38', 'i39', 'i40', 'i41', 'i42', 'i43', 'i44', 'i45'];
+const ECLIPSE = ECLIPSE_SLOTS.filter(id => PLAYABLE_ISLAND_IDS.includes(id));
 /** The real roster: the three new islands (i25 Galeglass Orrery, i26, i27) are registered. */
 const WITH_NEW: readonly LevelDef[] = LEVELS_2D;
 /** A synthetic pool with two chapter slots unfilled (i25 in Chapter 2, i27 in Chapter 3). */
@@ -61,7 +61,7 @@ function memStorage(): Storage {
 afterEach(() => vi.unstubAllGlobals());
 
 describe('chapter list', () => {
-  it('five playable chapters reserve nine slots each and publish six Eclipse islands', () => {
+  it('five playable chapters reserve nine slots each and end at Eclipse Throne', () => {
     expect(PROLOGUE.islands).toEqual(['l1c']);
     expect(CHAPTERS.map((c) => c.n)).toEqual([1, 2, 3, 4, 5]);
     for (const c of CHAPTERS) {
@@ -70,7 +70,7 @@ describe('chapter list', () => {
       expect(c.islands.at(-1), c.id).toBe(c.finale);
     }
     expect(CHAPTERS.map((c) => c.finale)).toEqual(['i09', 'i16', 'i24', 'i36', 'i45']);
-    expect(chapterOf('i37')).toMatchObject({ islands: [...ECLIPSE, ...UNPUBLISHED], playableThrough: 'i42' });
+    expect(chapterOf('i37')).toMatchObject({ islands: ECLIPSE_SLOTS, playableThrough: 'i45' });
     expect(new Set(CAMPAIGN_ORDER).size).toBe(CAMPAIGN_ORDER.length);
   });
 
@@ -99,10 +99,10 @@ describe('chapter list', () => {
 });
 
 describe('LEVELS_2D order comes from the chapters', () => {
-  it('orders all 43 shipping islands through Chainward Bastion', () => {
-    expect(CAMPAIGN_ORDER).toEqual([...ids(LEVELS_2D), ...UNPUBLISHED]);
+  it('orders the published islands through Eclipse Throne', () => {
+    expect(ids(LEVELS_2D)).toEqual(CAMPAIGN_ORDER.filter(id => PLAYABLE_ISLAND_IDS.includes(id)));
     expect(PLAYABLE_ISLAND_IDS).toEqual(ids(LEVELS_2D));
-    expect(LEVELS_2D).toHaveLength(43);
+    expect(ids(LEVELS_2D).slice(-3)).toEqual(['i43', 'i44', 'i45']);
     // The new islands moved i16..i24 off their flat (pre-chapter) indexes.
     expect(ids(LEVELS_2D)).not.toEqual([...LEGACY_2D_ORDER]);
     for (const l of LEVELS_2D) expect(chapterOf(l.id), l.id).not.toBeNull();
@@ -118,12 +118,12 @@ describe('LEVELS_2D order comes from the chapters', () => {
     const order = ids(WITH_NEW);
     expect(order.slice(order.indexOf('i15'), order.indexOf('i17'))).toEqual(['i15', 'i25', 'i26', 'i16']);
     expect(order.slice(order.indexOf('i23'))).toEqual(['i23', 'i27', 'i24', ...FROSTVEIL, ...ECLIPSE]);
-    expect(order).toHaveLength(43);
+    expect(order).toHaveLength(37 + ECLIPSE.length);
   });
 
   it('the first four chapters each show their nine islands', () => {
     const pages = chapterPages(ids(LEVELS_2D));
-    expect(pages.map((p) => p.own.length)).toEqual([9, 9, 9, 9, 6]);
+    expect(pages.map((p) => p.own.length)).toEqual([9, 9, 9, 9, ECLIPSE.length]);
     expect(pages[0].indexes).toEqual([0, ...pages[0].own]);
     expect(ids(pages[1].own.map((i) => LEVELS_2D[i]))).toEqual([...CHAPTERS[1].islands]);
     expect(ids(pages[2].own.map((i) => LEVELS_2D[i]))).toEqual([...CHAPTERS[2].islands]);
@@ -133,7 +133,7 @@ describe('LEVELS_2D order comes from the chapters', () => {
 
   it('missing slots leave a shorter chapter page that still works', () => {
     const pages = chapterPages(ids(PARTIAL));
-    expect(pages.map((p) => p.own.length)).toEqual([9, 8, 8, 9, 6]);
+    expect(pages.map((p) => p.own.length)).toEqual([9, 8, 8, 9, ECLIPSE.length]);
     // Chapter 1's page leads with the Prologue.
     expect(pages[0].indexes).toEqual([0, ...pages[0].own]);
     expect(ids(pages[1].own.map((i) => PARTIAL[i]))).toEqual(['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i26', 'i16']);
@@ -193,10 +193,16 @@ describe('unlock chain', () => {
     expect(cardsDue(chapters(), due.seen).title).toBeNull();
     for (const id of ECLIPSE) {
       expect(roster[p.unlockedLevelIndex].id).toBe(id);
+      expect(chapters().find(c => c.chapter.id === 'ch5')!.complete).toBe(false);
       win(id);
     }
-    expect(chapters().find(c => c.chapter.id === 'ch5')).toMatchObject({ opened: true, cleared: 6, total: 6, complete: false });
-    expect(cardsDue(chapters(), due.seen).done).toBeNull();
+    expect(chapters().find(c => c.chapter.id === 'ch5')).toMatchObject({
+      opened: true, cleared: ECLIPSE.length, total: ECLIPSE.length, complete: true,
+    });
+    const finalCard = cardsDue(chapters(), due.seen);
+    expect(finalCard).toMatchObject({ done: { id: 'ch5' }, title: null });
+    expect(nextChapter(finalCard.done!)).toBeNull();
+    expect(cardsDue(chapters(), finalCard.seen)).toMatchObject({ done: null, title: null });
     expect(chapters()[1]).toMatchObject({ cleared: 9, total: 9, stars: 18, maxStars: 27 });
   });
 
@@ -222,10 +228,7 @@ describe('unlock chain', () => {
     expect(nextIslandOpen('i36', true)).toBeUndefined();
     expect(nextIslandOpen('i37', true)?.id).toBe('i38');
     expect(nextIslandOpen('i38', true)?.id).toBe('i39');
-    expect(nextIslandOpen('i39', true)?.id).toBe('i40');
-    expect(nextIslandOpen('i40', true)?.id).toBe('i41');
-    expect(nextIslandOpen('i41', true)?.id).toBe('i42');
-    expect(nextIslandOpen('i42', true)).toBeUndefined();
+    for (const [i, id] of ECLIPSE.entries()) expect(nextIslandOpen(id, true)?.id).toBe(ECLIPSE[i + 1]);
     expect(nextIslandOpen('i08', true)?.id).toBe('i09');
     expect(nextIslandOpen('i10', true)?.id).toBe('i11');
   });
@@ -247,7 +250,7 @@ describe('old saves never relock', () => {
     return p;
   }
 
-  it.each([['i33', 'i34'], ['i36', 'i37'], ['i39', 'i40']])('an older save opens %s’s successor %s only after victory', (last, next) => {
+  it.each([['i33', 'i34'], ['i36', 'i37'], ['i39', 'i40'], ['i42', 'i43']])('an older save opens %s’s successor %s only after victory', (last, next) => {
     const before = ids(LEVELS_2D).slice(0, ids(LEVELS_2D).indexOf(next));
     const p = createDefaultProgress(before.length);
     for (const id of before) {

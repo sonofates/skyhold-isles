@@ -1,0 +1,4 @@
+{
+  "island": "i45",
+  "wind": { "mask": "life/i45-sway.webp", "dir": [0.93, -0.22], "strength": 1.45, "gustPeriod": 7.2, "gustSpeed": 141, "breezeFreq": 0.74, "sheen": 0.032 }
+}

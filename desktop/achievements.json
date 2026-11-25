@@ -162,7 +162,7 @@
   {
     "id": "STARS_ALL_ISLANDS",
     "name": "Constellation Complete",
-    "description": "Earn 3 stars on all 43 Skyhold islands"
+    "description": "Earn 3 stars on all 46 Skyhold islands"
   },
   {
     "id": "HERO_ALL_ROSTER",
@@ -313,5 +313,15 @@
     "id": "CHAPTER_FIVE_LANDING",
     "name": "Into the Dusk",
     "description": "Clear your first Chapter 5 island"
+  },
+  {
+    "id": "CHAPTER_FIVE_CLEARED",
+    "name": "Eclipse Skies Charted",
+    "description": "Clear all 9 Chapter 5 islands"
+  },
+  {
+    "id": "CHAPTER_FIVE_THREE_STARS",
+    "name": "Light Beyond the Eclipse",
+    "description": "Earn 3 stars on every Chapter 5 island"
   }
 ]

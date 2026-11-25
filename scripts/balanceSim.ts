@@ -60,8 +60,17 @@ export interface ShadowTally {
   houndsEnraged: number;
   eclipses: number;
   splits: number;
+  shadeKills: number;
+  splitProgress: number;
   towerSec: number;
   rangeLostSec: number;
+  /** Attack-tower seconds under a Veilcaster veil, and attack-tower seconds on waves that send Veilcasters. */
+  veilSec: number;
+  veilWaveTowerSec: number;
+  /** Finale timing, seconds after the Sovereign entered (-1 = did not happen): eclipse, split, last Shadow Half down. */
+  eclipseAt: number;
+  splitAt: number;
+  halvesDownAt: number;
 }
 
 /** Tower-seconds of fire cycle (reloading): total, lost to frost patches (Σ frostSlow·dt), and spent inside a patch. */
@@ -219,12 +228,14 @@ function tallyFrost(world: SimWorld, tally: FrostTally): void {
 }
 
 /** Attack towers' reach lost to Veilcaster veils / the eclipse this tick (chapter-five islands only). */
-function tallyShadow(world: SimWorld, tally: ShadowTally): void {
+function tallyShadow(world: SimWorld, tally: ShadowTally, veilWave: boolean): void {
   const dt = BALANCE.fixedDt;
   for (const t of world.towers) {
     if (TOWER_DEFS[t.type].role !== 'attack') continue;
     tally.towerSec += dt;
     tally.rangeLostSec += (t.rangeCut ?? 0) * dt;
+    if (veilWave) tally.veilWaveTowerSec += dt;
+    if ((t.veilTimer ?? 0) > 0) tally.veilSec += dt;
   }
 }
 
@@ -281,16 +292,36 @@ export function runLevelBalanceSim(
   events.on('guardShieldRestored', () => {
     guardShield.refreezes++;
   });
-  const shadow: ShadowTally = { veils: 0, packHowls: 0, houndsEnraged: 0, eclipses: 0, splits: 0, towerSec: 0, rangeLostSec: 0 };
+  const shadow: ShadowTally = {
+    veils: 0, packHowls: 0, houndsEnraged: 0, eclipses: 0, splits: 0, shadeKills: 0, splitProgress: 0,
+    towerSec: 0, rangeLostSec: 0, veilSec: 0, veilWaveTowerSec: 0, eclipseAt: -1, splitAt: -1, halvesDownAt: -1,
+  };
   const chapterFive = hasChapterFiveEnemies(level);
+  const veilWaves = new Set(level.waves.flatMap((w, i) => w.groups.some(g => g.enemyType === 'veilcaster') ? [i] : []));
+  /** Sim seconds since the Sovereign entered (finale timing), -1 until it does. */
+  let sovereignClock = -1;
   if (chapterFive) {
     events.on('towerVeiled', () => shadow.veils++);
     events.on('packEnrage', (ev) => {
       shadow.packHowls++;
       shadow.houndsEnraged += ev.count;
     });
-    events.on('eclipse', () => shadow.eclipses++);
-    events.on('sovereignSplit', () => shadow.splits++);
+    events.on('enemySpawned', ev => { if (ev.enemyType === 'eclipse_sovereign' && sovereignClock < 0) sovereignClock = 0; });
+    events.on('eclipse', () => {
+      shadow.eclipses++;
+      shadow.eclipseAt = sovereignClock;
+    });
+    events.on('sovereignSplit', ev => {
+      shadow.splits++;
+      shadow.splitAt = sovereignClock;
+      const path = world.groundPath;
+      shadow.splitProgress = path.nearestDist(ev.x, ev.z) / path.totalLength;
+    });
+    events.on('enemyKilled', ev => {
+      if (ev.enemyType !== 'eclipse_shade') return;
+      shadow.shadeKills++;
+      shadow.halvesDownAt = sovereignClock;
+    });
   }
 
   events.on('waveStarted', (ev) => {
@@ -399,6 +430,7 @@ export function runLevelBalanceSim(
       driveGlobalAbilities(world, kit);
     }
     world.fixedTick(BALANCE.fixedDt);
+    if (sovereignClock >= 0) sovereignClock += BALANCE.fixedDt;
     if (activeWaveRow) {
       const pool = world.enemyPool;
       for (let p = 0; p < pool.getActiveCount(); p++) {
@@ -409,7 +441,7 @@ export function runLevelBalanceSim(
       }
       if (world.waveSystem.state !== 'betweenWaves') {
         tallyFrost(world, activeWaveRow.frost);
-        if (chapterFive) tallyShadow(world, shadow);
+        if (chapterFive) tallyShadow(world, shadow, veilWaves.has(activeWaveRow.waveNumber - 1));
       }
     }
   }
@@ -545,6 +577,9 @@ function islandLossWindow(index: number, id: string): readonly [number, number] 
   if (id === 'i40') return [18, 20];
   if (id === 'i41') return [19, 21];
   if (id === 'i42') return [20, 21];
+  if (id === 'i43') return [17, 19];
+  if (id === 'i44') return [18, 20];
+  if (id === 'i45') return [20, 21];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
@@ -795,6 +830,14 @@ export function evaluateBalance(
       }
       if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
         failures.push(`${label} weak must lose with the campaign kit`);
+      }
+      if (level.id === 'i45') {
+        const { eclipses, splits, shadeKills, splitProgress } = greedyRes.shadow;
+        const last = greedyRes.waves.at(-1);
+        if (eclipses !== 1 || splits !== 1 || shadeKills !== 2 || last?.bossSummons !== 4 || splitProgress < 0.25 || splitProgress > 0.85) {
+          failures.push('i45 must eclipse, split with road remaining, summon four hounds and defeat both Shadow Halves');
+        }
+        summary[summary.length - 1] += ` | Throne: split at ${(100 * splitProgress).toFixed(1)}% of the processional, ${shadeKills} halves defeated`;
       }
       if (level.id === 'i36') {
         const last = greedyRes.waves.at(-1);
