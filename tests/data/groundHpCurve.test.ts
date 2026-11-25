@@ -44,13 +44,18 @@ const baseline = [
   ['i34', 3.65, 10.800859],
   ['i35', 2.285, 7.281397],
   ['i36', 2.22, 7.074268],
-  ['i37', 2.56, 7.575397],
-  ['i38', 2.58, 7.634579],
-  ['i39', 2.325, 6.879999],
+  ['i37', 2.563, 7.584274],
+  ['i38', 2.416, 7.149281],
+  ['i39', 2.253, 6.666941],
   ['i40', 2.65, 8.444509],
   ['i41', 1.7, 5.417232],
   ['i42', 2.16, 6.883071],
 ] as const;
+
+// Named opening packs (Dusk Hounds) carry their own HP on top of the story curve.
+const openingHp: Record<string, Record<string, number>> = {
+  i39: { duskhound: 1.5 },
+};
 
 // Named finale formations have their own HP on top of the story curve.
 const finaleHp: Record<string, Record<string, number>> = {
@@ -60,7 +65,7 @@ const finaleHp: Record<string, Record<string, number>> = {
   i29: { golem: 3.5 }, i30: { kilnback: 3.2 },
   i31: { sledguard: 1.85 }, i32: { sledguard: 3.5 }, i33: { kilnback: 3.5 },
   i34: { golem: 3 }, i35: { kilnback: 2.4 }, i36: { glacier_warden: 1.15, sledguard: 3 },
-  i37: { golem: 3.4 }, i38: { sledguard: 3 }, i39: { 'kilnback:1': 2.8 },
+  i37: { golem: 2.81, sledguard: 1.3 }, i38: { sledguard: 2.75 }, i39: { 'kilnback:1': 3.54, duskhound: 1.5 },
   i40: { sledguard: 2.1 }, i41: { 'golem:1': 2.9 }, i42: { 'kilnback:1': 2.4 },
 };
 
@@ -72,7 +77,7 @@ it.each(baseline)('%s keeps its first and last story wave ground HP within ten p
     const scales = new Set<number>();
     waves.update(Infinity, () => 1, (type, scale, _elite, lane, groupScale) => {
       if (ENEMY_DEFS[type].flying) return;
-      const formation = wave === level.waves.length ? finaleHp[id] : undefined;
+      const formation = wave === level.waves.length ? finaleHp[id] : openingHp[id];
       expect(groupScale).toBe(formation?.[`${type}:${lane}`] ?? formation?.[type] ?? 1);
       scales.add(scale);
     }, () => {}, () => {});

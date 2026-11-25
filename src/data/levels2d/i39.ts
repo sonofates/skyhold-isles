@@ -4,6 +4,10 @@ import json from './i39.json';
 
 const layout2d = parseLevel2D(json);
 
+/** A Dusk Hound pack: 4-6 hounds 0.35 s apart, so a kill enrages the mates around it. */
+const pack = (count: number, startDelay: number, lane: number, hpScale: number) =>
+  ({ ...group('duskhound', count, 0.35, startDelay, lane), hpScale });
+
 export const I39 = {
   id: 'i39',
   index: 38,
@@ -16,23 +20,23 @@ export const I39 = {
   flightPath: [],
   decorationSeed: 1624,
   startingGold: 415,
-  enemyHpScale: 2.325,
+  enemyHpScale: 2.253,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Leaf Litter', clearBonus: 25, groups: [
-      group('warden', 4, 1.2), group('runner', 8, 0.55, 1.5, 1),
+      group('warden', 4, 1.2), pack(5, 1.5, 1, 1.5),
     ] },
     { name: 'Opposite Banks', clearBonus: 27, groups: [
       group('rimebeetle', 6, 0.85, 0, 1), group('grunt', 8, 0.7, 2),
     ] },
     { name: 'Honeycaps', clearBonus: 29, groups: [
-      group('reedpiper', 3, 1.42), group('bellrunner', 9, 0.51, 2, 1), group('draftwing', 4, 0.94, 4),
+      group('reedpiper', 3, 1.42), pack(5, 2, 1, 1.25), group('draftwing', 4, 0.94, 4),
     ] },
     { name: 'Cellar Steps', clearBonus: 30, groups: [
       group('kilnback', 5, 1.12, 0, 1), group('burrower', 6, 0.82, 2), group('healer', 2, 1.44, 4, 1),
     ] },
     { name: 'Sap Rising', clearBonus: 32, groups: [
-      group('splitter', 6, 0.84), group('rimebeetle', 6, 0.82, 2, 1), group('mite', 12, 0.3, 4),
+      group('splitter', 6, 0.84), group('rimebeetle', 6, 0.82, 2, 1), pack(6, 4, 0, 1.25),
     ] },
     { name: 'Black Canopy', clearBonus: 34, groups: [
       { ...group('brute', 5, 1.03, 0, 1), elite: true }, group('warden', 5, 1.13, 2),
@@ -40,6 +44,7 @@ export const I39 = {
     ] },
     { name: 'Wicker Creels', clearBonus: 36, groups: [
       group('sledguard', 5, 1.42), group('blinker', 9, 0.68, 2, 1), group('carrier', 2, 2.24, 5),
+      pack(5, 7, 0, 1.25),
     ] },
     { name: 'Puff of Spores', clearBonus: 38, groups: [
       group('rimebeetle', 7, 0.84, 0, 1), group('burrower', 8, 0.77, 2), group('healer', 3, 1.37, 4, 1),
@@ -49,21 +54,21 @@ export const I39 = {
     ] },
     { name: 'Root Knot', clearBonus: 41, groups: [
       { ...group('splitter', 7, 0.8, 0, 1), elite: true }, group('sledguard', 5, 1.4, 2),
-      group('bellrunner', 12, 0.5, 4, 1),
+      pack(6, 4, 1, 1), pack(6, 8, 1, 1),
     ] },
     { name: 'Lantern Beds', clearBonus: 43, groups: [
       group('rimebeetle', 8, 0.81), group('hexer', 4, 1.28, 2, 1), group('brute', 7, 1.02, 5, 1),
     ] },
     { name: 'Twin Harvest', clearBonus: 45, groups: [
-      { ...group('sledguard', 4, 1.35, 0, 1), elite: true, hpScale: 2.7 }, group('kilnback', 5, 1.03, 3),
-      group('blinker', 8, 0.65, 5, 1),
+      { ...group('sledguard', 4, 1.35, 0, 1), elite: true, hpScale: 3.52 }, group('kilnback', 5, 1.03, 3),
+      group('blinker', 8, 0.65, 5, 1), pack(5, 8, 0, 1.5),
     ] },
     { name: 'Falling Ash', clearBonus: 47, groups: [
       group('golem', 5, 1.15), group('rimebeetle', 8, 0.81, 2, 1), group('burrower', 8, 0.77, 5),
     ] },
     { name: 'The Last Ember', clearBonus: 60, groups: [
-      { ...group('kilnback', 4, 1.02, 0, 1), elite: true, hpScale: 2.8 }, group('bellrunner', 13, 0.5, 2),
-      group('sledguard', 6, 1.38, 4),
+      { ...group('kilnback', 3, 1.02, 0, 1), elite: true, hpScale: 3.54 }, pack(6, 2, 0, 1.5),
+      group('sledguard', 6, 1.38, 4), pack(6, 6, 0, 1.5),
     ] },
   ],
   scriptedBuildOrder: [

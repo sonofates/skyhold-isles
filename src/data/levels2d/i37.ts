@@ -16,7 +16,7 @@ export const I37 = {
   flightPath: [],
   decorationSeed: 1542,
   startingGold: 415,
-  enemyHpScale: 2.56,
+  enemyHpScale: 2.563,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Last Ferry', clearBonus: 25, groups: [
@@ -54,16 +54,16 @@ export const I37 = {
       group('runner', 14, 0.46), group('hexer', 4, 1.25, 2), group('carrier', 2, 2.2, 4),
     ] },
     { name: 'Broken Shackle', clearBonus: 45, groups: [
-      { ...group('sledguard', 4, 1.36), elite: true, hpScale: 2.8 }, group('reedpiper', 3, 1.39, 2),
+      { ...group('sledguard', 4, 1.36), elite: true, hpScale: 2.26 }, group('reedpiper', 3, 1.39, 2),
       group('splitter', 6, 0.8, 5),
     ] },
     { name: 'Make Fast', clearBonus: 47, groups: [
-      group('kilnback', 7, 1.06), { ...group('brute', 5, 1.0, 1), elite: true },
+      group('kilnback', 7, 1.06), { ...group('brute', 5, 1.0, 1), elite: true, hpScale: 1.6 },
       group('blinker', 9, 0.65, 4),
     ] },
     { name: 'All Lines In', clearBonus: 60, groups: [
-      { ...group('golem', 3, 1.22), elite: true, hpScale: 3.4 }, group('bellrunner', 12, 0.5, 3),
-      group('sledguard', 4, 1.4, 7),
+      { ...group('golem', 3, 1.22), elite: true, hpScale: 2.81 }, group('bellrunner', 12, 0.5, 3),
+      { ...group('sledguard', 5, 1.4, 7), hpScale: 1.3 },
     ] },
   ],
   scriptedBuildOrder: [

@@ -4,6 +4,10 @@ import json from './i38.json';
 
 const layout2d = parseLevel2D(json);
 
+/** A Dusk Hound pack: 4-6 hounds 0.35 s apart, so a kill enrages the mates around it. */
+const pack = (count: number, startDelay: number, hpScale: number) =>
+  ({ ...group('duskhound', count, 0.35, startDelay), hpScale });
+
 export const I38 = {
   id: 'i38',
   index: 37,
@@ -16,15 +20,15 @@ export const I38 = {
   flightPath: [],
   decorationSeed: 1583,
   startingGold: 415,
-  enemyHpScale: 2.58,
+  enemyHpScale: 2.416,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Sound the Span', clearBonus: 25, groups: [
       group('bellrunner', 8, 0.54), group('warden', 3, 1.2, 2),
     ] },
-    // Phase 2: introduce duskhound here as two five-strong packs across the first span.
+    // Introduces the Dusk Hound: two tight five-strong packs across the first span.
     { name: 'Paws on Planks', clearBonus: 27, groups: [
-      group('runner', 5, 0.38), group('runner', 5, 0.38, 4.5), group('brute', 3, 1.2, 8),
+      pack(5, 0, 3), pack(5, 4.5, 3), group('brute', 3, 1.2, 8),
     ] },
     { name: 'Survey Lamps', clearBonus: 29, groups: [
       group('mite', 13, 0.3), group('reedpiper', 3, 1.38, 2), group('draftwing', 4, 0.93, 4),
@@ -36,7 +40,7 @@ export const I38 = {
       group('kilnback', 5, 1.07), group('blinker', 8, 0.68, 2),
     ] },
     { name: 'First Abutment', clearBonus: 34, groups: [
-      group('sledguard', 5, 1.44), group('hexer', 3, 1.34, 3), group('runner', 9, 0.47, 5),
+      group('sledguard', 5, 1.44), group('hexer', 3, 1.34, 3), pack(6, 5, 2.5),
     ] },
     { name: 'Wire Song', clearBonus: 36, groups: [
       group('draftwing', 5, 0.91), group('burrower', 7, 0.8, 1.8), group('warden', 4, 1.15, 3),
@@ -47,6 +51,7 @@ export const I38 = {
     ] },
     { name: 'Loose Pin', clearBonus: 39, groups: [
       group('carrier', 2, 2.2), group('mite', 15, 0.29, 2), group('kilnback', 6, 1.03, 4),
+      pack(5, 4, 3),
     ] },
     { name: 'Return Pulley', clearBonus: 41, groups: [
       { ...group('splitter', 7, 0.79), elite: true }, group('blinker', 9, 0.66, 2),
@@ -56,14 +61,14 @@ export const I38 = {
       group('sledguard', 6, 1.39), group('bellrunner', 12, 0.48, 2), group('burrower', 9, 0.74, 4),
     ] },
     { name: 'The Long Crossing', clearBonus: 45, groups: [
-      { ...group('golem', 3, 1.15), elite: true, hpScale: 2.6 }, group('runner', 13, 0.46, 2),
-      group('hexer', 3, 1.26, 5),
+      { ...group('golem', 3, 1.15), elite: true, hpScale: 2.56 }, pack(6, 2, 1.5),
+      group('hexer', 3, 1.26, 5), pack(6, 7, 1.5),
     ] },
     { name: 'Anchor Shoes', clearBonus: 47, groups: [
       group('kilnback', 7, 1.06), group('draftwing', 5, 0.91, 1.5), group('healer', 3, 1.31, 4),
     ] },
     { name: 'Final Rivet', clearBonus: 60, groups: [
-      { ...group('sledguard', 6, 1.37), elite: true, hpScale: 3 }, group('splitter', 8, 0.79, 3),
+      { ...group('sledguard', 5, 1.37), elite: true, hpScale: 2.75 }, group('splitter', 8, 0.79, 3),
       group('bellrunner', 12, 0.48, 6),
     ] },
   ],
