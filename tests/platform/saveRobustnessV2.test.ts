@@ -976,30 +976,29 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
       '../../src/render2d/ui/progress2d.ts'
     );
 
-    // 1. Short/empty bestStars + 25-island difficultyWins (Hard win on i24 at index 24) must NOT truncate at bestStars.length:
+    const i24 = LEVELS_2D.findIndex(l => l.id === 'i24');
+    // 1. Short/empty bestStars + full-length difficultyWins (Hard win on i24) must NOT truncate at bestStars.length:
     const shortStarsWithCh2Hard = {
       ...createDefaultProgress(0),
       difficultyWins: {
         easy: new Array<number>(LEVELS_2D.length).fill(0),
         normal: new Array<number>(LEVELS_2D.length).fill(0),
-        hard: Array.from({ length: LEVELS_2D.length }, (_, idx) => (idx === 24 ? 3 : 0)),
+        hard: Array.from({ length: LEVELS_2D.length }, (_, idx) => (idx === i24 ? 3 : 0)),
       },
     };
     const empty25 = createDefaultProgress(LEVELS_2D.length);
     const merged = mergeProgress(empty25, shortStarsWithCh2Hard, LEVELS_2D.length);
-    expect(merged.difficultyWins?.hard[24]).toBe(3);
-    expect(merged.bestStars[24]).toBe(3);
+    expect(merged.difficultyWins?.hard[i24]).toBe(3);
+    expect(merged.bestStars[i24]).toBe(3);
     expect(describeMergeGain(empty25, shortStarsWithCh2Hard)).toContain('+1 Hard ribbon');
 
     const states = islandStates(shortStarsWithCh2Hard, LEVELS_2D);
     expect(states).toHaveLength(LEVELS_2D.length);
-    expect(states[24].hardWon).toBe(true);
-    expect(states[24].stars).toBe(3);
+    expect(states[i24].hardWon).toBe(true);
+    expect(states[i24].stars).toBe(3);
 
     // 2. applyRunResult2D on a 17-island ProgressData winning i24 pads arrays densely with zero sparse holes.
-    //    i24 is the Chapter 3 finale, the last island in chapter order (not flat index 24 any more):
-    const i24 = LEVELS_2D.findIndex((l) => l.id === 'i24');
-    expect(i24).toBe(LEVELS_2D.length - 1);
+    expect(LEVELS_2D[i24 + 1].id).toBe('i28');
     const short17 = createDefaultProgress(17);
     applyRunResult2D(
       short17,
@@ -1019,7 +1018,7 @@ describe('Save Robustness v2 — Version Migration & Algebraic Merge Fuzz', () =
     expect(short17.difficultyWins?.hard[i24]).toBe(3);
     expect(short17.bestStars[i24]).toBe(3);
     // Nothing leaks onto the island that now sits at the old flat index 24 (i22).
-    expect(short17.difficultyWins?.hard[24]).toBe(0);
+    expect(short17.difficultyWins?.hard[LEVELS_2D.findIndex(l => l.id === 'i22')]).toBe(0);
 
     // 3. Partial raw difficultyWins (`{ hard: [3, 2, 3] }` missing `easy` & `normal`) + NaN/Infinity entries never throw:
     const partialRaw = {

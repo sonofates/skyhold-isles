@@ -101,15 +101,15 @@ function expectOnTheRightIds(p: ProgressData, old: ProgressData): void {
   expect(p.difficultyWins?.easy[at('i17')]).toBe(1);
   expect(p.bestEndlessWaves[at('i16')]).toBe(100 + 16);
   expect(p.bestEndlessWaves[at('i24')]).toBe(100 + 24);
-  // The new islands start empty, but nothing is relocked: the frontier stays on i24, so i25..i27 are open.
-  for (const id of ['i25', 'i26', 'i27']) {
+  // The new islands start empty, but nothing is relocked: clearing i24 opens i28, and i25..i27 are already open.
+  for (const id of ['i25', 'i26', 'i27', 'i28', 'i29', 'i30']) {
     expect(p.bestStars[at(id)], id).toBe(0);
     expect(p.difficultyWins?.hard[at(id)] ?? 0, id).toBe(0);
     expect(p.bestEndlessWaves[at(id)], id).toBe(0);
   }
-  expect(LEVELS_2D[p.unlockedLevelIndex].id).toBe('i24');
+  expect(LEVELS_2D[p.unlockedLevelIndex].id).toBe('i28');
   const st = islandStates(p, LEVELS_2D);
-  expect(st.every((s) => s.unlocked)).toBe(true);
+  expect(st.filter(s => !s.unlocked).map(s => s.level.id)).toEqual(['i29', 'i30']);
   expect(st[at('i16')].hardWon).toBe(true);
   expect(st[at('i24')].hardWon).toBe(true);
   expect(st[at('i25')].hardWon).toBe(false);

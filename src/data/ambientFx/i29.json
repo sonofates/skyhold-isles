@@ -1,0 +1,8 @@
+{
+  "island": "i29",
+  "maxParticles": 18,
+  "zones": [
+    {"id": "smoke-1", "kind": "smoke", "rect": [102, 464, 6, 5], "rate": 1.4, "color": "#9da8b4", "color2": "#d4d5d2", "size": 20, "drift": [10, -17], "life": 3.6, "alpha": 0.25},
+    {"id": "smoke-2", "kind": "smoke", "rect": [166, 479, 6, 5], "rate": 1.4, "color": "#9da8b4", "color2": "#d4d5d2", "size": 20, "drift": [10, -17], "life": 3.6, "alpha": 0.25}
+  ]
+}

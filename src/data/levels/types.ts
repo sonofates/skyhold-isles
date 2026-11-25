@@ -52,6 +52,8 @@ export interface Level2DLayout {
   readonly pxPerUnit: number;
   /** Centred part of the image (px, [x, y, w, h]) that contains all gameplay; never cropped. */
   readonly safeArea: readonly [number, number, number, number];
+  /** Initial landscape phone framing in image pixels [x, y, width, height]. */
+  readonly phoneFrame?: readonly [number, number, number, number];
   /** Spawn points; entrance i starts ground lane i (`paths[i]`). */
   readonly entrances: readonly (WorldPoint & { readonly id: string })[];
   readonly goal: WorldPoint;

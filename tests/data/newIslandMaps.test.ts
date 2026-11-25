@@ -8,8 +8,11 @@ import { parseLevel2D } from '../../src/data/levels2d/loader.ts';
 import i25 from '../../src/data/levels2d/i25.json';
 import i26 from '../../src/data/levels2d/i26.json';
 import i27 from '../../src/data/levels2d/i27.json';
+import i28 from '../../src/data/levels2d/i28.json';
+import i29 from '../../src/data/levels2d/i29.json';
+import i30 from '../../src/data/levels2d/i30.json';
 
-it.each([i25, i26, i27])('$id ships each map variant, both gate depths and protected life masks', level => {
+it.each([i25, i26, i27, i28, i29, i30])('$id ships each map variant, both gate depths and protected life masks', level => {
   const layout = parseLevel2D(level);
   const maps: Record<string, string> = manifest.maps;
   const fronts: Record<string, string> = manifest.overlays;

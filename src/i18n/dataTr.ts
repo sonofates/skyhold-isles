@@ -80,6 +80,36 @@ export const DATA_TR: DataTr = {
         'Son Işık’a Vira',
       ],
     },
+    i28: {
+      name: 'Kırağı Limanı', subtitle: 'Kılavuz kaptan, gövdenin altında kabaran suyu duyuyor. Buz çözülene dek rıhtımları tut.',
+      waves: [
+        'Buzu Dinlerken', 'Beyaz Palamarlar', 'Omurganın Altında',
+        'Liman Zinciri', 'Kara İskandil', 'Üst Üste Buzlar',
+        'Halat Geriliyor', 'İnce Su', 'Kırılan Seren',
+        'Halatı Çekin', 'Üç Vuruş', 'Kıç Açığa',
+        'Açılan Kanal',
+      ],
+    },
+    i29: {
+      name: 'Ocak Dumanı Köyü', subtitle: 'Son kızılağaç yongaları hâlâ buzun üstünde. Balıkçılar yakacağı getirene dek iki iskeleyi savun.',
+      waves: [
+        'Soğuk Ocaklar', 'İlk Sepet', 'Ağların Altında',
+        'Odun Kızağı', 'Buzda Çatal', 'Cam Altında Balık',
+        'Ocak Kapağı', 'Karda Korlar', 'Dolu Askılar',
+        'Ödünç Köz', 'Ateşi Besle', 'Baca Çekiyor',
+        'Göl Üstünde Duman',
+      ],
+    },
+    i30: {
+      name: 'Akçam Sırtı', subtitle: 'Yük kızağının fren pabucu koptu. Kızakçılar yeni fren ipini ekleyene dek beli tut.',
+      waves: [
+        'Fren Pabucu', 'Kızıl Flama', 'Rüzgârda İbreler',
+        'Çifte İz', 'Gıcırdayan Sehpa', 'Ladin Gölgeleri',
+        'Kayan Yük', 'Belden Geçiş', 'Bağları Kes',
+        'Mavi Saçak', 'Soğuk Demir', 'Freni Tut',
+        'Sırtın Altında Işıklar',
+      ],
+    },
   },
   towers: {
     archer: {

@@ -1,7 +1,9 @@
 import { existsSync } from 'node:fs';
 import { afterEach, expect, it } from 'vitest';
+import { chapterOf } from '../../src/data/chapters.ts';
 import { CHAPTER_ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
+import { CHAPTER4_ISLANDS } from '../../src/data/levels2d/chapter4.ts';
 import { NEW_ISLANDS } from '../../src/data/levels2d/newIslands.ts';
 import { islandName, islandSubtitle, islandWaveTitle } from '../../src/i18n/data.ts';
 import { setLocale } from '../../src/i18n/index.ts';
@@ -23,7 +25,18 @@ it.each(NEW_ISLANDS)('$id has a Master encounter using its chapter roster and bo
   expect(new Set(waves.flatMap(w => w.groups.map(g => g.lane)))).toEqual(new Set([0, 1]));
 });
 
-it.each(NEW_ISLANDS)('$id has distinct localized wave names and both illustrated story beats', level => {
+it.each(CHAPTER4_ISLANDS)('$id fields two lanes and thirteen Master waves from the previous chapters', level => {
+  const previous = new Set(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
+    .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
+  expect(LEVELS_2D.filter(l => l.id === level.id)).toEqual([level]);
+  expect(level.difficulty).toBe('Master');
+  expect(level.waves).toHaveLength(13);
+  const groups = level.waves.flatMap(w => w.groups);
+  for (const g of groups) expect(previous.has(g.enemyType), g.enemyType).toBe(true);
+  expect(new Set(groups.map(g => g.lane))).toEqual(new Set([0, 1]));
+});
+
+it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {
   const titles = () => level.waves.map((_, i) => islandWaveTitle(level, i));
   const english = titles();
   expect(english).toEqual(level.waves.map(w => w.name));

@@ -6,7 +6,8 @@
  */
 import { DIFFICULTIES, DIFFICULTY_IDS, starsAwarded, type DifficultyId } from '../src/data/difficulty.ts';
 import type { LevelDef } from '../src/data/levels/index.ts';
-import { LEVELS_2D, registeredChapterIslands } from '../src/data/levels2d/index.ts';
+import { chapterOf } from '../src/data/chapters.ts';
+import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { combineRunModifiers, type RunModifierPatch } from '../src/data/runModifiers.ts';
 import { runLevelBalanceSim, type SimRunResult } from './balanceSim.ts';
 import { balanceBuildOrder } from './lib/specializationBuilds.ts';
@@ -64,9 +65,9 @@ type Runs = Record<DifficultyId, Record<Profile, SimRunResult>>;
 interface Row { level: LevelDef; runs: Runs }
 
 function verdict(rows: Row[]): void {
-  const chapterTwo = new Set([...registeredChapterIslands().map(level => level.id), 'i27']);
-  const one = rows.filter(r => !chapterTwo.has(r.level.id));
-  const two = rows.filter(r => chapterTwo.has(r.level.id));
+  // Preserve the two historical balance cohorts as later chapters join the campaign.
+  const one = rows.filter(r => (chapterOf(r.level.id)?.n ?? Infinity) <= 2);
+  const two = rows.filter(r => chapterOf(r.level.id)?.id === 'ch3');
   const wins = (group: Row[], p: Profile, d: DifficultyId) => group.map(r => r.runs[d][p]).filter(r => r.outcome === 'won');
   const easy = wins(rows, 'campaign', 'easy');
   const comfortable = easy.filter(r => r.finalLives >= 12);
@@ -74,7 +75,7 @@ function verdict(rows: Row[]): void {
   const normal = wins(rows, 'campaign', 'normal');
   const hardOne = wins(one, 'campaign', 'hard');
   const hardTwo = wins(two, 'campaign', 'hard');
-  const hard = [...hardOne, ...hardTwo];
+  const hard = wins(rows, 'campaign', 'hard');
   const narrow = hard.filter(r => r.finalLives < r.startingLives && r.stars <= 2);
   const finale = rows.find(r => r.level.id === 'i24')?.runs.hard.campaign;
   const weakHard = wins(rows, 'weak', 'hard');
@@ -87,6 +88,12 @@ function verdict(rows: Row[]): void {
   check(weakEasy.length >= 14, `Easy weak clears at least 14 chapter-one islands: ${weakEasy.length}/${one.length}`);
   check(Object.keys(DIFFICULTIES.normal.patch).length === 0 && normal.length === rows.length,
     `Normal uses the island tuning and clears the campaign: ${normal.length}/${rows.length}`);
+  const normalLives = (id: string) => rows.find(r => r.level.id === id)?.runs.normal.campaign.finalLives ?? 0;
+  const rimeharbor = normalLives('i28');
+  const hamlet = normalLives('i29');
+  const ridge = normalLives('i30');
+  check(rimeharbor > normalLives('i24') && rimeharbor > hamlet && hamlet > ridge && ridge > 0,
+    `Frostveil eases after Lastlight and rises on Normal: i24 ${normalLives('i24')}, i28 ${rimeharbor}, i29 ${hamlet}, i30 ${ridge} lives`);
   const twos = normal.filter(r => r.stars === 2).length;
   const threes = normal.filter(r => r.stars === 3).length;
   check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),
