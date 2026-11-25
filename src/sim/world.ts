@@ -631,10 +631,19 @@ export class SimWorld {
     return ok;
   }
 
-  /** Drops Rime Beetle frost patches and the fire-rate slow they put on towers. */
+  /**
+   * Drops Rime Beetle frost patches and the fire-rate slow they put on towers, plus the chapter-five
+   * range cuts (Veilcaster veils, the Eclipse Sovereign's eclipse).
+   */
   private clearFrost(): void {
     this.enemySystem.clearFrostPatches();
     for (let i = 0; i < this.towers.length; i++) this.towers[i].frostSlow = 0;
+    this.enemySystem.clearEclipse();
+    for (let i = 0; i < this.towers.length; i++) {
+      const t = this.towers[i];
+      if (t.veilTimer) t.veilTimer = 0;
+      if (t.rangeCut) t.rangeCut = 0;
+    }
   }
 
   private clearVictoryTransients(): void {

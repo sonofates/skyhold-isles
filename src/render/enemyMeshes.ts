@@ -46,6 +46,8 @@ const GROUND_SHADOW_SCALE: Partial<Record<EnemyType, number>> = {
 const HP_BAR_WIDTH: Partial<Record<EnemyType, number>> = {
   boss: 1.75,
   tempest: 1.9,
+  eclipse_sovereign: 1.9,
+  eclipse_shade: 1.6,
   brute: 1.2,
   golem: 1.3,
   carrier: 1.1,
@@ -189,7 +191,7 @@ export class EnemyRenderer {
 
       const mesh = new THREE.InstancedMesh(geo, materials.enemyInstancedMaterial, cap);
       mesh.count = 0;
-      mesh.castShadow = type === 'brute' || type === 'boss' || type === 'tempest' || type === 'glacier_warden' || type === 'golem';
+      mesh.castShadow = type === 'brute' || type === 'boss' || type === 'tempest' || type === 'glacier_warden' || type === 'eclipse_sovereign' || type === 'eclipse_shade' || type === 'golem';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
 
@@ -953,6 +955,82 @@ export class EnemyRenderer {
           { geometry: cone, colorHex: 0xc8ecfa, position: [0.7, 1.58, -0.04], scale: [0.1, 0.3, 0.1] },
         ];
         addEyes(parts, ico, 1.68, 0.27, 0.11, 0.05, 0xcff4ff);
+        break;
+      }
+
+      case 'duskhound': {
+        // Chapter five (2D-first; 3D debug stand-in). Lean violet hound with a pale mane and gold eyes.
+        parts = [
+          { geometry: box, colorHex: 0x2b2340, position: [-0.16, 0.16, 0.24], scale: [0.09, 0.32, 0.09] },
+          { geometry: box, colorHex: 0x2b2340, position: [0.16, 0.16, 0.24], scale: [0.09, 0.32, 0.09] },
+          { geometry: box, colorHex: 0x2b2340, position: [-0.16, 0.16, -0.24], scale: [0.09, 0.32, 0.09] },
+          { geometry: box, colorHex: 0x2b2340, position: [0.16, 0.16, -0.24], scale: [0.09, 0.32, 0.09] },
+          { geometry: chamfer, colorHex: 0x5b4a8a, position: [0, 0.44, 0], scale: [0.42, 0.34, 0.8] },
+          { geometry: chamfer, colorHex: 0xcfc4e8, position: [0, 0.56, 0.2], scale: [0.4, 0.2, 0.34] },
+          { geometry: chamfer, colorHex: 0x5b4a8a, position: [0, 0.62, 0.44], scale: [0.3, 0.26, 0.3] },
+          { geometry: chamfer, colorHex: 0x2b2340, position: [0, 0.56, 0.6], scale: [0.16, 0.12, 0.16] },
+          { geometry: cone, colorHex: 0x5b4a8a, position: [-0.09, 0.84, 0.4], scale: [0.06, 0.2, 0.06] },
+          { geometry: cone, colorHex: 0x5b4a8a, position: [0.09, 0.84, 0.4], scale: [0.06, 0.2, 0.06] },
+          { geometry: cone, colorHex: 0x3d3160, position: [0, 0.5, -0.46], rotation: [-1.1, 0, 0], scale: [0.06, 0.3, 0.06] },
+        ];
+        addEyes(parts, ico, 0.66, 0.58, 0.07, 0.03, eyeGlowGold);
+        break;
+      }
+
+      case 'veilcaster': {
+        // Hooded caster in a dusk robe, holding up a dark veil orb on a staff
+        parts = [
+          { geometry: cone, colorHex: 0x3d2a5e, position: [0, 0.5, 0], scale: [0.44, 1.0, 0.44] },
+          { geometry: chamfer, colorHex: 0x7a4fa8, position: [0, 0.96, 0], scale: [0.36, 0.3, 0.3] },
+          { geometry: cone, colorHex: 0x2b1f45, position: [0, 1.24, 0], scale: [0.22, 0.36, 0.22] },
+          { geometry: chamfer, colorHex: 0x1a1229, position: [0, 1.12, 0.08], scale: [0.18, 0.14, 0.12] },
+          { geometry: cyl, colorHex: leatherDark, position: [0.36, 0.66, 0.1], scale: [0.03, 1.2, 0.03] },
+          { geometry: ico, colorHex: 0x1a1229, position: [0.36, 1.3, 0.1], scale: [0.14, 0.14, 0.14] },
+          { geometry: ico, colorHex: 0xb894ff, position: [0.36, 1.3, 0.16], scale: [0.07, 0.07, 0.05] },
+          { geometry: chamfer, colorHex: 0xcfc4e8, position: [0, 0.82, 0.12], scale: [0.4, 0.06, 0.26] },
+        ];
+        addEyes(parts, ico, 1.13, 0.14, 0.05, 0.022, 0xd7b8ff);
+        break;
+      }
+
+      case 'eclipse_sovereign': {
+        // Chapter-five final boss: a dusk-armoured lord under an eclipsed gold disc
+        parts = [
+          { geometry: chamfer, colorHex: 0x1f1733, position: [-0.36, 0.29, 0], scale: [0.38, 0.58, 0.42] },
+          { geometry: chamfer, colorHex: 0x1f1733, position: [0.36, 0.29, 0], scale: [0.38, 0.58, 0.42] },
+          { geometry: chamfer, colorHex: 0x2a1f45, position: [0, 1.06, 0], scale: [1.16, 1.0, 0.84] },
+          { geometry: chamfer, colorHex: 0x8a6a2a, position: [0, 0.66, 0.02], scale: [1.0, 0.18, 0.8] },
+          { geometry: ico, colorHex: 0xffcf4d, position: [0, 1.1, 0.42], scale: [0.32, 0.32, 0.16] },
+          { geometry: ico, colorHex: 0x120c1f, position: [0.07, 1.12, 0.5], scale: [0.27, 0.27, 0.1] },
+          { geometry: ico, colorHex: 0x3d2c63, position: [-0.74, 1.42, 0], scale: [0.38, 0.32, 0.4] },
+          { geometry: ico, colorHex: 0x3d2c63, position: [0.74, 1.42, 0], scale: [0.38, 0.32, 0.4] },
+          { geometry: chamfer, colorHex: 0x1f1733, position: [-0.78, 0.76, 0.08], scale: [0.32, 0.66, 0.34] },
+          { geometry: chamfer, colorHex: 0x1f1733, position: [0.78, 0.76, 0.08], scale: [0.32, 0.66, 0.34] },
+          { geometry: chamfer, colorHex: 0x3d2c63, position: [0, 1.76, 0.06], scale: [0.5, 0.44, 0.46] },
+          { geometry: cone, colorHex: 0xffcf4d, position: [-0.26, 2.14, 0.04], rotation: [0, 0, 0.34], scale: [0.11, 0.4, 0.11] },
+          { geometry: cone, colorHex: 0xffe08a, position: [0, 2.22, 0.04], scale: [0.12, 0.48, 0.12] },
+          { geometry: cone, colorHex: 0xffcf4d, position: [0.26, 2.14, 0.04], rotation: [0, 0, -0.34], scale: [0.11, 0.4, 0.11] },
+          { geometry: ico, colorHex: 0xffcf4d, position: [0, 2.0, -0.34], scale: [0.36, 0.36, 0.05] },
+          { geometry: ico, colorHex: 0x120c1f, position: [0.06, 2.02, -0.37], scale: [0.3, 0.3, 0.04] },
+        ];
+        addEyes(parts, ico, 1.78, 0.28, 0.11, 0.05, 0xb894ff);
+        break;
+      }
+
+      case 'eclipse_shade': {
+        // Shadow Half: one side of the Sovereign, smoky violet with a single gold horn
+        parts = [
+          { geometry: chamfer, colorHex: 0x1f1733, position: [-0.26, 0.24, 0], scale: [0.3, 0.48, 0.34] },
+          { geometry: chamfer, colorHex: 0x1f1733, position: [0.26, 0.24, 0], scale: [0.3, 0.48, 0.34] },
+          { geometry: chamfer, colorHex: 0x4a3878, position: [0, 0.86, 0], scale: [0.86, 0.8, 0.64] },
+          { geometry: chamfer, colorHex: 0x8a6a2a, position: [0, 0.54, 0.02], scale: [0.74, 0.14, 0.6] },
+          { geometry: ico, colorHex: 0x6b56a0, position: [-0.56, 1.14, 0], scale: [0.3, 0.26, 0.32] },
+          { geometry: chamfer, colorHex: 0x1f1733, position: [-0.6, 0.62, 0.06], scale: [0.26, 0.54, 0.28] },
+          { geometry: chamfer, colorHex: 0x2a1f45, position: [0.6, 0.66, 0.06], scale: [0.2, 0.44, 0.22] },
+          { geometry: chamfer, colorHex: 0x4a3878, position: [0, 1.42, 0.04], scale: [0.4, 0.36, 0.38] },
+          { geometry: cone, colorHex: 0xffcf4d, position: [-0.14, 1.72, 0.04], rotation: [0, 0, 0.3], scale: [0.1, 0.36, 0.1] },
+        ];
+        addEyes(parts, ico, 1.44, 0.22, 0.09, 0.04, 0xb894ff);
         break;
       }
 

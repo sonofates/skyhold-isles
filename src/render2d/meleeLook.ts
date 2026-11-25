@@ -5,7 +5,7 @@ import { PROC_CLIP, PROC_CLIP_HEAVY, sheetClip, type SwingClip } from './meleeAn
 import type { MeleeLook } from './meleeDirector.ts';
 
 /** Heavy hitters: slower procedural swings, big knockback on soldiers, ground slam. */
-const HEAVY: ReadonlySet<EnemyType> = new Set<EnemyType>(['golem', 'boss', 'tempest', 'glacier_warden', 'brute', 'sledguard']);
+const HEAVY: ReadonlySet<EnemyType> = new Set<EnemyType>(['golem', 'boss', 'tempest', 'glacier_warden', 'eclipse_sovereign', 'eclipse_shade', 'brute', 'sledguard']);
 
 /** Soldier height when the manifest has no soldier art (matches soldierLayer's placeholder). */
 const PLACEHOLDER_SOLDIER_HEIGHT = 1.3;

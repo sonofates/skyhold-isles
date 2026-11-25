@@ -87,6 +87,9 @@ export interface EnemyEntity {
   heroDamageReduction: number;
   /** Seconds until this enemy's next melee strike against a hero in contact. */
   heroMeleeTimer: number;
+  /** Dusk Hound pack enrage: stacks (0..maxStacks, +30 % speed each) and seconds left of them. */
+  enrageStacks: number;
+  enrageTimer: number;
 }
 
 export function createEnemyEntity(poolIndex: number): EnemyEntity {
@@ -146,6 +149,8 @@ export function createEnemyEntity(poolIndex: number): EnemyEntity {
     heroBlockers: 0,
     heroDamageReduction: 0,
     heroMeleeTimer: 0,
+    enrageStacks: 0,
+    enrageTimer: 0,
   };
 }
 
@@ -194,6 +199,17 @@ export interface TowerEntity {
    * this never outlasts it, so Overcharge / Overhaul cleanses thaw it too.
    */
   frostLockTimer?: number;
+  /**
+   * Seconds left of a Veilcaster veil on this tower (its attack range is cut while > 0). Veils
+   * never stack: a caster only picks a tower that is not veiled.
+   */
+  veilTimer?: number;
+  /**
+   * Share of attack range lost this tick (0 = none): veil and Eclipse Sovereign eclipse combined,
+   * `1 - (1 - veil) * (1 - eclipse)`. Recomputed every tick by CombatSystem, firing towers only
+   * (the barracks rally range and the Beacon aura are untouched).
+   */
+  rangeCut?: number;
 }
 
 export interface ProjectileEntity {

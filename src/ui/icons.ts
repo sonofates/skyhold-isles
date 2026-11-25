@@ -164,6 +164,10 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   rimebeetle: { label: 'Beetle', color: '#7cc3dc' },
   sledguard: { label: 'Sledge', color: '#5f86a8' },
   glacier_warden: { label: 'Glacier', color: '#2d6f9a' },
+  duskhound: { label: 'Hound', color: '#5b4a8a' },
+  veilcaster: { label: 'Veil', color: '#7a4fa8' },
+  eclipse_sovereign: { label: 'Sovereign', color: '#2a1f45' },
+  eclipse_shade: { label: 'Shade', color: '#4a3878' },
 };
 
 /** Tiny faceted enemy glyphs for the wave preview strip (24px grid, ink outline, flat fills). */
@@ -266,5 +270,23 @@ export const ENEMY_ICON_SVGS: Record<EnemyType, string> = {
   glacier_warden: `<svg viewBox="0 0 24 24" aria-hidden="true">
     <path d="M3 20.5L4.5 9L8 5.5L10 9L12 2.5L14 9L16 5.5L19.5 9L21 20.5H3Z" fill="#2d6f9a" stroke="${PALETTE.cream}" stroke-width="1.8" stroke-linejoin="round"/>
     <path d="M12 11.5V18.5M9 13L15 17M15 13L9 17" stroke="${PALETTE.cream}" stroke-width="1.5" stroke-linecap="round"/>
+  </svg>`,
+  duskhound: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 13L6 5.5L8.5 9.5H15.5L18 5.5L21 13L17.5 19.5H6.5L3 13Z" fill="#5b4a8a" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M8.5 13.5L10.5 14.5M15.5 13.5L13.5 14.5" stroke="${PALETTE.gold}" stroke-width="1.8" stroke-linecap="round"/>
+    <path d="M10 17.5L12 16.5L14 17.5" stroke="${PALETTE.cream}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  veilcaster: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 2.5L18 9.5L20 21H4L6 9.5L12 2.5Z" fill="#7a4fa8" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M6.5 14C9.5 11.5 14.5 11.5 17.5 14" stroke="${PALETTE.cream}" stroke-width="1.6" stroke-linecap="round"/>
+    <circle cx="12" cy="9" r="2" fill="${PALETTE.indigo}" stroke="${PALETTE.cream}" stroke-width="1.2"/>
+  </svg>`,
+  eclipse_sovereign: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 20.5L4 8L8 11L12 3L16 11L20 8L21 20.5H3Z" fill="#2a1f45" stroke="${PALETTE.gold}" stroke-width="1.8" stroke-linejoin="round"/>
+    <circle cx="12" cy="15" r="3.6" fill="${PALETTE.gold}"/><circle cx="13.3" cy="14.2" r="3" fill="#2a1f45"/>
+  </svg>`,
+  eclipse_shade: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 20.5L5 9L9 12L12 4.5V20.5H4Z" fill="#4a3878" stroke="${PALETTE.gold}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M14 20.5V4.5L16 12L19 9L20 20.5H14Z" fill="#4a3878" stroke="${PALETTE.gold}" stroke-width="1.8" stroke-linejoin="round" stroke-dasharray="2 1.6"/>
   </svg>`,
 };

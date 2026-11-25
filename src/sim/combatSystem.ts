@@ -1,12 +1,19 @@
 import type { EventBus } from '../core/eventBus.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import type { TowerType, Vec3 } from '../core/types.ts';
+import { ENEMY_DEFS } from '../data/enemies.ts';
 import { TOWER_DEFS, towerStats } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { EnemySystem } from './enemySystem.ts';
 import type { ProjectileSystem } from './projectileSystem.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
-import { acquireTarget } from './targeting.ts';
+import { acquireTarget, attackReach } from './targeting.ts';
+
+/** Attack range a Veilcaster veil takes away (non-stacking per tower). */
+const VEIL_RANGE_CUT = (() => {
+  const a = ENEMY_DEFS.veilcaster.ability;
+  return a?.kind === 'veil' ? a.rangeCut : 0;
+})();
 
 /** Seconds between Beacon aura pulse effects. */
 export const BEACON_PULSE_INTERVAL = 2.6;
@@ -119,6 +126,29 @@ export class CombatSystem {
     }
   }
 
+  /**
+   * Chapter five range cuts: ticks Veilcaster veils down and sets `rangeCut` on every firing tower
+   * from its veil and the Eclipse Sovereign's eclipse (`1 - (1 - veil) * (1 - eclipse)`). Barracks
+   * and Beacons are never cut. Towers that were never touched keep no `rangeCut` field at all.
+   */
+  applyRangeCuts(towers: readonly TowerEntity[], dt: number): void {
+    const es = this.enemySystem;
+    const eclipse = es.eclipseTimer > 0 ? es.eclipseCut : 0;
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
+      const veilLeft = t.veilTimer ?? 0;
+      if (veilLeft <= 0 && eclipse <= 0 && !t.rangeCut) continue;
+      if (veilLeft > 0) t.veilTimer = Math.max(0, veilLeft - dt);
+      const role = TOWER_DEFS[t.type].role;
+      let cut = 0;
+      if (role !== 'barracks' && role !== 'support') {
+        const veil = (t.veilTimer ?? 0) > 0 ? VEIL_RANGE_CUT : 0;
+        if (veil > 0 || eclipse > 0) cut = 1 - (1 - veil) * (1 - eclipse);
+      }
+      t.rangeCut = cut;
+    }
+  }
+
   /** Per tower type fire-rate multiplier (Workshop family upgrades); missing = 1. */
   towerRateMul: Readonly<Partial<Record<TowerType, number>>> = {};
 
@@ -129,6 +159,7 @@ export class CombatSystem {
 
     this.applyBeaconAuras(towers);
     this.applyFrostPatches(towers);
+    this.applyRangeCuts(towers, dt);
 
     _stepTowerIds.length = 0;
     for (let i = 0; i < towers.length; i++) {
@@ -268,7 +299,7 @@ export class CombatSystem {
     const extra = stats.volleyExtra ?? 0;
     const dmgMult = stats.volleyDamage ?? 0.6;
     const def = TOWER_DEFS[tower.type];
-    const range = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
+    const range = attackReach(tower, stats.range);
     // The tier-III volley uses the original neighborhood of grid cells. Swallow Roost
     // has a circular spread within those cells, independent of the lane's grid alignment.
     const radius = stats.volleyRadius;

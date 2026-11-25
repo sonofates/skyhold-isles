@@ -6,6 +6,14 @@ import type { SpatialHashGrid } from './spatialHash.ts';
 
 const _candidates: number[] = [];
 
+/**
+ * A firing tower's attack reach: base range x (1 + Beacon aura + hero bonus) x (1 - rangeCut), the
+ * last being a Veilcaster veil and / or the Eclipse Sovereign's eclipse (0 on every older island).
+ */
+export function attackReach(tower: TowerEntity, baseRange: number): number {
+  return baseRange * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0)) * (1 - (tower.rangeCut ?? 0));
+}
+
 export function acquireTarget(
   tower: TowerEntity,
   stats: TowerTierStats,
@@ -13,7 +21,7 @@ export function acquireTarget(
   spatialHash: SpatialHashGrid,
 ): EnemyEntity | null {
   const def = TOWER_DEFS[tower.type];
-  const maxR = stats.range * (1 + tower.auraRange + (tower.heroRangeBonus ?? 0));
+  const maxR = attackReach(tower, stats.range);
   const maxRSq = maxR * maxR;
   const minRSq = stats.minRange * stats.minRange;
   const mode: TargetingMode = tower.targetingMode;

@@ -4,6 +4,7 @@ import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
 import { ELITE_MODIFIERS, ENEMY_DEFS } from '../data/enemies.ts';
 import { ENEMY_MELEE } from '../data/soldiers.ts';
+import { TOWER_DEFS } from '../data/towers.ts';
 import type { EnemyEntity, TowerEntity } from './entities.ts';
 import type { CompiledPath } from './path.ts';
 import type { SpatialHashGrid } from './spatialHash.ts';
@@ -13,6 +14,11 @@ const _healCandidates: number[] = [];
 const _blinkFrom = { x: 0, y: 0, z: 0 };
 /** Scratch copy of a downed Cloud Hauler (its pool slot is released before raiders spawn). */
 const _wreck = { x: 0, y: 0, z: 0, hpScale: 1 };
+/** Where Dusk Hounds died this tick (pack enrage is applied after the movement pass). */
+const _packDeaths: { x: number; y: number; z: number }[] = [];
+let _packDeathCount = 0;
+/** Scratch copy of a splitting Eclipse Sovereign (its pool slot is freed before the halves spawn). */
+const _sovereign = { uid: 0, lane: 0, dist: 0, x: 0, y: 0, z: 0, hp: 0, speed: 0, reward: 0, elite: false };
 /** Blinkers never teleport to within this path distance of the goal. */
 const BLINK_GOAL_MARGIN = 2.0;
 /** Hauler raiders never land closer than this to the goal. */
@@ -43,6 +49,17 @@ const GLACIER_SUMMON_STEP = 0.45;
 const GLACIER_SUMMON_REWARD = 3;
 /** Radius reported with the Glacier Warden's `bossPhase` event (FX ring only). */
 const GLACIER_PHASE_RADIUS = 3.2;
+/** Veilcaster: retry cadence when no un-veiled tower stands in reach. */
+const VEIL_RETRY_INTERVAL = 0.4;
+/** Eclipse Sovereign: the second Shadow Half lands this far behind the first. */
+const SHADE_STEP = 0.6;
+/** Eclipse Sovereign: summoned Dusk Hounds land this far behind the split, spaced by the step. */
+const SOVEREIGN_SUMMON_BACK = 0.9;
+const SOVEREIGN_SUMMON_STEP = 0.45;
+/** Gold per Dusk Hound the Sovereign summons (a story hound pays its full 4). */
+const SOVEREIGN_SUMMON_REWARD = 2;
+/** Radius reported with the Sovereign's `bossPhase` events (FX ring only). */
+const SOVEREIGN_PHASE_RADIUS = 4.2;
 
 /** A Rime Beetle frost patch: towers within `radius` fire at `rateMul` while `timeLeft > 0`. */
 export interface FrostPatch {
@@ -68,6 +85,13 @@ export class EnemySystem {
   private readonly events: EventBus;
   /** Rime Beetle frost patches (fixed slots, `active` marks the live ones). Read by CombatSystem. */
   readonly frostPatches: FrostPatch[] = [];
+  /**
+   * Eclipse Sovereign eclipse: seconds left (0 = clear sky), its full length and the attack-range
+   * share every firing tower loses while it lasts. Read by CombatSystem and the renderer.
+   */
+  eclipseTimer = 0;
+  eclipseDuration = 0;
+  eclipseCut = 0;
 
   constructor(
     pool: ObjectPool<EnemyEntity>,
@@ -95,6 +119,13 @@ export class EnemySystem {
     let n = 0;
     for (let i = 0; i < this.frostPatches.length; i++) if (this.frostPatches[i].active) n++;
     return n;
+  }
+
+  /** Ends an eclipse at once (run end, skip, dispose). */
+  clearEclipse(): void {
+    this.eclipseTimer = 0;
+    this.eclipseDuration = 0;
+    this.eclipseCut = 0;
   }
 
   /** Drops every frost patch (run end, skip, dispose). */
@@ -266,6 +297,8 @@ export class EnemySystem {
     livesCost: number,
     scaleOverride: number,
     isSplitChild: boolean,
+    /** Use `speed` as is (no run speed modifier): split children and Shadow Halves inherit it. */
+    rawSpeed = isSplitChild,
   ): EnemyEntity | null {
     const entity = this.pool.acquire();
     if (!entity) return null;
@@ -283,7 +316,7 @@ export class EnemySystem {
     entity.type = type;
     entity.maxHp = maxHp;
     entity.hp = maxHp;
-    entity.speed = isSplitChild ? speed : speed * this.speedMul;
+    entity.speed = rawSpeed ? speed : speed * this.speedMul;
     entity.armor = def.armor + this.armorBonus;
     entity.reward = reward;
     entity.livesCost = livesCost;
@@ -332,6 +365,9 @@ export class EnemySystem {
               ? HEX_FIRST_DELAY
               : 0;
     if (def.ability?.kind === 'refrain') entity.abilityTimer = def.ability.interval * 0.5;
+    if (def.ability?.kind === 'veil') entity.abilityTimer = def.ability.firstSec;
+    entity.enrageStacks = 0;
+    entity.enrageTimer = 0;
     if (def.ability?.kind === 'guard') {
       // Sledge Warden: arrives with its own full shield pool; abilityTimer = seconds unhurt.
       entity.shield = this.guardShieldOf(maxHp, def.ability.shieldFrac);
@@ -496,12 +532,20 @@ export class EnemySystem {
   ): void {
     this.spatialHash.clear();
     this.tickFrostPatches(dt);
+    if (this.eclipseTimer > 0) {
+      this.eclipseTimer = Math.max(0, this.eclipseTimer - dt);
+      if (this.eclipseTimer === 0) this.clearEclipse();
+    }
+    _packDeathCount = 0;
 
     // First pass: advance movement, handle leaks & deaths, rebuild spatial hash
     let pos = 0;
     while (pos < this.pool.getActiveCount()) {
       const idx = this.pool.getActiveIndex(pos);
       const e = this.pool.items[idx];
+
+      // Eclipse Sovereign: eclipse / split thresholds (a split frees this slot for the halves).
+      if (e.type === 'eclipse_sovereign' && this.updateSovereign(e, pos, currentHpScale)) continue;
 
       if (e.hp <= 0) {
         onKill(e);
@@ -530,6 +574,8 @@ export class EnemySystem {
           if (rime?.kind === 'rime') {
             this.addFrostPatch(e.x, e.y, e.z, rime.patchRadius, rime.patchSec, rime.rateMul);
           }
+        } else if (e.type === 'duskhound') {
+          this.notePackDeath(e);
         } else if (e.type === 'carrier') {
           _wreck.x = e.x;
           _wreck.y = e.y;
@@ -602,6 +648,10 @@ export class EnemySystem {
         effectiveSpeed *= 1 + ability.speedBonus * e.abilityTimer / ability.runUpSec;
       } else if (ability?.kind === 'draft') {
         effectiveSpeed *= 1 + ability.speedBonus * e.abilityTimer / ability.coastSec;
+      } else if (ability?.kind === 'pack' && e.enrageStacks > 0) {
+        e.enrageTimer = Math.max(0, e.enrageTimer - dt);
+        if (e.enrageTimer === 0) e.enrageStacks = 0;
+        else effectiveSpeed *= 1 + ability.speedBonus * e.enrageStacks;
       }
       if (totalBlockers > 0) {
         // Held by barracks soldiers or a melee hero: stopped, or slowed while short of holdCost.
@@ -640,6 +690,9 @@ export class EnemySystem {
       pos++;
     }
 
+    // Dusk Hound deaths this tick enrage the pack mates around them (uses the new spatial hash).
+    if (_packDeathCount > 0) this.applyPackEnrage();
+
     // Second pass: Healer aura pulses & Boss abilities (uses newly populated spatial hash)
     const activeCount = this.pool.getActiveCount();
     for (let i = 0; i < activeCount; i++) {
@@ -658,6 +711,8 @@ export class EnemySystem {
         this.updateGuardShield(actor, dt, ability.shieldFrac, ability.regenSec);
       } else if (ability?.kind === 'glacier') {
         this.updateGlacierWarden(actor, towers, currentHpScale, ability);
+      } else if (ability?.kind === 'veil') {
+        this.updateVeil(actor, dt, towers, ability);
       } else if (actor.type === 'healer') {
         this.updateHealerAura(actor, dt);
       } else if (actor.type === 'warden') {
@@ -913,6 +968,218 @@ export class EnemySystem {
         count: spawned,
       });
     }
+  }
+
+  /** Dusk Hound died (not a leak): remember where, the pack enrages after the movement pass. */
+  private notePackDeath(e: EnemyEntity): void {
+    let slot = _packDeaths[_packDeathCount];
+    if (!slot) {
+      slot = { x: 0, y: 0, z: 0 };
+      _packDeaths.push(slot);
+    }
+    slot.x = e.x;
+    slot.y = e.y;
+    slot.z = e.z;
+    _packDeathCount++;
+  }
+
+  /**
+   * Dusk Hound pack enrage: every hound still alive within `radius` of a hound that died this tick
+   * gains one stack (at most `maxStacks`) and its enrage timer restarts at `enrageSec`.
+   */
+  private applyPackEnrage(): void {
+    const ability = ENEMY_DEFS.duskhound.ability;
+    if (ability?.kind !== 'pack') return;
+    const rSq = ability.radius * ability.radius;
+    for (let d = 0; d < _packDeathCount; d++) {
+      const at = _packDeaths[d];
+      this.spatialHash.query(at.x, at.z, ability.radius, _healCandidates);
+      let count = 0;
+      for (let k = 0; k < _healCandidates.length; k++) {
+        const mate = this.pool.items[_healCandidates[k]];
+        if (!mate.active || mate.hp <= 0 || mate.type !== 'duskhound') continue;
+        const dx = mate.x - at.x;
+        const dz = mate.z - at.z;
+        if (dx * dx + dz * dz > rSq) continue;
+        mate.enrageStacks = Math.min(ability.maxStacks, mate.enrageStacks + 1);
+        mate.enrageTimer = ability.enrageSec;
+        count++;
+      }
+      if (count > 0) {
+        this.events.emit('packEnrage', { x: at.x, y: at.y + 0.5, z: at.z, radius: ability.radius, count });
+      }
+    }
+    _packDeathCount = 0;
+  }
+
+  /**
+   * Veilcaster: every `interval` s it veils the nearest firing tower within `reach` that is not
+   * veiled already (veils never stack): that tower's attack range is cut for `veilSec`. A stunned
+   * caster holds its cast; with nothing in reach it retries shortly.
+   */
+  private updateVeil(
+    e: EnemyEntity,
+    dt: number,
+    towers: readonly TowerEntity[] | undefined,
+    ability: { readonly reach: number; readonly interval: number; readonly veilSec: number; readonly rangeCut: number },
+  ): void {
+    if (e.stunTimer > 0) return;
+    e.abilityTimer -= dt;
+    if (e.abilityTimer > 0 || !towers) return;
+    let best: TowerEntity | null = null;
+    let bestDist = Infinity;
+    for (let i = 0; i < towers.length; i++) {
+      const t = towers[i];
+      if ((t.veilTimer ?? 0) > 0) continue;
+      const role = TOWER_DEFS[t.type].role;
+      if (role === 'barracks' || role === 'support') continue;
+      const d = Math.hypot(t.x - e.x, t.z - e.z);
+      if (d > ability.reach) continue;
+      if (d < bestDist || (d === bestDist && best !== null && t.id < best.id)) {
+        best = t;
+        bestDist = d;
+      }
+    }
+    if (!best) {
+      e.abilityTimer = VEIL_RETRY_INTERVAL;
+      return;
+    }
+    best.veilTimer = ability.veilSec;
+    e.abilityTimer = ability.interval;
+    this.events.emit('towerVeiled', {
+      enemyId: e.uid,
+      towerId: best.id,
+      x: e.x,
+      y: e.y + e.height,
+      z: e.z,
+      towerX: best.x,
+      towerZ: best.z,
+      duration: ability.veilSec,
+      rangeCut: ability.rangeCut,
+    });
+  }
+
+  /**
+   * Eclipse Sovereign (the final boss), checked at the start of its movement step:
+   * - phase 1 at `eclipseAt`: the eclipse (every firing tower loses `eclipseCut` of its attack
+   *   range for `eclipseSec`, the renderer darkens the screen);
+   * - phase 2 at `splitAt`: it splits into two Shadow Halves and summons Dusk Hounds.
+   * A hit that drops it through both thresholds plays both in one tick (eclipse first). Even a hit
+   * that would kill it outright makes it split (halves of at least 1 HP): the fight only ends when
+   * both halves fall. Returns true when the Sovereign split (its pool slot is free now).
+   */
+  private updateSovereign(e: EnemyEntity, pos: number, currentHpScale: number): boolean {
+    const ability = ENEMY_DEFS.eclipse_sovereign.ability;
+    if (ability?.kind !== 'sovereign' || e.bossPhase >= 2) return false;
+    if (e.bossPhase === 0 && e.hp <= e.maxHp * ability.eclipseAt) {
+      e.bossPhase = 1;
+      this.eclipseTimer = Math.max(this.eclipseTimer, ability.eclipseSec);
+      this.eclipseDuration = Math.max(this.eclipseDuration, ability.eclipseSec);
+      this.eclipseCut = ability.eclipseCut;
+      this.events.emit('bossPhase', {
+        enemyId: e.uid,
+        enemyType: e.type,
+        phase: 1,
+        x: e.x,
+        y: e.y + 0.2,
+        z: e.z,
+        radius: SOVEREIGN_PHASE_RADIUS,
+      });
+      this.events.emit('eclipse', {
+        enemyId: e.uid,
+        x: e.x,
+        y: e.y + e.height,
+        z: e.z,
+        duration: ability.eclipseSec,
+        rangeCut: ability.eclipseCut,
+      });
+    }
+    if (e.hp > e.maxHp * ability.splitAt) return false;
+
+    _sovereign.uid = e.uid;
+    _sovereign.lane = e.lane;
+    _sovereign.dist = e.dist;
+    _sovereign.x = e.x;
+    _sovereign.y = e.y;
+    _sovereign.z = e.z;
+    _sovereign.hp = e.hp;
+    _sovereign.speed = e.speed;
+    _sovereign.reward = e.reward;
+    _sovereign.elite = e.elite;
+    // Free the slot first so a full pool still fits the halves.
+    this.pool.releaseAtActivePos(pos);
+
+    const shade = ENEMY_DEFS.eclipse_shade;
+    const halfHp = Math.max(1, Math.round(Math.max(1, _sovereign.hp) * ability.splitHpFrac));
+    const halfSpeed = _sovereign.speed * (shade.speed / ENEMY_DEFS.eclipse_sovereign.speed);
+    const halfReward = Math.round(_sovereign.reward / 2);
+    this.events.emit('bossPhase', {
+      enemyId: _sovereign.uid,
+      enemyType: 'eclipse_sovereign',
+      phase: 2,
+      x: _sovereign.x,
+      y: _sovereign.y + 0.2,
+      z: _sovereign.z,
+      radius: SOVEREIGN_PHASE_RADIUS,
+    });
+    let halves = 0;
+    for (let k = 0; k < 2; k++) {
+      const half = this.initEnemyAt(
+        'eclipse_shade',
+        _sovereign.lane,
+        Math.max(0, _sovereign.dist - k * SHADE_STEP),
+        halfHp,
+        halfSpeed,
+        halfReward,
+        shade.livesCost,
+        1,
+        false,
+        true,
+      );
+      if (!half) continue;
+      half.bossPhase = 2;
+      if (_sovereign.elite) {
+        half.elite = true;
+        half.armor += ELITE_MODIFIERS.armorBonus;
+        half.baseArmor = half.armor;
+      }
+      halves++;
+    }
+    this.events.emit('sovereignSplit', {
+      parentUid: _sovereign.uid,
+      x: _sovereign.x,
+      y: _sovereign.y + 0.4,
+      z: _sovereign.z,
+      count: halves,
+      halfHp,
+    });
+
+    const hound = ENEMY_DEFS.duskhound;
+    const houndHp = Math.max(1, Math.round(hound.maxHp * currentHpScale));
+    let summoned = 0;
+    for (let k = 0; k < ability.summonCount; k++) {
+      const pup = this.initEnemyAt(
+        'duskhound',
+        _sovereign.lane,
+        Math.max(0, _sovereign.dist - SOVEREIGN_SUMMON_BACK - k * SOVEREIGN_SUMMON_STEP),
+        houndHp,
+        hound.speed,
+        SOVEREIGN_SUMMON_REWARD,
+        hound.livesCost,
+        1,
+        false,
+      );
+      if (pup) summoned++;
+    }
+    if (summoned > 0) {
+      this.events.emit('bossSummon', {
+        x: _sovereign.x,
+        y: _sovereign.y + 0.8,
+        z: _sovereign.z,
+        count: summoned,
+      });
+    }
+    return true;
   }
 
   /**
