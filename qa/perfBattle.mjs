@@ -3,7 +3,8 @@
 // Options: --level=i42 --wave=8 --speed=3 --seconds=15 --warm=8 --waitWarm=1 --quality=low|medium|high
 //   --dpr=N (default 3 for phone sizes, 1 otherwise) --profile=N (print the N top self-time
 //   functions from a CPU profile of the sampled window; most useful against the dev server, whose
-//   code keeps its names) --shot=path.png --label=text --path=/2d.html
+//   code keeps its names) --alloc=N (top N allocating functions, sampled) --uploads=1 --texts=1
+//   --textures=N --shot=path.png --label=text --path=/2d.html
 // Prints one JSON line: fps, frame ms p50/p95/p99/max, draw calls, JS heap, GPU textures, enemies.
 import { chromium } from 'playwright';
 
@@ -32,6 +33,7 @@ const browser = await chromium.launch({
 try {
   const context = await browser.newContext({ viewport: { width: w, height: h }, deviceScaleFactor: dpr, isMobile: phone, hasTouch: phone });
   const page = await context.newPage();
+  if (arg('reducedMotion', '') === '1') await page.emulateMedia({ reducedMotion: 'reduce' });
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const cdp = await context.newCDPSession(page);
@@ -178,6 +180,11 @@ try {
     await page.waitForTimeout(700);
   }
   const m0 = await cdp.send('Performance.getMetrics');
+  const allocTop = Number(arg('alloc', 0));
+  if (allocTop > 0) {
+    await cdp.send('HeapProfiler.enable');
+    await cdp.send('HeapProfiler.startSampling', { samplingInterval: 4096 });
+  }
   if (profileTop > 0) {
     await cdp.send('Profiler.enable');
     await cdp.send('Profiler.setSamplingInterval', { interval: 500 });
@@ -247,6 +254,22 @@ try {
       .sort((a, b) => b[1] - a[1])
       .slice(0, profileTop)
       .map(([k, v]) => `${((100 * v) / total).toFixed(1)}% ${k}`);
+  }
+  if (allocTop > 0) {
+    // Allocation sampling over the window: bytes allocated per function (self), per frame.
+    const { profile } = await cdp.send('HeapProfiler.stopSampling');
+    const self = new Map();
+    const walk = (n) => {
+      const cf = n.callFrame;
+      const key = `${cf.functionName || '(anon)'} ${cf.url.replace(/^.*\/(src|node_modules|assets)\//, '$1/').replace(/\?v=[0-9a-f]+/, '')}:${cf.lineNumber + 1}`;
+      self.set(key, (self.get(key) ?? 0) + n.selfSize);
+      for (const c of n.children) walk(c);
+    };
+    walk(profile.head);
+    const total = [...self.values()].reduce((a, b) => a + b, 0);
+    res.allocKBPerFrame = Math.round(total / 1024 / Math.max(1, res.frames) * 10) / 10;
+    res.alloc = [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, allocTop)
+      .map(([k, v]) => `${(v / 1024 / Math.max(1, res.frames)).toFixed(2)} KB/frame ${k}`);
   }
   if (shot) await page.screenshot({ path: shot });
   console.log(JSON.stringify({ label: arg('label', ''), size: `${w}x${h}@${dpr}`, cpu, level, speed, setup, ...res, errors }));

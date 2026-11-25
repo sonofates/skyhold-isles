@@ -128,6 +128,8 @@ declare global {
       /** QA: procedural map-life layer state and deterministic step helper. */
       mapLife?: () => ReturnType<import('./mapLifeLayer.ts').MapLifeController['debug']> | null;
       stepMapLife?: (dtSec: number) => void;
+      /** QA: map life's surface pass on the full quad instead of its mask cells (same pixels). */
+      mapLifeFullQuad?: (on: boolean) => void;
       /** QA: the caves / castle fronts on screen (`castle` = the goal). */
       gates?: () => { x: number; y: number; w: number; h: number; castle: boolean }[];
       lives?: () => Record<string, unknown> | null;
@@ -1192,6 +1194,10 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
       app.render();
     },
     mapLife: () => life?.debug() ?? null,
+    mapLifeFullQuad: (on) => {
+      life?.qaFullQuad(on);
+      app.render();
+    },
     stepMapLife: (dt) => {
       if (life) {
         let rem = Math.max(0, dt);
