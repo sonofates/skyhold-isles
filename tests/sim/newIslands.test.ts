@@ -25,9 +25,12 @@ it.each(NEW_ISLANDS)('$id has a Master encounter using its chapter roster and bo
   expect(new Set(waves.flatMap(w => w.groups.map(g => g.lane)))).toEqual(new Set([0, 1]));
 });
 
-it.each(CHAPTER4_ISLANDS)('$id fields two lanes and thirteen Master waves from the previous chapters', level => {
-  const previous = new Set(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
+// i28 opens the chapter with the older roster only; from i29 on the Rime Beetle joins
+// (docs/handoff-ch4-waves-1.md, tests/sim/chapterFourWaves.test.ts).
+it.each(CHAPTER4_ISLANDS)('$id fields two lanes and thirteen Master waves from the previous chapters (+ the Rime Beetle after i28)', level => {
+  const previous = new Set<string>(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
     .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
+  if (level.id !== 'i28') previous.add('rimebeetle');
   expect(LEVELS_2D.filter(l => l.id === level.id)).toEqual([level]);
   expect(level.difficulty).toBe('Master');
   expect(level.waves).toHaveLength(13);
