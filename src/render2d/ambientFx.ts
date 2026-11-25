@@ -1,5 +1,6 @@
 import { Container, ImageSource, Rectangle, Sprite, Texture } from 'pixi.js';
 import { fxPrefsNow } from './fxLayer.ts';
+import { AMBIENT_FX_TABLE as configs } from './islandTable.ts';
 import type { QualityTier } from './renderResolution.ts';
 
 /**
@@ -139,15 +140,15 @@ export function isReducedMotion(): boolean {
   return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
 }
 
-// Eagerly bundle per-island procedural ambient data (same glob pattern as mapAnimLayer.ts).
-const configs = import.meta.glob<AmbientFxConfig>('../data/ambientFx/*.json', { eager: true, import: 'default' });
+// Per-island procedural ambient data, one lazy chunk per island (islandTable.ts): the battle
+// loads its island's file before building the map layers (`loadIslandTables`).
 
 export function getAmbientFxConfig(island: string): AmbientFxConfig | undefined {
-  return configs[`../data/ambientFx/${island}.json`];
+  return configs.get(island);
 }
 
 export function listAmbientFxConfigs(): readonly AmbientFxConfig[] {
-  return Object.values(configs);
+  return configs.list();
 }
 
 // --- Pure helpers (unit-tested) ------------------------------------------------------------------

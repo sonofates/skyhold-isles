@@ -1,5 +1,6 @@
 import { Container, GlProgram, ImageSource, Mesh, MeshGeometry, Shader, VideoSource } from 'pixi.js';
 import { AmbientFxLayer, getAmbientFxConfig, isReducedMotion, type AmbientFxStats } from './ambientFx.ts';
+import { MAP_ANIM_TABLE as maps } from './islandTable.ts';
 import type { QualityTier } from './renderResolution.ts';
 
 interface AmbientTrack {
@@ -10,13 +11,13 @@ interface AmbientTrack {
   fps: number;
 }
 
-interface AmbientMap extends AmbientTrack {
+export interface AmbientMap extends AmbientTrack {
   compact?: AmbientTrack;
   elements: { rect: number[]; cell: number[]; depth: number }[];
 }
 
-// Each file describes one island's color video, feathered mask and layout rectangles.
-const maps = import.meta.glob<AmbientMap>('../data/mapAnim/*.json', { eager: true, import: 'default' });
+// Each file describes one island's color video, feathered mask and layout rectangles; one lazy
+// chunk per island (islandTable.ts `MAP_ANIM_TABLE`), loaded before `mapAnimLayer` is built.
 
 const vertex = `
   in vec2 aPosition;
@@ -195,7 +196,7 @@ export interface MapAnimController {
 }
 
 export function mapAnimLayer(world: Container, island: string, base: string, onVideoUpload?: () => void): MapAnimController | undefined {
-  const data = maps[`../data/mapAnim/${island}.json`];
+  const data = maps.get(island);
   const fxConfig = getAmbientFxConfig(island);
   if (!data && !fxConfig) return;
 

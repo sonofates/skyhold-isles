@@ -10,6 +10,7 @@ import {
   Texture,
   UniformGroup,
 } from 'pixi.js';
+import { MAP_LIFE_TABLE as configs } from './islandTable.ts';
 import type { TextureSource } from 'pixi.js';
 import { hashSeed, isReducedMotion, LAYOUT_HEIGHT, LAYOUT_WIDTH, nextRand, parseHexColor } from './ambientFx.ts';
 import type { WorldLayers } from './layers.ts';
@@ -220,15 +221,15 @@ export interface MapLifeController {
   destroy(): void;
 }
 
-// Eagerly bundle per-island map-life configs (same glob pattern as ambientFx.ts / mapAnimLayer.ts).
-const configs = import.meta.glob<MapLifeConfig>('../data/mapLife/*.json', { eager: true, import: 'default' });
+// Per-island map-life configs, one lazy chunk per island (islandTable.ts `MAP_LIFE_TABLE`): the
+// battle loads its island's file (`loadIslandTables`) before `mapLifeLayer`.
 
 export function getMapLifeConfig(island: string): MapLifeConfig | undefined {
-  return configs[`../data/mapLife/${island}.json`];
+  return configs.get(island);
 }
 
 export function listMapLifeConfigs(): readonly MapLifeConfig[] {
-  return Object.values(configs);
+  return configs.list();
 }
 
 // --- Pure helpers (unit-tested) ------------------------------------------------------------------
