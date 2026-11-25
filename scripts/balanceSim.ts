@@ -570,16 +570,18 @@ function islandLossWindow(index: number, id: string): readonly [number, number] 
   if (id === 'i34') return [16, 18];
   if (id === 'i35') return [18, 20];
   if (id === 'i36') return [20, 21];
-  // Eclipse opens just below Citadel pressure, then tightens across the two new approaches.
-  if (id === 'i37') return [14, 16];
-  if (id === 'i38') return [15, 17];
-  if (id === 'i39') return [16, 18];
-  if (id === 'i40') return [18, 20];
-  if (id === 'i41') return [19, 21];
-  if (id === 'i42') return [20, 21];
+  // Eclipse opens softer than the Citadel (i36 loses 20) and climbs over nine islands to the throne:
+  // 14 → 20 lost (8 → 2 lives left of 22), so two pairs share a step (docs/handoff-ch5-final.md).
+  // The finale keeps room at the top: never down to its last life.
+  if (id === 'i37') return [13, 15];
+  if (id === 'i38') return [14, 16];
+  if (id === 'i39') return [15, 17];
+  if (id === 'i40') return [15, 17];
+  if (id === 'i41') return [16, 18];
+  if (id === 'i42') return [17, 19];
   if (id === 'i43') return [17, 19];
   if (id === 'i44') return [18, 20];
-  if (id === 'i45') return [20, 21];
+  if (id === 'i45') return [19, 20];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
@@ -744,7 +746,8 @@ export function evaluateBalance(
       const sd = greedyRes.shadow;
       const lost = sd.towerSec > 0 ? (sd.rangeLostSec / sd.towerSec) * 100 : 0;
       const houndLeaks = greedyRes.waves.reduce((n, w) => n + (w.leaksByType.duskhound ?? 0), 0);
-      summary[summary.length - 1] += ` | dusk: greedy ${sd.veils} veils, ${sd.packHowls} pack howls ` +
+      const veilUp = sd.veilWaveTowerSec > 0 ? (sd.veilSec / sd.veilWaveTowerSec) * 100 : 0;
+      summary[summary.length - 1] += ` | dusk: greedy ${sd.veils} veils (${veilUp.toFixed(1)}% veiled uptime on veil waves), ${sd.packHowls} pack howls ` +
         `(${sd.houndsEnraged} mates enraged, ${houndLeaks} hounds leaked), ` +
         `eclipse ${sd.eclipses}, split ${sd.splits}, ${lost.toFixed(1)}% of tower reach lost`;
     }
@@ -837,7 +840,9 @@ export function evaluateBalance(
         if (eclipses !== 1 || splits !== 1 || shadeKills !== 2 || last?.bossSummons !== 4 || splitProgress < 0.25 || splitProgress > 0.85) {
           failures.push('i45 must eclipse, split with road remaining, summon four hounds and defeat both Shadow Halves');
         }
-        summary[summary.length - 1] += ` | Throne: split at ${(100 * splitProgress).toFixed(1)}% of the processional, ${shadeKills} halves defeated`;
+        const { eclipseAt, splitAt, halvesDownAt } = greedyRes.shadow;
+        summary[summary.length - 1] += ` | Throne: eclipse ${eclipseAt.toFixed(1)} s and split ${splitAt.toFixed(1)} s after the Sovereign enters,` +
+          ` split at ${(100 * splitProgress).toFixed(1)}% of the processional, ${shadeKills} halves defeated by ${halvesDownAt.toFixed(1)} s`;
       }
       if (level.id === 'i36') {
         const last = greedyRes.waves.at(-1);

@@ -96,15 +96,20 @@ function verdict(rows: Row[]): void {
   const finaleApproach = ['i33', 'i34', 'i35', 'i36'].map(normalLives);
   check(finaleApproach.every((n, i) => n > 0 && (i === 0 || n < finaleApproach[i - 1])),
     `Normal first clears tighten from Stillfall to the Citadel: ${finaleApproach.join(' > ')} lives`);
-  const eclipse = ['i37', 'i38', 'i39', 'i40', 'i41', 'i42'].map(normalLives);
+  // Nine islands climb from just below the Citadel to the throne. 22 lives leave too few steps for a
+  // strict fall, so a step may hold for two islands, never three (docs/handoff-ch5-final.md).
+  const eclipseIds = ['i37', 'i38', 'i39', 'i40', 'i41', 'i42', 'i43', 'i44', 'i45'];
+  const eclipse = eclipseIds.map(normalLives);
   check(eclipse[0] > normalLives('i36') && eclipse[0] <= normalLives('i36') + 6
-    && eclipse.every((n, i) => n > 0 && (i === 0 || n < eclipse[i - 1])),
-    `Eclipse eases after the Citadel and rises through the grove: i36 ${normalLives('i36')}, then ${eclipse.join(' > ')} lives`);
+    && eclipse.every((n, i) => n > 0 && (i === 0 || n <= eclipse[i - 1]))
+    && eclipse.every((n, i) => i < 2 || n < eclipse[i - 2])
+    && eclipse[0] - eclipse[eclipse.length - 1] >= 5,
+    `Eclipse eases after the Citadel and climbs to the throne: i36 ${normalLives('i36')}, then ${eclipse.join(' ≥ ')} lives`);
   const throne = ['i43', 'i44', 'i45'].map(normalLives);
   const otherEclipse = rows.filter(r => chapterOf(r.level.id)?.id === 'ch5' && r.level.id !== 'i45');
-  check(throne[0] > throne[1] && throne[1] > throne[2] && throne[2] > 0
+  check(throne[0] > throne[1] && throne[1] > throne[2] && throne[2] >= 2
     && otherEclipse.every(r => r.runs.normal.campaign.finalLives > throne[2]),
-    `Normal reaches its Eclipse peak at the throne: ${throne.join(' > ')} lives`);
+    `Normal reaches its Eclipse peak at the throne with room at the top: ${throne.join(' > ')} lives`);
   const twos = normal.filter(r => r.stars === 2).length;
   const threes = normal.filter(r => r.stars === 3).length;
   check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),

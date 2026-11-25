@@ -44,7 +44,7 @@ export const I44 = {
       group('sledguard', 5, 1.42), group('duskhound', 6, 0.41, 1, 1), group('hexer', 3, 1.3, 4),
     ] },
     { name: 'Wandering Folios', clearBonus: 41, groups: [
-      group('splitter', 6, 0.85, 0, 1), group('draftwing', 5, 0.91, 3), group('veilcaster', 3, 1.41, 4),
+      group('splitter', 6, 0.85, 0, 1), group('draftwing', 5, 0.91, 3), group('veilcaster', 2, 1.41, 4),
     ] },
     { name: 'The Counterweight', clearBonus: 43, groups: [
       group('golem', 4, 1.3), group('warden', 5, 1.16, 2, 1), group('healer', 3, 1.4, 4),

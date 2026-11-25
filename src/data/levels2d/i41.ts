@@ -41,7 +41,7 @@ export const I41 = {
       group('brute', 5, 1.12), group('hexer', 3, 1.4, 1, 1), group('carrier', 2, 2.35, 5),
     ] },
     { name: 'Shadow at Noon', clearBonus: 38, groups: [
-      { ...group('warden', 3, 1.21, 0, 1), elite: true, hpScale: 2.2 }, group('veilcaster', 3, 1.33), group('runner', 9, 0.54, 3, 1),
+      group('splitter', 7, 0.88, 0, 1), group('burrower', 7, 0.83, 2), group('healer', 3, 1.39, 5, 1),
     ] },
     { name: 'Half a Turn', clearBonus: 39, groups: [
       group('kilnback', 5, 1.22), group('reedpiper', 4, 1.29, 2, 1), group('draftwing', 5, 0.96, 5),
@@ -49,8 +49,9 @@ export const I41 = {
     { name: 'A Blind Minute', clearBonus: 41, groups: [
       group('duskhound', 6, 0.39, 0, 1), group('veilcaster', 4, 1.35, 1), group('duskhound', 6, 0.39, 5),
     ] },
+    // The elite warden pair holds back until the last third (chapter-5 final balance).
     { name: 'Broken Graduation', clearBonus: 43, groups: [
-      group('splitter', 7, 0.88, 0, 1), group('burrower', 7, 0.83, 2), group('healer', 3, 1.39, 5, 1),
+      { ...group('warden', 2, 1.21, 0, 1), elite: true, hpScale: 2 }, group('veilcaster', 3, 1.33), group('runner', 9, 0.54, 3, 1),
     ] },
     { name: 'Counterweight Stones', clearBonus: 45, groups: [
       { ...group('kilnback', 3, 1.19, 0, 1), elite: true, hpScale: 3.1 }, group('sledguard', 4, 1.32), group('bellrunner', 9, 0.51, 5),

@@ -41,10 +41,10 @@ export const I40 = {
       group('blinker', 8, 0.76), group('veilcaster', 3, 1.41, 1), group('carrier', 2, 2.3, 5),
     ] },
     { name: 'Slipping Shale', clearBonus: 38, groups: [
-      { ...group('kilnback', 4, 1.14), elite: true, hpScale: 2.1 }, group('reedpiper', 3, 1.31, 3), group('runner', 8, 0.54, 6),
+      { ...group('kilnback', 4, 1.14), elite: true, hpScale: 1.2 }, group('reedpiper', 3, 1.31, 3), group('runner', 8, 0.54, 6),
     ] },
     { name: 'Sifted Silver', clearBonus: 39, groups: [
-      group('burrower', 7, 0.82), group('warden', 5, 1.13, 1), group('draftwing', 5, 0.98, 4),
+      { ...group('burrower', 7, 0.82), hpScale: 0.8 }, group('warden', 5, 1.13, 1), group('draftwing', 5, 0.98, 4),
     ] },
     { name: 'The Darkened Lamp', clearBonus: 41, groups: [
       group('veilcaster', 4, 1.28), group('splitter', 7, 0.88, 1), group('duskhound', 6, 0.38, 5),
@@ -56,7 +56,7 @@ export const I40 = {
       { ...group('golem', 3, 1.21), elite: true, hpScale: 2 }, group('veilcaster', 3, 1.4, 2), group('mite', 11, 0.33, 4),
     ] },
     { name: 'Glow in the Sieve', clearBonus: 47, groups: [
-      group('sledguard', 5, 1.31), group('bellrunner', 12, 0.48, 3), group('reedpiper', 3, 1.24, 5),
+      { ...group('sledguard', 5, 1.31), elite: true, hpScale: 2 }, group('bellrunner', 12, 0.48, 3), group('reedpiper', 3, 1.24, 5),
     ] },
     { name: 'Assay Fire', clearBonus: 49, groups: [
       group('duskhound', 6, 0.38), group('kilnback', 6, 1.12, 2), group('duskhound', 6, 0.38, 6), group('veilcaster', 3, 1.35, 8),

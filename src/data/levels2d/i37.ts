@@ -48,7 +48,7 @@ export const I37 = {
       group('sledguard', 5, 1.38), group('kilnback', 5, 1.1, 2), group('draftwing', 4, 0.95, 6),
     ] },
     { name: 'Hawse Hole', clearBonus: 41, groups: [
-      group('golem', 4, 1.22), group('burrower', 8, 0.74, 3), group('healer', 3, 1.34, 5),
+      { ...group('golem', 4, 1.22), hpScale: 1.5 }, group('burrower', 8, 0.74, 3), group('healer', 3, 1.34, 5),
     ] },
     { name: 'Crosswind', clearBonus: 43, groups: [
       group('runner', 14, 0.46), group('hexer', 4, 1.25, 2), group('carrier', 2, 2.2, 4),

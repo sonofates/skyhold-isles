@@ -33,7 +33,7 @@ export const I39 = {
       group('reedpiper', 3, 1.42), pack(5, 2, 1, 1.25), group('draftwing', 4, 0.94, 4),
     ] },
     { name: 'Cellar Steps', clearBonus: 30, groups: [
-      group('kilnback', 5, 1.12, 0, 1), group('burrower', 6, 0.82, 2), group('healer', 2, 1.44, 4, 1),
+      group('kilnback', 5, 1.12, 0, 1), group('burrower', 6, 0.82, 2), { ...group('healer', 2, 1.44, 4, 1), hpScale: 1.5 },
     ] },
     { name: 'Sap Rising', clearBonus: 32, groups: [
       group('splitter', 6, 0.84), group('rimebeetle', 6, 0.82, 2, 1), pack(6, 4, 0, 1.25),
@@ -57,7 +57,7 @@ export const I39 = {
       pack(6, 4, 1, 1), pack(6, 8, 1, 1),
     ] },
     { name: 'Lantern Beds', clearBonus: 43, groups: [
-      group('rimebeetle', 8, 0.81), group('hexer', 4, 1.28, 2, 1), group('brute', 7, 1.02, 5, 1),
+      group('rimebeetle', 8, 0.81), { ...group('hexer', 4, 1.28, 2, 1), hpScale: 0.6 }, group('brute', 7, 1.02, 5, 1),
     ] },
     { name: 'Twin Harvest', clearBonus: 45, groups: [
       { ...group('sledguard', 4, 1.35, 0, 1), elite: true, hpScale: 3.52 }, group('kilnback', 5, 1.03, 3),

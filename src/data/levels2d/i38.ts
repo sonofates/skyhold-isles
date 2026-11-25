@@ -28,7 +28,7 @@ export const I38 = {
     ] },
     // Introduces the Dusk Hound: two tight five-strong packs across the first span.
     { name: 'Paws on Planks', clearBonus: 27, groups: [
-      pack(5, 0, 3), pack(5, 4.5, 3), group('brute', 3, 1.2, 8),
+      pack(5, 0, 3), pack(5, 4.5, 4.5), group('brute', 3, 1.2, 8),
     ] },
     { name: 'Survey Lamps', clearBonus: 29, groups: [
       group('mite', 13, 0.3), group('reedpiper', 3, 1.38, 2), group('draftwing', 4, 0.93, 4),
@@ -68,7 +68,7 @@ export const I38 = {
       group('kilnback', 7, 1.06), group('draftwing', 5, 0.91, 1.5), group('healer', 3, 1.31, 4),
     ] },
     { name: 'Final Rivet', clearBonus: 60, groups: [
-      { ...group('sledguard', 5, 1.37), elite: true, hpScale: 2.75 }, group('splitter', 8, 0.79, 3),
+      { ...group('sledguard', 4, 1.37), elite: true, hpScale: 2.75 }, group('splitter', 8, 0.79, 3),
       group('bellrunner', 12, 0.48, 6),
     ] },
   ],

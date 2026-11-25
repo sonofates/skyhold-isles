@@ -71,7 +71,7 @@ export const I45 = {
     // The side gates send the vanguard before the Sovereign takes the full procession.
     { name: 'The Eclipse Sovereign', clearBonus: 60, groups: [
       { ...group('eclipse_sovereign', 1, 1, 20), hpScale: 1.35 },
-      { ...group('duskhound', 6, 0.4, 12, 2), elite: true, hpScale: 8 }, group('duskhound', 5, 0.4, 5, 1),
+      { ...group('duskhound', 5, 0.4, 12, 2), elite: true, hpScale: 8 }, group('duskhound', 5, 0.4, 5, 1),
       group('veilcaster', 3, 1.34, 8, 1),
     ] },
   ],

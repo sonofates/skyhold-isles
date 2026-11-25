@@ -53,7 +53,7 @@ export const I43 = {
       group('duskhound', 5, 0.38), group('sledguard', 5, 1.44, 2), group('duskhound', 6, 0.38, 6),
     ] },
     { name: 'Founders at the Fire', clearBonus: 47, groups: [
-      { ...group('golem', 3, 1.4), elite: true, hpScale: 3.6 }, group('veilcaster', 3, 1.3, 2),
+      { ...group('golem', 2, 1.4), elite: true, hpScale: 3.6 }, { ...group('veilcaster', 3, 1.3, 2), hpScale: 1.5 },
       group('bellrunner', 9, 0.51, 5),
     ] },
     { name: 'Cold Shut', clearBonus: 49, groups: [

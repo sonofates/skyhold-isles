@@ -38,13 +38,13 @@ export const I42 = {
       group('brute', 5, 1.12, 0, 1), group('hexer', 3, 1.36), group('mite', 10, 0.34, 5),
     ] },
     { name: 'Signal Hammer', clearBonus: 36, groups: [
-      group('duskhound', 6, 0.41), { ...group('carrier', 2, 2.4, 2), elite: true, hpScale: 2.7 }, group('duskhound', 6, 0.41, 4, 1),
+      group('duskhound', 6, 0.41), { ...group('carrier', 3, 2.4, 2), elite: true, hpScale: 1.8 }, group('duskhound', 6, 0.41, 4, 1),
     ] },
     { name: 'One Tooth Gone', clearBonus: 38, groups: [
-      { ...group('sledguard', 3, 1.34, 0, 1), elite: true, hpScale: 2.8 }, group('veilcaster', 3, 1.36), group('blinker', 7, 0.76, 4),
+      group('sledguard', 5, 1.35), group('blinker', 8, 0.69, 2, 1), group('reedpiper', 4, 1.31, 4),
     ] },
     { name: 'Cooling Trough', clearBonus: 39, groups: [
-      group('kilnback', 5, 1.17, 0, 1), group('reedpiper', 4, 1.26), { ...group('draftwing', 5, 0.93, 4), elite: true, hpScale: 2 },
+      group('kilnback', 5, 1.17, 0, 1), group('reedpiper', 4, 1.26), { ...group('draftwing', 5, 0.93, 4), elite: true, hpScale: 1.4 },
     ] },
     { name: 'Swinging Link', clearBonus: 41, groups: [
       group('warden', 5, 1.13), group('duskhound', 6, 0.38, 1, 1), group('veilcaster', 4, 1.32, 4),
@@ -55,8 +55,9 @@ export const I42 = {
     { name: 'Dead Weight', clearBonus: 45, groups: [
       { ...group('golem', 3, 1.2), elite: true, hpScale: 3.5 }, group('bellrunner', 10, 0.51, 2, 1), group('veilcaster', 3, 1.36, 4),
     ] },
+    // The elite Sledge Warden wall comes in the last third (chapter-5 final balance).
     { name: 'Draw the Pin', clearBonus: 47, groups: [
-      group('sledguard', 5, 1.35), group('blinker', 8, 0.69, 2, 1), group('reedpiper', 4, 1.31, 4),
+      { ...group('sledguard', 4, 1.34, 0, 1), elite: true, hpScale: 2.8 }, group('veilcaster', 3, 1.36), group('blinker', 7, 0.76, 4),
     ] },
     { name: 'Full Tension', clearBonus: 49, groups: [
       group('duskhound', 6, 0.37, 0, 1), group('brute', 6, 1.05), group('duskhound', 6, 0.38, 5), group('veilcaster', 3, 1.3, 6, 1),
