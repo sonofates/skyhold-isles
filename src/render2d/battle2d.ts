@@ -18,7 +18,9 @@ import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, typ
 import { ENEMY_DEFS, ENEMY_TYPES } from '../data/enemies.ts';
 import { getTowerTierStats } from '../data/towers.ts';
 import type { EnemyType } from '../core/types.ts';
+import { enemyArtKeys, runEnemyTypes } from './enemyArtSet.ts';
 import { FrameStats } from './frameStats.ts';
+import { gpuTextureStats } from './gpuStats.ts';
 import { Game2D, REPLAY_SPEEDS, type Game2DHooks } from './game2d.ts';
 import { heroLevelProgress, resolveHeroForRun } from './heroes2d.ts';
 import type { HeroHud2D } from './ui/heroHud2d.ts';
@@ -91,6 +93,8 @@ declare global {
       /** QA: jump to a one-based wave (Endless records / end-panel shots). */
       skipToWave?: (n: number) => boolean;
       hudWave?: () => string;
+      /** QA: GPU texture residency (count, MB, biggest uploads) and the canvas size (gpuStats.ts). */
+      gpu?: (topN?: number) => import('./gpuStats.ts').GpuTextureStats;
       setGold?: (g: number) => void;
       setLives?: (n: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
@@ -298,6 +302,9 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
   const maxScale = maxMapScale(isDesktopClient(q), textureLimit, layout2d.imageSize);
   const fronts = ab ? [] : layout2d.gates?.flatMap((gate) => gate.front ? [gate.front.art] : []) ?? [];
   const mapMips = q.get('mapmips') === '1';
+  // A story run loads only the foes its waves can put on the map (enemyArtSet.ts); Endless and
+  // the showcase / QA scenes that walk any foe keep every enemy sheet.
+  const allEnemyArt = run.runConfig.endless || ab || bench > 0 || q.get('zoo') === '1' || q.get('melee') === '1' || q.has('towers') || q.get('artcheck') === '1';
   const [art, hud] = await Promise.all([
     loadArt(
       '/art2d/manifest.json',
@@ -312,6 +319,7 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
       heroSelection?.heroId ?? null,
       manifest => setBootArtwork(islandMapUrl(manifest, level)),
       fraction => setBootProgress(0.1 + 0.7 * fraction),
+      allEnemyArt ? null : (manifest) => enemyArtKeys(manifest, runEnemyTypes(level)),
     ),
     !ab && bench === 0 ? import('./ui/battleHud.ts') : null,
     fontsReady,
@@ -1160,6 +1168,7 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
     forceEnd: (o) => game.forceEnd(o),
     skipToWave: (n) => game.world.debugSkipToWave(n),
     hudWave: () => game.hud.waveLabel,
+    gpu: (topN) => gpuTextureStats(app, topN),
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
     pad: () => padCursor?.state() ?? null,

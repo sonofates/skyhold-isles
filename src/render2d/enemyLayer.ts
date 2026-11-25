@@ -5,6 +5,7 @@ import type { EnemyEntity } from '../sim/entities.ts';
 import type { ObjectPool } from '../core/pool.ts';
 import { mixTint, mulTint } from './artResolve.ts';
 import type { DeathSheetRuntime, EnemyArtRuntime, LoadedArt } from './assets2d.ts';
+import { loadEnemyArtLate } from './assets2d.ts';
 import {
   createExtras,
   createSpecialAnim,
@@ -178,6 +179,7 @@ export class EnemyLayer {
 
   private bind(v: EnemyView, w: Walker, artOverride: string | null): void {
     const entry = artOverride ? { art: artOverride } : enemyArtFor(this.art.manifest, w.type, w.flying);
+    if (!this.art.enemies[entry.art]) loadEnemyArtLate(this.art, entry.art);
     const art = this.art.enemies[entry.art] ?? this.art.enemies[this.art.manifest.enemyMap['*'].art];
     v.uid = w.uid;
     v.art = art;
