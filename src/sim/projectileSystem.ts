@@ -541,7 +541,8 @@ export class ProjectileSystem {
       const chill = brittle > 0 ? 1 + brittle * e.slowRatio : 1;
       const dmg = Math.round(p.damage * damageScale * falloff * chill);
       const pierce = p.armorPierce > 0 ? Math.min(e.armor, p.armorPierce) : 0;
-      const res = this.enemySystem.applyDamage(e, dmg + pierce);
+      // Mortar blasts are shield breakers (Sledge Warden shields take 2x).
+      const res = this.enemySystem.applyDamage(e, dmg + pierce, false, p.towerType === 'mortar' && !p.fromHero);
       if (ENEMY_DEFS[e.type].isBoss === true && res.actualDamage > 0) hitBoss = true;
       if (sourceTower) {
         sourceTower.totalDamageDealt += res.actualDamage;

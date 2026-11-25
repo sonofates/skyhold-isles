@@ -34,6 +34,26 @@ const HEX_FIRST_DELAY = 1.0;
 const HEX_RETRY_INTERVAL = 0.4;
 /** A locked hex still lands if the tower is within reach × this when the channel ends. */
 const HEX_LEASH = 1.25;
+/** Rime Beetle frost patches alive at once (a full set replaces the one closest to melting). */
+const FROST_PATCH_CAP = 24;
+/** Glacier Warden: summoned Rime Beetles land this far behind it, spaced by the step. */
+const GLACIER_SUMMON_BACK = 0.9;
+const GLACIER_SUMMON_STEP = 0.45;
+/** Gold per Rime Beetle the Glacier Warden summons (a story beetle pays its full 7). */
+const GLACIER_SUMMON_REWARD = 3;
+/** Radius reported with the Glacier Warden's `bossPhase` event (FX ring only). */
+const GLACIER_PHASE_RADIUS = 3.2;
+
+/** A Rime Beetle frost patch: towers within `radius` fire at `rateMul` while `timeLeft > 0`. */
+export interface FrostPatch {
+  active: boolean;
+  x: number;
+  z: number;
+  radius: number;
+  timeLeft: number;
+  duration: number;
+  rateMul: number;
+}
 
 export class EnemySystem {
   private nextUid = 1;
@@ -46,6 +66,8 @@ export class EnemySystem {
   private readonly hexRadius: number;
   private readonly spatialHash: SpatialHashGrid;
   private readonly events: EventBus;
+  /** Rime Beetle frost patches (fixed slots, `active` marks the live ones). Read by CombatSystem. */
+  readonly frostPatches: FrostPatch[] = [];
 
   constructor(
     pool: ObjectPool<EnemyEntity>,
@@ -63,6 +85,54 @@ export class EnemySystem {
     this.hexRadius = hexRadius;
     this.spatialHash = spatialHash;
     this.events = events;
+    for (let i = 0; i < FROST_PATCH_CAP; i++) {
+      this.frostPatches.push({ active: false, x: 0, z: 0, radius: 0, timeLeft: 0, duration: 0, rateMul: 1 });
+    }
+  }
+
+  /** Number of live frost patches (QA / tests). */
+  get frostPatchCount(): number {
+    let n = 0;
+    for (let i = 0; i < this.frostPatches.length; i++) if (this.frostPatches[i].active) n++;
+    return n;
+  }
+
+  /** Drops every frost patch (run end, skip, dispose). */
+  clearFrostPatches(): void {
+    for (let i = 0; i < this.frostPatches.length; i++) this.frostPatches[i].active = false;
+  }
+
+  private addFrostPatch(x: number, y: number, z: number, radius: number, duration: number, rateMul: number): void {
+    let slot: FrostPatch | null = null;
+    for (let i = 0; i < this.frostPatches.length; i++) {
+      const p = this.frostPatches[i];
+      if (!p.active) {
+        slot = p;
+        break;
+      }
+      if (!slot || p.timeLeft < slot.timeLeft) slot = p;
+    }
+    if (!slot) return;
+    slot.active = true;
+    slot.x = x;
+    slot.z = z;
+    slot.radius = radius;
+    slot.timeLeft = duration;
+    slot.duration = duration;
+    slot.rateMul = rateMul;
+    this.events.emit('frostPatch', { x, y, z, radius, duration });
+  }
+
+  private tickFrostPatches(dt: number): void {
+    for (let i = 0; i < this.frostPatches.length; i++) {
+      const p = this.frostPatches[i];
+      if (!p.active) continue;
+      p.timeLeft -= dt;
+      if (p.timeLeft <= 0) {
+        p.timeLeft = 0;
+        p.active = false;
+      }
+    }
   }
 
   /** Compiled path an enemy follows (flight lane for flyers), e.g. for shell target leading. */
@@ -262,6 +332,11 @@ export class EnemySystem {
               ? HEX_FIRST_DELAY
               : 0;
     if (def.ability?.kind === 'refrain') entity.abilityTimer = def.ability.interval * 0.5;
+    if (def.ability?.kind === 'guard') {
+      // Sledge Warden: arrives with its own full shield pool; abilityTimer = seconds unhurt.
+      entity.shield = this.guardShieldOf(maxHp, def.ability.shieldFrac);
+      entity.shieldMax = entity.shield;
+    }
     entity.hexTargetId = -1;
     entity.blockers = 0;
     entity.meleeTimer = 0;
@@ -281,10 +356,20 @@ export class EnemySystem {
     return entity;
   }
 
+  /** Sledge Warden shield pool for a unit with `maxHp` (already wave / elite scaled). */
+  private guardShieldOf(maxHp: number, frac: number): number {
+    return Math.max(1, Math.round(maxHp * frac));
+  }
+
+  /**
+   * `breaker`: the hit is a tesla chain or mortar splash — it deals the Sledge Warden's
+   * `breakerMul` (2×) to that foe's shield. Any other shield (wards, Stormwall) takes it at 1×.
+   */
   applyDamage(
     entity: EnemyEntity,
     rawDamage: number,
     ignoreArmor = false,
+    breaker = false,
   ): { actualDamage: number; killed: boolean } {
     if (!entity.active || entity.hp <= 0 || entity.burrowed) {
       // Burrowed enemies are immune: shots already in flight thud into the dirt.
@@ -297,10 +382,13 @@ export class EnemySystem {
       reduced = Math.max(1, Math.round(reduced * (1 + entity.markVuln)));
     }
     entity.hitFlashTimer = 0.12;
+    const guard = ENEMY_DEFS[entity.type].ability;
+    if (guard?.kind === 'guard') entity.abilityTimer = 0;
     if (entity.shield > 0) {
-      const absorbed = Math.min(entity.shield, reduced);
+      const shieldMul = breaker && guard?.kind === 'guard' ? guard.breakerMul : 1;
+      const absorbed = Math.min(entity.shield, reduced * shieldMul);
       entity.shield -= absorbed;
-      reduced -= absorbed;
+      reduced = Math.max(0, reduced - Math.ceil(absorbed / shieldMul));
       this.events.emit('shieldAbsorb', {
         enemyId: entity.uid,
         amount: absorbed,
@@ -405,6 +493,7 @@ export class EnemySystem {
     currentHpScale = 1,
   ): void {
     this.spatialHash.clear();
+    this.tickFrostPatches(dt);
 
     // First pass: advance movement, handle leaks & deaths, rebuild spatial hash
     let pos = 0;
@@ -434,6 +523,11 @@ export class EnemySystem {
           // cannot push a child past it (which would leak extra lives instantly).
           this.spawnSplitChild(e, Math.max(0, e.dist - 0.35));
           this.spawnSplitChild(e, Math.max(0, e.dist));
+        } else if (e.type === 'rimebeetle') {
+          const rime = ENEMY_DEFS.rimebeetle.ability;
+          if (rime?.kind === 'rime') {
+            this.addFrostPatch(e.x, e.y, e.z, rime.patchRadius, rime.patchSec, rime.rateMul);
+          }
         } else if (e.type === 'carrier') {
           _wreck.x = e.x;
           _wreck.y = e.y;
@@ -558,6 +652,10 @@ export class EnemySystem {
         actor.abilityTimer = this.hasDraftLeader(actor, ability.reach, ability.spacing)
           ? ability.coastSec
           : Math.max(0, actor.abilityTimer - dt);
+      } else if (ability?.kind === 'guard') {
+        this.updateGuardShield(actor, dt, ability.shieldFrac, ability.regenSec);
+      } else if (ability?.kind === 'glacier') {
+        this.updateGlacierWarden(actor, towers, currentHpScale, ability);
       } else if (actor.type === 'healer') {
         this.updateHealerAura(actor, dt);
       } else if (actor.type === 'warden') {
@@ -715,6 +813,103 @@ export class EnemySystem {
           boss.abilityTimer = BOSS_PULSE_RETRY_INTERVAL;
         }
       }
+    }
+  }
+
+  /**
+   * Sledge Warden: `abilityTimer` counts seconds without damage (applyDamage resets it); after
+   * `regenSec` the shield pool refreezes to full in one step.
+   */
+  private updateGuardShield(e: EnemyEntity, dt: number, frac: number, regenSec: number): void {
+    e.abilityTimer += dt;
+    if (e.abilityTimer < regenSec) return;
+    const full = this.guardShieldOf(e.maxHp, frac);
+    if (e.shield >= full) return;
+    e.shield = full;
+    e.shieldMax = Math.max(e.shieldMax, full);
+    this.events.emit('guardShieldRestored', {
+      enemyId: e.uid,
+      x: e.x,
+      y: e.y + e.height * 0.6,
+      z: e.z,
+    });
+  }
+
+  /**
+   * Glacier Warden (chapter-four boss). Each HP threshold (66 %, 33 %) is one phase step on the
+   * shared `bossPhase` counter: it freezes the nearest tower (a tower stun of `freezeSec`, plus
+   * `frostLockTimer` for the ice block) and wakes `summonCount` Rime Beetles behind itself.
+   * Selling / upgrading a frozen tower stays possible; Overcharge thaws it like any stun.
+   */
+  private updateGlacierWarden(
+    boss: EnemyEntity,
+    towers: readonly TowerEntity[] | undefined,
+    currentHpScale: number,
+    ability: { readonly thresholds: readonly [number, number]; readonly freezeSec: number; readonly summonCount: number },
+  ): void {
+    const next = boss.bossPhase;
+    if (next >= ability.thresholds.length) return;
+    if (boss.hp > boss.maxHp * ability.thresholds[next]) return;
+    boss.bossPhase = next + 1;
+
+    let frozen: TowerEntity | null = null;
+    if (towers && towers.length > 0) {
+      frozen = this.nearestUnstunnedTower(boss, towers, Infinity);
+      if (frozen) {
+        frozen.stunTimer = Math.max(frozen.stunTimer, ability.freezeSec);
+        frozen.frostLockTimer = Math.max(frozen.frostLockTimer ?? 0, ability.freezeSec);
+      }
+    }
+
+    this.events.emit('bossPhase', {
+      enemyId: boss.uid,
+      enemyType: boss.type,
+      phase: boss.bossPhase,
+      x: boss.x,
+      y: boss.y + 0.2,
+      z: boss.z,
+      radius: GLACIER_PHASE_RADIUS,
+    });
+    if (frozen) {
+      this.events.emit('towerFrozen', {
+        enemyId: boss.uid,
+        towerId: frozen.id,
+        x: boss.x,
+        y: boss.y + boss.height,
+        z: boss.z,
+        towerX: frozen.x,
+        towerZ: frozen.z,
+        duration: ability.freezeSec,
+      });
+    }
+
+    const beetle = ENEMY_DEFS.rimebeetle;
+    const hp = Math.max(1, Math.round(beetle.maxHp * currentHpScale));
+    let spawned = 0;
+    for (let k = 0; k < ability.summonCount; k++) {
+      const child = this.initEnemyAt(
+        'rimebeetle',
+        boss.lane,
+        Math.max(0, boss.dist - GLACIER_SUMMON_BACK - k * GLACIER_SUMMON_STEP),
+        hp,
+        beetle.speed,
+        GLACIER_SUMMON_REWARD,
+        beetle.livesCost,
+        1,
+        false,
+      );
+      if (child) {
+        this.spatialHash.insert(child.poolIndex, child.x, child.z);
+        spawned++;
+      }
+    }
+    if (spawned > 0) {
+      this.events.emit('bossSummon', {
+        x: boss.x,
+        y: boss.y + 0.8,
+        z: boss.z,
+        count: spawned,
+      });
     }
   }
 

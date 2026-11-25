@@ -31,7 +31,7 @@ export interface FoeFacts {
 export function foeFacts(e: Pick<EnemyEntity, 'type' | 'flying' | 'elite' | 'armor' | 'speed'>): FoeFacts {
   const def = ENEMY_DEFS[e.type];
   const tags: string[] = [];
-  if (def && (def.type === 'boss' || def.type === 'tempest')) tags.push(t('codex.kicker.boss'));
+  if (def?.isBoss) tags.push(t('codex.kicker.boss'));
   if (e.flying) tags.push(t('codex.kicker.flyer'));
   if (e.elite) tags.push(t('foe.empowered'));
   return {

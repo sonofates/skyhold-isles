@@ -10,7 +10,7 @@ import {
   poolWeight,
   type EndlessMutatorEffects,
 } from '../data/endlessMutators.ts';
-import { CHAPTER_ENEMY_TYPES, ENEMY_DEFS } from '../data/enemies.ts';
+import { CHAPTER4_ENEMY_TYPES, CHAPTER_ENEMY_TYPES, ENEMY_DEFS } from '../data/enemies.ts';
 import { groundLaneCount, type LevelDef, type WaveDef, type WaveGroupDef } from '../data/levels/index.ts';
 
 export type WaveState =
@@ -102,6 +102,34 @@ export function hasChapterTwoEnemies(level: LevelDef): boolean {
   return found;
 }
 
+/**
+ * Chapter-four endless spotlight rotation (Frostveil islands): Rime Beetles and Sledge Wardens
+ * paired with the specialists they combine worst with (shield breakers vs. frost, healers behind
+ * shields), plus a few chapter-two foes so the rotation stays varied.
+ */
+export const ENDLESS_CHAPTER4_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
+  ['rimebeetle', 'sledguard'],
+  ['sledguard', 'healer'],
+  ['rimebeetle', 'hexer'],
+  ['kilnback', 'rimebeetle'],
+  ['sledguard', 'draftwing'],
+  ['rimebeetle', 'golem'],
+  ['warden', 'sledguard'],
+  ['rimebeetle', 'reedpiper'],
+];
+
+const CHAPTER4_STORY_SET: ReadonlySet<string> = new Set<string>(CHAPTER4_ENEMY_TYPES);
+const _chapterFourLevelCache = new WeakMap<LevelDef, boolean>();
+
+/** True when `level`'s story waves include any chapter-four foe (`rimebeetle | sledguard | glacier_warden`). */
+export function hasChapterFourEnemies(level: LevelDef): boolean {
+  const cached = _chapterFourLevelCache.get(level);
+  if (cached !== undefined) return cached;
+  const found = level.waves.some((w) => w.groups.some((g) => CHAPTER4_STORY_SET.has(g.enemyType)));
+  _chapterFourLevelCache.set(level, found);
+  return found;
+}
+
 const ENDLESS_SPOTLIGHT_TUNING: Partial<
   Record<EnemyType, { base: number; perWave: number; max: number; interval: number }>
 > = {
@@ -116,6 +144,8 @@ const ENDLESS_SPOTLIGHT_TUNING: Partial<
   kilnback: { base: 2, perWave: 0.45, max: 12, interval: 1.05 },
   reedpiper: { base: 2, perWave: 0.35, max: 8, interval: 1.35 },
   draftwing: { base: 5, perWave: 0.85, max: 20, interval: 0.46 },
+  rimebeetle: { base: 3, perWave: 0.6, max: 14, interval: 0.8 },
+  sledguard: { base: 2, perWave: 0.4, max: 10, interval: 1.3 },
 };
 
 /**
@@ -167,7 +197,12 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
 
   // Rotating "spotlight" pair of newer archetypes so every endless wave plays differently.
   const spotlightStart = groups.length;
-  const spotlights = hasChapterTwoEnemies(level) ? ENDLESS_CHAPTER2_SPOTLIGHTS : ENDLESS_SPOTLIGHTS;
+  const chapterFour = hasChapterFourEnemies(level);
+  const spotlights = chapterFour
+    ? ENDLESS_CHAPTER4_SPOTLIGHTS
+    : hasChapterTwoEnemies(level)
+      ? ENDLESS_CHAPTER2_SPOTLIGHTS
+      : ENDLESS_SPOTLIGHTS;
   const spotlight = spotlights[offset % spotlights.length];
   for (let k = 0; k < spotlight.length; k++) {
     const type = spotlight[k];
@@ -188,9 +223,10 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
 
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);
-    // Every second boss wave brings a Tempest Colossus to lead the Dreadnoughts.
+    // Every second boss wave brings a Tempest Colossus (the Glacier Warden on chapter-four
+    // islands) to lead the Dreadnoughts.
     if ((offset + 1) % 10 === 0) {
-      groups.push({ enemyType: 'tempest', count: 1, spawnInterval: 1, startDelay: 2.6 });
+      groups.push({ enemyType: chapterFour ? 'glacier_warden' : 'tempest', count: 1, spawnInterval: 1, startDelay: 2.6 });
     }
     groups.push({
       enemyType: 'boss',

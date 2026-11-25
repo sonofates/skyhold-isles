@@ -36,6 +36,8 @@ export interface ProcTextures {
   readonly bolt: Texture;
   /** Buffed-tower sparkle (small four-point star). */
   readonly star: Texture;
+  /** Frosted-tower marker (ice-blue disc with a white six-arm snowflake). */
+  readonly ice: Texture;
 }
 
 function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -343,7 +345,40 @@ export function createProcTextures(): ProcTextures {
   stc.quadraticCurveTo(14.5, 14.5, 16, 0);
   stc.fill();
 
+  const [iceC, ic] = canvas(64, 64);
+  ic.fillStyle = '#1d4a6a';
+  ic.beginPath();
+  ic.arc(32, 32, 27, 0, Math.PI * 2);
+  ic.fill();
+  ic.fillStyle = '#7cc8ea';
+  ic.beginPath();
+  ic.arc(32, 32, 23, 0, Math.PI * 2);
+  ic.fill();
+  ic.strokeStyle = '#ffffff';
+  ic.lineCap = 'round';
+  ic.lineWidth = 4;
+  for (let k = 0; k < 6; k++) {
+    const a = (k / 6) * Math.PI * 2 - Math.PI / 2;
+    const cx = Math.cos(a);
+    const sy = Math.sin(a);
+    ic.beginPath();
+    ic.moveTo(32, 32);
+    ic.lineTo(32 + cx * 17, 32 + sy * 17);
+    ic.stroke();
+    // Little barbs two thirds of the way out.
+    const bx = 32 + cx * 11;
+    const by = 32 + sy * 11;
+    for (const side of [-1, 1]) {
+      const b = a + side * 0.75;
+      ic.beginPath();
+      ic.moveTo(bx, by);
+      ic.lineTo(bx + Math.cos(b) * 6, by + Math.sin(b) * 6);
+      ic.stroke();
+    }
+  }
+
   return {
+    ice: Texture.from(iceC),
     wring: Texture.from(wringC),
     orb: Texture.from(orb),
     crater: Texture.from(crater),

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import type { ObjectPool } from '../core/pool.ts';
 import type { EnemyType } from '../core/types.ts';
 import { BALANCE } from '../data/balance.ts';
-import { ENEMY_TYPES } from '../data/enemies.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../data/enemies.ts';
 import { FROST_TINT_HEX, PALETTE_HEX } from '../data/palette.ts';
 import type { EnemyEntity } from '../sim/entities.ts';
 import { disposeInstancedMeshes, mergeColoredParts, type ColoredPart } from './geometryHelpers.ts';
@@ -189,7 +189,7 @@ export class EnemyRenderer {
 
       const mesh = new THREE.InstancedMesh(geo, materials.enemyInstancedMaterial, cap);
       mesh.count = 0;
-      mesh.castShadow = type === 'brute' || type === 'boss' || type === 'tempest' || type === 'golem';
+      mesh.castShadow = type === 'brute' || type === 'boss' || type === 'tempest' || type === 'glacier_warden' || type === 'golem';
       mesh.receiveShadow = false;
       mesh.frustumCulled = false;
 
@@ -360,7 +360,7 @@ export class EnemyRenderer {
       }
 
       const scaleMul = e.scaleOverride || 1;
-      const enemyScale = (e.type === 'boss' || e.type === 'tempest' ? 1.26 : 1.28) * scaleMul;
+      const enemyScale = (ENEMY_DEFS[e.type].isBoss ? 1.26 : 1.28) * scaleMul;
       _dummy.position.set(ix, iy + bobY, iz);
       _dummy.rotation.set(tiltX, iyaw, tiltZ);
       _dummy.scale.setScalar(enemyScale);
@@ -428,7 +428,7 @@ export class EnemyRenderer {
       if (e.hp < e.maxHp && e.hp > 0) {
         const ratio = Math.max(0.02, Math.min(1, e.hp / e.maxHp));
         const barW = (HP_BAR_WIDTH[e.type] ?? 0.94) * (e.isSplitChild ? 0.8 : 1);
-        const barH = e.type === 'boss' || e.type === 'tempest' ? 0.2 : 0.14;
+        const barH = ENEMY_DEFS[e.type].isBoss ? 0.2 : 0.14;
 
         _barPos.set(ix, iy + bobY + e.height * enemyScale + 0.34, iz);
 
@@ -886,6 +886,73 @@ export class EnemyRenderer {
           { geometry: cone, colorHex: 0xbfae8f, position: [0, 0.22, -0.16], rotation: [Math.PI, 0, 0], scale: [0.06, 0.18, 0.06] },
         ];
         addEyes(parts, ico, 0.52, 0.22, 0.06, 0.03, eyeDark);
+        break;
+      }
+
+      case 'rimebeetle': {
+        // Chapter four (2D-first; 3D debug stand-in). Frost-shelled beetle with ice spikes on its back.
+        parts = [
+          { geometry: box, colorHex: 0x2c3e52, position: [-0.3, 0.1, 0.2], rotation: [0, 0.4, 0.5], scale: [0.26, 0.05, 0.05] },
+          { geometry: box, colorHex: 0x2c3e52, position: [0.3, 0.1, 0.2], rotation: [0, -0.4, -0.5], scale: [0.26, 0.05, 0.05] },
+          { geometry: box, colorHex: 0x2c3e52, position: [-0.32, 0.1, -0.12], rotation: [0, -0.3, 0.5], scale: [0.26, 0.05, 0.05] },
+          { geometry: box, colorHex: 0x2c3e52, position: [0.32, 0.1, -0.12], rotation: [0, 0.3, -0.5], scale: [0.26, 0.05, 0.05] },
+          { geometry: icoSmooth, colorHex: 0x3f6f8f, position: [0, 0.3, 0], scale: [0.66, 0.34, 0.82] },
+          { geometry: icoSmooth, colorHex: 0x9fd8ec, position: [0, 0.42, -0.04], scale: [0.62, 0.42, 0.74] },
+          { geometry: box, colorHex: 0xe6f6ff, position: [0, 0.62, -0.04], scale: [0.04, 0.03, 0.66] },
+          { geometry: cone, colorHex: 0xe6f6ff, position: [-0.14, 0.72, -0.08], rotation: [0, 0, 0.3], scale: [0.1, 0.28, 0.1] },
+          { geometry: cone, colorHex: 0xc8ecfa, position: [0.14, 0.74, 0.02], rotation: [0, 0, -0.3], scale: [0.1, 0.3, 0.1] },
+          { geometry: cone, colorHex: 0xe6f6ff, position: [0, 0.76, -0.24], scale: [0.09, 0.26, 0.09] },
+          { geometry: chamfer, colorHex: 0x2c3e52, position: [0, 0.3, 0.42], scale: [0.3, 0.22, 0.2] },
+          { geometry: cone, colorHex: 0x9fd8ec, position: [-0.08, 0.38, 0.56], rotation: [1.1, 0, 0.3], scale: [0.03, 0.2, 0.03] },
+          { geometry: cone, colorHex: 0x9fd8ec, position: [0.08, 0.38, 0.56], rotation: [1.1, 0, -0.3], scale: [0.03, 0.2, 0.03] },
+        ];
+        addEyes(parts, ico, 0.33, 0.51, 0.07, 0.03, 0xcff4ff);
+        break;
+      }
+
+      case 'sledguard': {
+        // Fur-hooded hauler behind a tall ice-plated sledge shield
+        parts = [
+          { geometry: chamfer, colorHex: 0x3a3340, position: [-0.13, 0.15, 0], scale: [0.16, 0.3, 0.2] },
+          { geometry: chamfer, colorHex: 0x3a3340, position: [0.13, 0.15, 0], scale: [0.16, 0.3, 0.2] },
+          { geometry: chamfer, colorHex: 0x5f86a8, position: [0, 0.6, -0.04], scale: [0.56, 0.6, 0.42] },
+          { geometry: chamfer, colorHex: 0xe9dcc0, position: [0, 0.94, -0.06], scale: [0.5, 0.14, 0.4] },
+          { geometry: chamfer, colorHex: skinWarm, position: [0, 1.06, 0], scale: [0.26, 0.24, 0.24] },
+          { geometry: chamfer, colorHex: 0x6b5440, position: [0, 1.17, -0.04], scale: [0.34, 0.16, 0.32] },
+          { geometry: box, colorHex: 0xa9d6ee, position: [0, 0.68, 0.34], scale: [0.74, 0.92, 0.08] },
+          { geometry: box, colorHex: 0xe6f6ff, position: [0, 0.68, 0.39], scale: [0.6, 0.06, 0.02] },
+          { geometry: box, colorHex: 0xe6f6ff, position: [0, 0.68, 0.39], scale: [0.06, 0.76, 0.02] },
+          { geometry: box, colorHex: 0x6b5440, position: [-0.34, 0.2, 0.34], scale: [0.06, 0.06, 0.5] },
+          { geometry: box, colorHex: 0x6b5440, position: [0.34, 0.2, 0.34], scale: [0.06, 0.06, 0.5] },
+          { geometry: cyl, colorHex: 0x3a3340, position: [0, 0.07, 0.36], rotation: [0, 0, Math.PI / 2], scale: [0.05, 0.82, 0.05] },
+        ];
+        addEyes(parts, ico, 1.08, 0.13, 0.06, 0.03, eyeDark);
+        break;
+      }
+
+      case 'glacier_warden': {
+        // Chapter-four boss: glacier-blue titan with a frost core and an ice-crystal crown
+        parts = [
+          { geometry: chamfer, colorHex: 0x24425e, position: [-0.34, 0.27, 0], scale: [0.36, 0.54, 0.4] },
+          { geometry: chamfer, colorHex: 0x24425e, position: [0.34, 0.27, 0], scale: [0.36, 0.54, 0.4] },
+          { geometry: chamfer, colorHex: 0x2d6f9a, position: [0, 1.0, 0], scale: [1.1, 0.94, 0.8] },
+          { geometry: chamfer, colorHex: 0xdfeff8, position: [0, 0.62, 0.02], scale: [0.94, 0.2, 0.76] },
+          { geometry: ico, colorHex: 0x9fe6ff, position: [0, 1.04, 0.4], scale: [0.3, 0.3, 0.16] },
+          { geometry: ico, colorHex: 0xf2fbff, position: [0, 1.04, 0.47], scale: [0.14, 0.14, 0.08] },
+          { geometry: ico, colorHex: 0xc8ecfa, position: [-0.7, 1.34, 0], scale: [0.36, 0.3, 0.38] },
+          { geometry: ico, colorHex: 0xc8ecfa, position: [0.7, 1.34, 0], scale: [0.36, 0.3, 0.38] },
+          { geometry: chamfer, colorHex: 0x24425e, position: [-0.74, 0.72, 0.08], scale: [0.3, 0.62, 0.32] },
+          { geometry: chamfer, colorHex: 0x24425e, position: [0.74, 0.72, 0.08], scale: [0.3, 0.62, 0.32] },
+          { geometry: ico, colorHex: 0x9fd8ec, position: [-0.76, 0.34, 0.12], scale: [0.26, 0.24, 0.26] },
+          { geometry: ico, colorHex: 0x9fd8ec, position: [0.76, 0.34, 0.12], scale: [0.26, 0.24, 0.26] },
+          { geometry: chamfer, colorHex: 0x3c7fad, position: [0, 1.66, 0.06], scale: [0.48, 0.42, 0.44] },
+          { geometry: cone, colorHex: 0xe6f6ff, position: [-0.24, 2.02, 0.04], rotation: [0, 0, 0.34], scale: [0.11, 0.38, 0.11] },
+          { geometry: cone, colorHex: 0xf2fbff, position: [0, 2.1, 0.04], scale: [0.12, 0.46, 0.12] },
+          { geometry: cone, colorHex: 0xe6f6ff, position: [0.24, 2.02, 0.04], rotation: [0, 0, -0.34], scale: [0.11, 0.38, 0.11] },
+          { geometry: cone, colorHex: 0xc8ecfa, position: [-0.7, 1.58, -0.04], scale: [0.1, 0.3, 0.1] },
+          { geometry: cone, colorHex: 0xc8ecfa, position: [0.7, 1.58, -0.04], scale: [0.1, 0.3, 0.1] },
+        ];
+        addEyes(parts, ico, 1.68, 0.27, 0.11, 0.05, 0xcff4ff);
         break;
       }
 

@@ -616,6 +616,7 @@ export class SimWorld {
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
+    this.enemySystem.clearFrostPatches();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false, this.towers, true);
     this.soldierSystem.clearCombatState(true);
@@ -637,6 +638,7 @@ export class SimWorld {
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
+    this.enemySystem.clearFrostPatches();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false, this.towers, true);
     this.soldierSystem.clearCombatState(true);
@@ -650,6 +652,7 @@ export class SimWorld {
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
+    this.enemySystem.clearFrostPatches();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false, this.towers, true);
     this.soldierSystem.clearCombatState(true);
@@ -666,6 +669,7 @@ export class SimWorld {
     this.enemyPool.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
+    this.enemySystem.clearFrostPatches();
     this.abilitySystem.reset();
     this.spatialHash.clear();
     this.grid.resetOccupancy();

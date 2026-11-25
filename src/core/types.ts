@@ -36,6 +36,10 @@ export type EnemyType =
   | 'kilnback'
   | 'reedpiper'
   | 'draftwing'
+  /** Chapter four (i28–i36): see CHAPTER4_ENEMY_DEFS in src/data/enemies.ts. */
+  | 'rimebeetle'
+  | 'sledguard'
+  | 'glacier_warden'
   | 'tempest'
   | 'boss';
 

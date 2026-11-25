@@ -57,6 +57,7 @@ import {
   type AudioSettings2D,
 } from './settings2d.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
+import { FrostPatchLayer } from './frostPatchLayer.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
 import { meleeLookFor } from './meleeLook.ts';
@@ -179,6 +180,8 @@ export class Game2D {
   readonly enemies: EnemyLayer;
   readonly towers: TowerLayer;
   readonly plots: PlotLayer;
+  /** Rime Beetle frost patches (ground decals under the plots). */
+  private readonly frostPatches: FrostPatchLayer;
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
   readonly damageNumbers: DamageNumbers2D;
@@ -372,6 +375,7 @@ export class Game2D {
     this.damageNumbers = new DamageNumbers2D(this.map, this.layers.fx);
     this.goldPops = new GoldPops2D(this.layers.fx);
     this.goldPops.enabled = this.quality.tier !== 'low';
+    this.frostPatches = new FrostPatchLayer(this.map, this.layers.groundFx, this.tex);
     this.enemies = new EnemyLayer(art, this.map, this.layers, this.tex, this.fx);
     this.plots = new PlotLayer(level.layout2d, art.plot, this.tex);
     this.layers.plots.addChild(this.plots.root);
@@ -690,7 +694,7 @@ export class Game2D {
       this.fx.puffs(px, py - 14, 7, 12);
       this.fx.spawn('coin', px, py - 30, 26, 0, -70, 0.8);
       if (!this.hooks.endless) this.goldPops.spawn(e.reward, px + 26, py - 58);
-      if (!this.hooks.endless && (e.enemyType === 'boss' || e.enemyType === 'tempest')) {
+      if (!this.hooks.endless && ENEMY_DEFS[e.enemyType].isBoss) {
         triggerShake2D(this.shake, BALANCE.camera.bossHitShake, this.currentSettings());
       }
     });
@@ -1134,6 +1138,7 @@ export class Game2D {
     const simDt = this.stepper.paused ? 0 : dtSec * this.stepper.speed;
     const cfg = this.currentSettings();
     this.towers.sync(world.towers, dtSec, simDt);
+    this.frostPatches.sync(world.enemySystem.frostPatches, simDt);
     for (let i = this.boltActive - 1; i >= 0; i--) {
       const b = this.boltQueue[i];
       b.t -= simDt;
@@ -2227,6 +2232,7 @@ export class Game2D {
         extras: this.enemies.specials.extrasCreated,
         deathClips: this.enemies.deathsPlayed,
         sideFrames: this.enemies.sideFrames,
+        frostPatches: this.frostPatches.drawn,
       },
       foes: (() => {
         const n: Record<string, number> = {};

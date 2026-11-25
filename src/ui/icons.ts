@@ -161,6 +161,9 @@ export const ENEMY_BADGE_META: Record<EnemyType, { label: string; color: string 
   kilnback: { label: 'Kilnback', color: '#c0643a' },
   reedpiper: { label: 'Piper', color: '#6f8f3a' },
   draftwing: { label: 'Moth', color: '#7a68a0' },
+  rimebeetle: { label: 'Beetle', color: '#7cc3dc' },
+  sledguard: { label: 'Sledge', color: '#5f86a8' },
+  glacier_warden: { label: 'Glacier', color: '#2d6f9a' },
 };
 
 /** Tiny faceted enemy glyphs for the wave preview strip (24px grid, ink outline, flat fills). */
@@ -248,5 +251,20 @@ export const ENEMY_ICON_SVGS: Record<EnemyType, string> = {
     <path d="M12 7L3 4.5L4.5 14L12 16L19.5 14L21 4.5L12 7Z" fill="#7a68a0" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
     <path d="M12 6V20.5" stroke="${PALETTE.cream}" stroke-width="2.4" stroke-linecap="round"/>
     <circle cx="7" cy="9" r="1.5" fill="${PALETTE.gold}"/><circle cx="17" cy="9" r="1.5" fill="${PALETTE.gold}"/>
+  </svg>`,
+  rimebeetle: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M12 5C16.5 5 19.5 8.5 19.5 13C19.5 17.5 16.5 20.5 12 20.5C7.5 20.5 4.5 17.5 4.5 13C4.5 8.5 7.5 5 12 5Z" fill="#7cc3dc" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M12 5.5V20M9 3L10.5 5.5M15 3L13.5 5.5" stroke="${PALETTE.indigo}" stroke-width="1.6" stroke-linecap="round"/>
+    <path d="M7.5 11L9.5 12.5L7.5 14M16.5 11L14.5 12.5L16.5 14" stroke="${PALETTE.cream}" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+  sledguard: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3.5 4.5H14.5V15.5L9 19.5L3.5 15.5V4.5Z" fill="#a9d6ee" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M6 8L9 11L12 8M9 11V15.5" stroke="#5f86a8" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M14.5 9H18.5L20.5 12V19.5H12.5" fill="#5f86a8" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M11 21.5H21.5" stroke="${PALETTE.indigo}" stroke-width="1.8" stroke-linecap="round"/>
+  </svg>`,
+  glacier_warden: `<svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M3 20.5L4.5 9L8 5.5L10 9L12 2.5L14 9L16 5.5L19.5 9L21 20.5H3Z" fill="#2d6f9a" stroke="${PALETTE.cream}" stroke-width="1.8" stroke-linejoin="round"/>
+    <path d="M12 11.5V18.5M9 13L15 17M15 13L9 17" stroke="${PALETTE.cream}" stroke-width="1.5" stroke-linecap="round"/>
   </svg>`,
 };

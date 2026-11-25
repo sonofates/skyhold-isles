@@ -43,7 +43,7 @@ export interface EnemyEntity {
   shieldMax: number;
   /** Burrower: underground (left out of the spatial hash → untargetable & immune). */
   burrowed: boolean;
-  /** Generic per-archetype timer: burrow phase, blink charge, ward pulse. */
+  /** Generic per-archetype timer: burrow phase, blink charge, ward pulse, Sledge Warden calm time. */
   abilityTimer: number;
   /** Golem: seconds left of chill-cracked (brittle) armor. */
   armorBreakTimer: number;
@@ -184,6 +184,16 @@ export interface TowerEntity {
   overhaulTimer?: number;
   /** Fire-rate bonus granted while `overhaulTimer > 0`. */
   overhaulRateBonus?: number;
+  /**
+   * Fire-rate penalty from a Rime Beetle frost patch covering this tower this tick (0 = none,
+   * 0.3 = fires 30 % slower). Recomputed every tick by CombatSystem; patches never stack.
+   */
+  frostSlow?: number;
+  /**
+   * Seconds left of a Glacier Warden freeze (render: ice block). The freeze itself is `stunTimer`;
+   * this never outlasts it, so Overcharge / Overhaul cleanses thaw it too.
+   */
+  frostLockTimer?: number;
 }
 
 export interface ProjectileEntity {
