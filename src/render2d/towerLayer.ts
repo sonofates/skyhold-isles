@@ -98,6 +98,10 @@ export interface TurretReportRow {
 const JAM_TINT = 0xb9a0d8;
 /** Glacier Warden freeze: the tower reads as encased in pale ice. */
 const ICE_LOCK_TINT = 0xbfe6ff;
+/** Veilcaster veil: a dark ring on the ground around the tower and a dusky cast on the body. */
+const VEIL_RING = 0x2a1840;
+const VEIL_RIM = 0x9a7cff;
+const VEIL_TINT = 0x8a78b8;
 /**
  * Ring-convention art without an attack sheet keeps only a gentle vertical squash of the kick
  * (anchored at the ring bottom, so the ring stays on the plot): this share of the profile's squash.
@@ -144,6 +148,8 @@ interface TowerView {
   star: Sprite | null;
   /** Frost marker: small snowflake (Rime Beetle patch slow) or big one on an ice-locked tower. */
   ice: Sprite | null;
+  /** Veilcaster veil: dark ground ring (range cut) around a veiled tower. */
+  veil: Sprite | null;
   tier: number;
   kick: number;
   prof: FireProfile;
@@ -489,6 +495,7 @@ export class TowerLayer {
       aura: null,
       star: null,
       ice: null,
+      veil: null,
       tier: 0,
       kick: 0,
       prof: fireProfile(t.type),
@@ -519,7 +526,7 @@ export class TowerLayer {
     return v;
   }
 
-  private overlay(v: TowerView, slot: 'jam' | 'aura' | 'star' | 'ice', on: boolean): Sprite | null {
+  private overlay(v: TowerView, slot: 'jam' | 'aura' | 'star' | 'ice' | 'veil', on: boolean): Sprite | null {
     let s = v[slot];
     if (!on) {
       if (s) s.visible = false;
@@ -527,11 +534,19 @@ export class TowerLayer {
     }
     if (!s) {
       s = new Sprite(
-        slot === 'jam' ? this.tex.jam : slot === 'aura' ? this.tex.orb : slot === 'ice' ? this.tex.ice : this.tex.star,
+        slot === 'jam'
+          ? this.tex.jam
+          : slot === 'aura'
+            ? this.tex.orb
+            : slot === 'ice'
+              ? this.tex.ice
+              : slot === 'veil'
+                ? this.tex.wring
+                : this.tex.star,
       );
       s.anchor.set(0.5);
-      if (slot !== 'jam' && slot !== 'ice') s.blendMode = 'add';
-      (slot === 'aura' ? this.layers.shadows : this.layers.air).addChild(s);
+      if (slot !== 'jam' && slot !== 'ice' && slot !== 'veil') s.blendMode = 'add';
+      (slot === 'aura' || slot === 'veil' ? this.layers.shadows : this.layers.air).addChild(s);
       v[slot] = s;
     }
     s.visible = true;
@@ -819,6 +834,7 @@ export class TowerLayer {
       const jammed = t.stunTimer > 0;
       const iceLocked = (t.frostLockTimer ?? 0) > 0;
       const frosted = iceLocked || (t.frostSlow ?? 0) > 0;
+      const veilLeft = t.veilTimer ?? 0;
       const buffed = t.auraRate > 0 || t.auraRange > 0;
       if (!(art && ring && this.syncRing(v, t, ring, art, simDt, py))) {
         // Legacy art: height + anchor placement and the full procedural kick.
@@ -866,6 +882,7 @@ export class TowerLayer {
       let tint = art ? art.tint : 0xffffff;
       if (iceLocked) tint = mixTint(tint, ICE_LOCK_TINT, 0.6);
       else if (jammed) tint = mixTint(tint, JAM_TINT, 0.45 + 0.1 * Math.sin(time * 12));
+      if (veilLeft > 0) tint = mixTint(tint, VEIL_TINT, 0.35 * Math.min(1, veilLeft / 0.4));
       v.sprite.tint = tint;
       if (v.turret) v.turret.tint = tint;
 
@@ -897,6 +914,16 @@ export class TowerLayer {
         }
         ice.zIndex = py + 1.5;
       }
+      // Veilcaster veil: a dark, slowly turning ring on the ground (fades out over the last 0.4 s).
+      const veil = this.overlay(v, 'veil', veilLeft > 0);
+      if (veil) {
+        const fade = Math.min(1, veilLeft / 0.4);
+        veil.tint = Math.sin(time * 4 + t.id) > 0.6 ? VEIL_RIM : VEIL_RING;
+        veil.alpha = 0.85 * fade;
+        veil.position.set(px, py + 2);
+        veil.scale.set((ppu * 2.6) / 128, (ppu * 1.25) / 128);
+        veil.rotation = 0;
+      }
       // Beacon buff: a warm ground glow and a drifting sparkle on buffed towers.
       const aura = this.overlay(v, 'aura', buffed);
       if (aura) {
@@ -925,6 +952,7 @@ export class TowerLayer {
         v.aura?.destroy();
         v.star?.destroy();
         v.ice?.destroy();
+        v.veil?.destroy();
         this.views.delete(id);
       }
     }
@@ -996,16 +1024,18 @@ export class TowerLayer {
   }
 
   /** QA: towers currently drawn with the jam marker / buff glow / frost marker. */
-  markers(): { jammed: number; buffed: number; frosted: number } {
+  markers(): { jammed: number; buffed: number; frosted: number; veiled: number } {
     let jammed = 0;
     let buffed = 0;
     let frosted = 0;
+    let veiled = 0;
     for (const v of this.views.values()) {
       if (v.jam?.visible) jammed++;
       if (v.aura?.visible) buffed++;
       if (v.ice?.visible) frosted++;
+      if (v.veil?.visible) veiled++;
     }
-    return { jammed, buffed, frosted };
+    return { jammed, buffed, frosted, veiled };
   }
 
   /** QA: ring-convention towers' drawn ring vs their plot ring (layout px), by tower id. */

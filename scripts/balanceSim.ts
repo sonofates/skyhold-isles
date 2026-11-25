@@ -16,6 +16,7 @@ import { maxedWorkshopRanks, workshopModifiers, workshopStarsSpent } from '../sr
 import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
 import { challengesForLevel, runModifiersFor } from '../src/data/challenges.ts';
 import { computeStarRating, SimWorld } from '../src/sim/world.ts';
+import { hasChapterFiveEnemies } from '../src/sim/waveSystem.ts';
 
 type ScriptKind = 'greedy' | 'weak';
 
@@ -47,6 +48,20 @@ export interface GuardShieldTally {
   refreezes: number;
 }
 
+/**
+ * Chapter five over a run (islands with chapter-five foes only): Veilcaster veils cast, Dusk Hound pack
+ * howls (a hound died with mates nearby), eclipses and Sovereign splits, plus attack-tower seconds
+ * while a wave runs and the share of their reach lost to veils / the eclipse (Σ rangeCut·dt).
+ */
+export interface ShadowTally {
+  veils: number;
+  packHowls: number;
+  eclipses: number;
+  splits: number;
+  towerSec: number;
+  rangeLostSec: number;
+}
+
 /** Tower-seconds of fire cycle (reloading): total, lost to frost patches (Σ frostSlow·dt), and spent inside a patch. */
 export interface FrostTally {
   towerSec: number;
@@ -76,6 +91,7 @@ export interface SimRunResult {
   towerPurchases: string[];
   waves: WaveStatRow[];
   guardShield: GuardShieldTally;
+  shadow: ShadowTally;
   unspentScriptActions: number;
   invalidActions: number;
   /** Endless continuation (only when requested): furthest wave reached and peak live enemies. */
@@ -200,6 +216,16 @@ function tallyFrost(world: SimWorld, tally: FrostTally): void {
   }
 }
 
+/** Attack towers' reach lost to Veilcaster veils / the eclipse this tick (chapter-five islands only). */
+function tallyShadow(world: SimWorld, tally: ShadowTally): void {
+  const dt = BALANCE.fixedDt;
+  for (const t of world.towers) {
+    if (TOWER_DEFS[t.type].role !== 'attack') continue;
+    tally.towerSec += dt;
+    tally.rangeLostSec += (t.rangeCut ?? 0) * dt;
+  }
+}
+
 /**
  * Share of tower fire capacity lost to Rime Beetle frost: over the whole run, and over the waves
  * that send beetles (the waves where the patch is the threat). 0 when the island has no beetles.
@@ -253,6 +279,14 @@ export function runLevelBalanceSim(
   events.on('guardShieldRestored', () => {
     guardShield.refreezes++;
   });
+  const shadow: ShadowTally = { veils: 0, packHowls: 0, eclipses: 0, splits: 0, towerSec: 0, rangeLostSec: 0 };
+  const chapterFive = hasChapterFiveEnemies(level);
+  if (chapterFive) {
+    events.on('towerVeiled', () => shadow.veils++);
+    events.on('packEnrage', () => shadow.packHowls++);
+    events.on('eclipse', () => shadow.eclipses++);
+    events.on('sovereignSplit', () => shadow.splits++);
+  }
 
   events.on('waveStarted', (ev) => {
     goldEarned += ev.earlyBonus;
@@ -368,7 +402,10 @@ export function runLevelBalanceSim(
         const prog = e.dist / e.totalDist;
         if (prog > activeWaveRow.peakGroundProgress) activeWaveRow.peakGroundProgress = prog;
       }
-      if (world.waveSystem.state !== 'betweenWaves') tallyFrost(world, activeWaveRow.frost);
+      if (world.waveSystem.state !== 'betweenWaves') {
+        tallyFrost(world, activeWaveRow.frost);
+        if (chapterFive) tallyShadow(world, shadow);
+      }
     }
   }
 
@@ -398,6 +435,7 @@ export function runLevelBalanceSim(
     towerPurchases: [...towerPurchases],
     waves: [...waveRows],
     guardShield: { ...guardShield },
+    shadow: { ...shadow },
     unspentScriptActions: queue.length,
     invalidActions,
   };
@@ -653,6 +691,13 @@ export function evaluateBalance(
       if (frost.beetleWaves < MIN_FROST_LOSS || frost.beetleWaves > MAX_FROST_LOSS) {
         failures.push(`${label} greedy loses ${pct(frost.beetleWaves)} of fire time to frost on beetle waves (want ${pct(MIN_FROST_LOSS)}-${pct(MAX_FROST_LOSS)})`);
       }
+    }
+    // Chapter five (informational): veils, pack howls, the Sovereign's phases and the reach they cost.
+    if (hasChapterFiveEnemies(level)) {
+      const sd = greedyRes.shadow;
+      const lost = sd.towerSec > 0 ? (sd.rangeLostSec / sd.towerSec) * 100 : 0;
+      summary[summary.length - 1] += ` | dusk: greedy ${sd.veils} veils, ${sd.packHowls} pack howls, ` +
+        `eclipse ${sd.eclipses}, split ${sd.splits}, ${lost.toFixed(1)}% of tower reach lost`;
     }
     // Sledge Warden shields: how much they soak and how much of it tesla/mortar breaks (informational).
     if (level.waves.some(w => w.groups.some(g => g.enemyType === 'sledguard'))) {

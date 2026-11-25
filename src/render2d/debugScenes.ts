@@ -11,6 +11,7 @@ import { sectorOf, yawToScreenAngle } from './turret.ts';
 /**
  * QA / recording scenes on the real SimWorld (no fakes, so the event wiring is exercised):
  *   ?zoo=1[&types=a,b]   every enemy type (+ elites), or only `types`, walking L1c, specials triggered periodically
+ *                        (the Veilcaster veils towers on its own; the Sovereign is forced to eclipse and split)
  *   ?towers=1[&tier=N]   every tower type built and firing at a stream of tough enemies; without
  *                        `tier` the whole set cycles T1 → T2 → T3 every 9 s
  *   ?towers=aim&type=T[&tier=N]  one directional tower, one immortal target hopping around it by
@@ -88,7 +89,8 @@ export function zooHooks(only?: readonly EnemyType[]): Game2DHooks {
         slot.uid = e.uid;
         slot.born = tick;
         slot.fired = 0;
-        slot.nextSpawn = tick + 150;
+        // The Sovereign leaves by splitting (its slot frees early): give the halves time on stage.
+        slot.nextSpawn = tick + (slot.type === 'eclipse_sovereign' ? 60 * TICKS_PER_SEC : 150);
         byUid.set(e.uid, slot);
       }
     },
@@ -116,6 +118,23 @@ function force(world: SimWorld, e: EnemyEntity, slot: ZooSlot, age: number): voi
       // Late enough that it has walked well into the map (it is slow).
       if (step(1, 22)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
       else if (step(2, 30)) e.hp = Math.min(e.hp, e.maxHp * 0.31);
+      break;
+    case 'eclipse_sovereign':
+      // Eclipse (screen shade, every range circle shrinks), then the split into two Shadow Halves
+      // and four Dusk Hounds. Late enough that it has walked into the map (it is slow).
+      // The split comes inside the 8 s eclipse so one frame shows the dark sky and both halves.
+      if (step(1, 14)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
+      else if (step(2, 18)) e.hp = Math.min(e.hp, e.maxHp * 0.38);
+      break;
+    case 'duskhound':
+      // Pack enrage without a pack: one stack at 2 s, the second at 5 s (tint, glow, smoke trail).
+      if (step(1, 2)) {
+        e.enrageStacks = 1;
+        e.enrageTimer = 4;
+      } else if (step(2, 5)) {
+        e.enrageStacks = 2;
+        e.enrageTimer = 4;
+      }
       break;
     case 'rimebeetle':
       // Dies mid-road: frost patch decal + snowflakes on the towers it covers.
