@@ -616,7 +616,7 @@ export class SimWorld {
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
-    this.enemySystem.clearFrostPatches();
+    this.clearFrost();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false, this.towers, true);
     this.soldierSystem.clearCombatState(true);
@@ -631,6 +631,12 @@ export class SimWorld {
     return ok;
   }
 
+  /** Drops Rime Beetle frost patches and the fire-rate slow they put on towers. */
+  private clearFrost(): void {
+    this.enemySystem.clearFrostPatches();
+    for (let i = 0; i < this.towers.length; i++) this.towers[i].frostSlow = 0;
+  }
+
   private clearVictoryTransients(): void {
     this.tickAbortGen++;
     this.poolClearGen++;
@@ -638,7 +644,7 @@ export class SimWorld {
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
-    this.enemySystem.clearFrostPatches();
+    this.clearFrost();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false, this.towers, true);
     this.soldierSystem.clearCombatState(true);
@@ -652,7 +658,7 @@ export class SimWorld {
     this.combatSystem.abortCurrentStep();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
-    this.enemySystem.clearFrostPatches();
+    this.clearFrost();
     this.abilitySystem.clearPending();
     this.heroSystem.clearTransientZones(false, this.towers, true);
     this.soldierSystem.clearCombatState(true);
@@ -669,7 +675,7 @@ export class SimWorld {
     this.enemyPool.clear();
     this.projectilePool.clear();
     this.projectileSystem.clearBurnZones();
-    this.enemySystem.clearFrostPatches();
+    this.clearFrost();
     this.abilitySystem.reset();
     this.spatialHash.clear();
     this.grid.resetOccupancy();

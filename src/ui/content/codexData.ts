@@ -39,17 +39,17 @@ export const ENEMY_LORE: Record<EnemyType | ChapterEnemyType, EnemyLore> = {
     tags: ['Air', 'Swarm'],
   },
   rimebeetle: {
-    blurb: 'Leaves a 3-second frost patch where it falls. Towers in the patch fire 30% slower.',
+    blurb: 'Leaves a 3 s frost patch when it dies. Towers inside fire 30% slower.',
     counter: CHAPTER4_ENEMY_DEFS.rimebeetle.counterHint,
     tags: ['Ground', 'Frost'],
   },
   sledguard: {
-    blurb: 'An ice shield (40% of its health) takes hits first and refreezes after 4 quiet seconds.',
+    blurb: 'Ice shield worth 40% of its health; refreezes after 4 s without damage.',
     counter: CHAPTER4_ENEMY_DEFS.sledguard.counterHint,
     tags: ['Ground', 'Shielded'],
   },
   glacier_warden: {
-    blurb: 'At 66% and 33% health it freezes the nearest tower for 4 seconds and wakes three Rime Beetles.',
+    blurb: 'At 66% and 33% health: freezes the nearest tower for 4 s, wakes 3 Rime Beetles.',
     counter: CHAPTER4_ENEMY_DEFS.glacier_warden.counterHint,
     tags: ['Ground', 'Boss', 'Armored'],
   },

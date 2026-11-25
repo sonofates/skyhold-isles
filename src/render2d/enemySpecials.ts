@@ -137,6 +137,13 @@ const STORM = 0x9fdcff;
 const ENRAGE = 0xff8a3a;
 const SPLIT_PINK = 0xff9ac0;
 const DIRT = 0xb08256;
+/** Chapter four: Sledge Warden ice shield, Glacier Warden aura / ice trail. */
+const RIME = 0xc8ecff;
+const GLACIER = 0x8fd8ff;
+const SHIELD_FILL = 0x6cc8ff;
+const GUARD_FILL = 0xe6f8ff;
+/** Seconds between Glacier Warden ice-trail flakes (visual only). */
+const ICE_TRAIL_SEC = 0.16;
 
 export interface SpecialLayout {
   readonly px: number;
@@ -318,8 +325,11 @@ export class EnemySpecials {
     const shield = w.shield ?? 0;
     const shielded = shield > 0 && !w.burrowed;
     const fill = shielded && (w.shieldMax ?? 0) > 0 ? Math.min(1, shield / (w.shieldMax as number)) : 0;
+    // The Sledge Warden's own shield pool reads as a pale ice plate rather than a blue ward.
+    const guard = type === 'sledguard';
     const bubble = this.show(ex, 'bubble', shielded, art);
     if (bubble) {
+      bubble.tint = guard ? RIME : 0xffffff;
       const d = Math.max(L.heightPx * 1.05, L.shadowR * 2.1) * (0.84 + fill * 0.16) * (1 + 0.025 * Math.sin(time * 5 + L.px * 0.1));
       bubble.position.set(L.px, L.cy);
       bubble.scale.set(d / 128, (d * 1.04) / 128);
@@ -338,6 +348,7 @@ export class EnemySpecials {
       sFill.position.set(L.px - barW / 2, top);
       sFill.width = Math.max(0.5, barW * fill);
       sFill.height = 3 * ui;
+      sFill.tint = guard ? GUARD_FILL : SHIELD_FILL;
     }
 
     // ---- glows (blinker charge, hexer channel, tempest channel / enrage, healer breath) --------
@@ -439,6 +450,10 @@ export class EnemySpecials {
       ringColor = (w.bossPhase ?? 0) >= 2 ? ENRAGE : type === 'tempest' ? STORM : 0xb49cff;
       ringA = 0.4 + 0.15 * Math.sin(time * 4);
       ringR = L.shadowR * 1.6;
+    } else if (type === 'glacier_warden') {
+      ringColor = GLACIER;
+      ringA = 0.42 + 0.12 * (w.bossPhase ?? 0) + 0.15 * Math.sin(time * 3);
+      ringR = L.shadowR * 1.65;
     }
     const ring = this.show(ex, 'ring', ringA > 0.02 && !w.burrowed, art);
     if (ring) {
@@ -480,6 +495,17 @@ export class EnemySpecials {
         anim.dustT = 0.075;
         const jx = (this.fx.random() - 0.5) * L.shadowR * 1.6;
         this.fx.spawn('puff', L.px + jx, L.py - 2, 8 + this.fx.random() * 6, jx * 0.6, -16 - this.fx.random() * 12, 0.42, DIRT);
+      }
+    }
+    // Glacier Warden: a short-lived trail of ice flakes behind it while it walks (visual only;
+    // reuses the dust timer, it never burrows).
+    if (type === 'glacier_warden' && this.fx && dt > 0 && !w.burrowed) {
+      anim.dustT -= dt;
+      if (anim.dustT <= 0) {
+        anim.dustT = ICE_TRAIL_SEC;
+        const jx = (this.fx.random() - 0.5) * L.shadowR * 1.4;
+        this.fx.spawn('crater', L.px + jx, L.py + 2, L.shadowR * (0.7 + 0.3 * this.fx.random()), 0, 0, 1.4, RIME);
+        this.fx.spawn('spark', L.px + jx, L.py - 4, 6, 0, -10, 0.5, 0xffffff);
       }
     }
     if (bk > 0) {
