@@ -16,14 +16,14 @@ export const I31 = {
   flightPath: [],
   decorationSeed: 1540,
   startingGold: 440,
-  enemyHpScale: 1.75,
+  enemyHpScale: 1.884,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Iron on the Planks', clearBonus: 25, groups: [
       group('sledguard', 2, 1.47), group('runner', 6, 0.52, 1.8, 1),
     ] },
     { name: 'Lower Hawser', clearBonus: 27, groups: [
-      group('rimebeetle', 5, 0.91, 0, 1), group('bellrunner', 8, 0.53, 1),
+      group('rimebeetle', 5, 0.55, 0, 1), group('bellrunner', 8, 0.53, 1),
     ] },
     { name: 'Frost on the Lashings', clearBonus: 29, groups: [
       group('kilnback', 5, 1.05), group('reedpiper', 2, 1.37, 1, 1),
@@ -34,7 +34,7 @@ export const I31 = {
       group('healer', 2, 1.35, 3.2, 1),
     ] },
     { name: 'Twin Spans', clearBonus: 32, groups: [
-      group('burrower', 6, 0.82), group('rimebeetle', 6, 0.91, 1, 1),
+      group('burrower', 6, 0.82), group('rimebeetle', 7, 0.91, 1, 1),
       group('blinker', 7, 0.71, 3.2),
     ] },
     { name: 'Loose Piton', clearBonus: 34, groups: [
@@ -46,7 +46,7 @@ export const I31 = {
       group('carrier', 2, 2.29, 3.2),
     ] },
     { name: 'Narrow Footing', clearBonus: 38, groups: [
-      { ...group('rimebeetle', 7, 0.9, 0, 1), elite: true }, group('warden', 5, 1.12, 1),
+      { ...group('rimebeetle', 7, 0.54, 0, 1), elite: true }, group('warden', 5, 1.12, 1),
       group('bellrunner', 11, 0.52, 3.2, 1),
     ] },
     { name: 'Drum and Ratchet', clearBonus: 39, groups: [

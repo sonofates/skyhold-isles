@@ -39,7 +39,8 @@ export const ENEMY_LORE: Record<EnemyType | ChapterEnemyType, EnemyLore> = {
     tags: ['Air', 'Swarm'],
   },
   rimebeetle: {
-    blurb: 'Leaves a 3 s frost patch when it dies. Towers inside fire 30% slower.',
+    // Numbers follow the def (patch 3.75 s, towers fire at 0.6× = 40% slower).
+    blurb: `Leaves a ${CHAPTER4_ENEMY_DEFS.rimebeetle.ability.patchSec} s frost patch when it dies. Towers inside fire ${Math.round((1 - CHAPTER4_ENEMY_DEFS.rimebeetle.ability.rateMul) * 100)}% slower.`,
     counter: CHAPTER4_ENEMY_DEFS.rimebeetle.counterHint,
     tags: ['Ground', 'Frost'],
   },

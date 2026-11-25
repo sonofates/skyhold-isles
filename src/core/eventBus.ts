@@ -106,6 +106,10 @@ export interface GameEventMap {
     x: number;
     y: number;
     z: number;
+    /** The soaking shield sits on a Sledge Warden (its sledge shield, not a ward). */
+    guard?: boolean;
+    /** A tesla chain / mortar blast hit the Sledge Warden shield at its breaker rate. */
+    breaker?: boolean;
   };
   shieldBroken: {
     enemyId: number;

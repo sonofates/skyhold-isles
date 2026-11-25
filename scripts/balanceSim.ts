@@ -35,6 +35,16 @@ interface WaveStatRow {
   frost: FrostTally;
 }
 
+/**
+ * Sledge Warden shields over a run: shield points soaked (a tesla/mortar breaker hit removes 2 points per
+ * damage point), the part removed by those breaker hits, and how often a shield refroze after 4 quiet seconds.
+ */
+export interface GuardShieldTally {
+  absorbed: number;
+  byBreaker: number;
+  refreezes: number;
+}
+
 /** Tower-seconds of fire cycle (reloading): total, lost to frost patches (Σ frostSlow·dt), and spent inside a patch. */
 export interface FrostTally {
   towerSec: number;
@@ -63,6 +73,7 @@ export interface SimRunResult {
   targetingChanges: number;
   towerPurchases: string[];
   waves: WaveStatRow[];
+  guardShield: GuardShieldTally;
   unspentScriptActions: number;
   invalidActions: number;
   /** Endless continuation (only when requested): furthest wave reached and peak live enemies. */
@@ -230,6 +241,16 @@ export function runLevelBalanceSim(
   let targetingChanges = 0;
   const towerPurchases: string[] = [];
   let invalidActions = 0;
+  const guardShield: GuardShieldTally = { absorbed: 0, byBreaker: 0, refreezes: 0 };
+
+  events.on('shieldAbsorb', (ev) => {
+    if (!ev.guard) return;
+    guardShield.absorbed += ev.amount;
+    if (ev.breaker) guardShield.byBreaker += ev.amount;
+  });
+  events.on('guardShieldRestored', () => {
+    guardShield.refreezes++;
+  });
 
   events.on('waveStarted', (ev) => {
     goldEarned += ev.earlyBonus;
@@ -369,6 +390,7 @@ export function runLevelBalanceSim(
     targetingChanges,
     towerPurchases: [...towerPurchases],
     waves: [...waveRows],
+    guardShield: { ...guardShield },
     unspentScriptActions: queue.length,
     invalidActions,
   };
@@ -517,8 +539,8 @@ export function evaluateBalance(
   /** Max share of lives lost to flyers in a greedy run / a lost weak run. */
   const MAX_FLYER_SHARE_GREEDY = 0.55;
   const MAX_FLYER_SHARE_WEAK_LOSS = 0.7;
-  /** Greedy fire time lost to Rime Beetle frost on the waves that send beetles: noticeable, not crippling. */
-  const MIN_FROST_LOSS = 0.03;
+  /** Greedy fire time lost to Rime Beetle frost on the waves that send beetles: noticeable, not crippling (docs/handoff-ch4-waves-2.md). */
+  const MIN_FROST_LOSS = 0.05;
   const MAX_FROST_LOSS = 0.15;
 
   function livesLostTotals(res: SimRunResult): { total: number; flyers: number; byType: Partial<Record<EnemyType, number>> } {
@@ -621,6 +643,13 @@ export function evaluateBalance(
       if (frost.beetleWaves < MIN_FROST_LOSS || frost.beetleWaves > MAX_FROST_LOSS) {
         failures.push(`${label} greedy loses ${pct(frost.beetleWaves)} of fire time to frost on beetle waves (want ${pct(MIN_FROST_LOSS)}-${pct(MAX_FROST_LOSS)})`);
       }
+    }
+    // Sledge Warden shields: how much they soak and how much of it tesla/mortar breaks (informational).
+    if (level.waves.some(w => w.groups.some(g => g.enemyType === 'sledguard'))) {
+      const sh = greedyRes.guardShield;
+      const byBreaker = sh.absorbed > 0 ? (sh.byBreaker / sh.absorbed) * 100 : 0;
+      summary[summary.length - 1] += ` | shield: greedy broke ${Math.round(sh.absorbed)} Sledge Warden shield pts` +
+        ` (${byBreaker.toFixed(0)}% by tesla/mortar), ${sh.refreezes} refreezes`;
     }
 
     if (greedyRes.outcome !== 'won') {

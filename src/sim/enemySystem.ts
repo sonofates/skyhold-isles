@@ -395,6 +395,8 @@ export class EnemySystem {
         x: entity.x,
         y: entity.y + entity.height * 0.6,
         z: entity.z,
+        guard: guard?.kind === 'guard',
+        breaker: shieldMul > 1,
       });
       if (entity.shield <= 0) {
         entity.shield = 0;

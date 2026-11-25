@@ -20,7 +20,7 @@ Bağlam:
 
 | id | EN / TR | Rol | Mekanik | Karşılığı |
 |---|---|---|---|---|
-| `rimebeetle` | Rime Beetle / Kırağı Böceği | yer, orta | Ölünce yerde 3 sn'lik bir kırağı lekesi bırakır. Lekenin yarıçapındaki kuleler o süre boyunca %30 daha yavaş ateş eder. Etki üst üste binmez. | Kuleleri dağıtmak, böceği kule kümesine varmadan öldürmek, uzun menzilli kuleler (ballista, havan). |
+| `rimebeetle` | Rime Beetle / Kırağı Böceği | yer, orta | Ölünce yerde 3,75 sn'lik bir kırağı lekesi bırakır. Lekenin yarıçapındaki kuleler o süre boyunca %40 daha yavaş ateş eder (ilk taslak 3 sn / %30 idi; `docs/handoff-ch4-waves-2.md`). Etki üst üste binmez. | Kuleleri dağıtmak, böceği kule kümesine varmadan öldürmek, uzun menzilli kuleler (ballista, havan). |
 | `sledguard` | Sledge Warden / Kalkanlı Kızakçı | yer, tank | Kalkanı ayrı bir can havuzu (ana canın yaklaşık %40'ı). Önce kalkan erir. 4 sn hasar almazsa kalkan yeniden dolar. Tesla zinciri ve havan sıçraması kalkana 2 kat vurur. | Sürekli hasar ya da tesla ve havan. Tek atışlık okçu ile kalkan yenilenir. |
 | `glacier_warden` | Glacier Warden / Buzul Muhafızı (boss, yalnız `i36`) | yer, boss | %66 ve %33 canda en yakın kuleyi 4 sn dondurur (kule ateş etmez) ve 3 `rimebeetle` çağırır. Yürürken arkasında kısa ömürlü buz izi bırakır (yalnız görsel). | Kuleleri yolun iki yanına yaymak, kahraman ve yetenekleri boss evresine saklamak. |
 

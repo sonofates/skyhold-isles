@@ -108,7 +108,7 @@ describe('chapter four roster wiring', () => {
 });
 
 describe('Rime Beetle frost patch', () => {
-  it('a dying beetle leaves a patch; towers inside fire 30% slower for 3 s, outside are untouched', () => {
+  it('a dying beetle leaves a patch; towers inside fire 40% slower while it lasts, outside are untouched', () => {
     const { world, events } = plotWorld();
     const patches: { x: number; z: number; radius: number; duration: number }[] = [];
     events.on('frostPatch', (e) => patches.push(e));

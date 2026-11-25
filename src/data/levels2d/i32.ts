@@ -16,7 +16,7 @@ export const I32 = {
   flightPath: [],
   decorationSeed: 1563,
   startingGold: 415,
-  enemyHpScale: 2.95,
+  enemyHpScale: 2.959,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Parallax', clearBonus: 25, groups: [
@@ -30,7 +30,7 @@ export const I32 = {
       group('healer', 2, 1.35, 3.2),
     ] },
     { name: 'The Outer Ring', clearBonus: 31, groups: [
-      group('kilnback', 6, 1.05), group('rimebeetle', 6, 0.91, 1),
+      group('kilnback', 6, 1.05), group('rimebeetle', 6, 0.55, 1),
       group('hexer', 3, 1.31, 3.2),
     ] },
     { name: 'Night Watch', clearBonus: 32, groups: [

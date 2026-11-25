@@ -18,7 +18,7 @@ export const I30 = {
   flightPath: [],
   decorationSeed: 1517,
   startingGold: 405,
-  enemyHpScale: 2.36,
+  enemyHpScale: 2.395,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Brake Shoe', clearBonus: 25, groups: [
@@ -30,11 +30,11 @@ export const I30 = {
     ] },
     { name: 'Needles on the Wind', clearBonus: 29, groups: [
       group('draftwing', 4, 0.97), group('kilnback', 5, 1.08, 0.75, 1),
-      group('reedpiper', 2, 1.42, 2.8), group('rimebeetle', 4, 0.9, 4.4),
+      group('reedpiper', 2, 1.42, 2.8), group('rimebeetle', 5, 0.9, 2.8),
     ] },
     { name: 'Two Ruts', clearBonus: 31, groups: [
       group('golem', 4, 1.2, 0, 1), group('healer', 3, 1.37, 0.75),
-      group('burrower', 7, 0.82, 2.8, 1), group('rimebeetle', 5, 0.9, 4.4),
+      group('burrower', 7, 0.82, 2.8, 1), group('rimebeetle', 5, 0.54, 4.4),
     ] },
     { name: 'The Trestle Sings', clearBonus: 32, groups: [
       group('splitter', 7, 0.78), group('hexer', 3, 1.33, 0.75, 1),
@@ -50,7 +50,7 @@ export const I30 = {
     ] },
     { name: 'Across the Saddle', clearBonus: 38, groups: [
       { ...group('warden', 6, 1.15, 0, 1), elite: true }, group('runner', 13, 0.47, 0.75),
-      group('golem', 5, 1.14, 2.8, 1), group('rimebeetle', 6, 0.9, 4.4),
+      group('golem', 5, 1.14, 2.8, 1), group('rimebeetle', 6, 0.9, 8),
     ] },
     { name: 'Cut the Lashings', clearBonus: 39, groups: [
       { ...group('golem', 6, 1.13), elite: true }, group('healer', 3, 1.3, 0.75, 1),
@@ -73,7 +73,7 @@ export const I30 = {
     { name: 'Lamps Below the Ridge', clearBonus: 60, groups: [
       { ...group('kilnback', 9, 0.95), elite: true }, group('reedpiper', 4, 1.26, 0.75, 1),
       { ...group('golem', 7, 1.08, 2.8), elite: true }, { ...group('bellrunner', 11, 0.48, 5, 1), elite: true },
-      { ...group('rimebeetle', 5, 0.9, 6.2), elite: true },
+      { ...group('rimebeetle', 6, 0.54, 6.2), elite: true },
     ] },
   ],
   scriptedBuildOrder: [

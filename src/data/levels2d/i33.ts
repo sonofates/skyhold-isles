@@ -16,7 +16,7 @@ export const I33 = {
   flightPath: [],
   decorationSeed: 1586,
   startingGold: 445,
-  enemyHpScale: 1.95,
+  enemyHpScale: 1.928,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Hollow Ice', clearBonus: 25, groups: [
@@ -42,7 +42,7 @@ export const I33 = {
       group('hexer', 3, 1.31, 3.2, 1),
     ] },
     { name: 'Ice Teeth', clearBonus: 36, groups: [
-      { ...group('rimebeetle', 7, 0.9), elite: true }, group('golem', 5, 1.16, 1, 1),
+      { ...group('rimebeetle', 8, 0.9), elite: true }, group('golem', 5, 1.16, 1, 1),
       group('runner', 12, 0.52, 3.2),
     ] },
     { name: 'Rippling Stone', clearBonus: 38, groups: [
@@ -51,7 +51,7 @@ export const I33 = {
     ] },
     { name: 'Back Pressure', clearBonus: 39, groups: [
       { ...group('kilnback', 7, 1.02), elite: true }, group('reedpiper', 4, 1.34, 1, 1),
-      group('rimebeetle', 7, 0.89, 3.2),
+      group('rimebeetle', 8, 0.89, 3.2),
     ] },
     { name: 'Cave Breath', clearBonus: 41, groups: [
       group('sledguard', 6, 1.42, 0, 1), group('healer', 4, 1.31, 1),
@@ -62,7 +62,7 @@ export const I33 = {
       group('blinker', 9, 0.68, 3.2),
     ] },
     { name: 'First Seep', clearBonus: 45, groups: [
-      { ...group('splitter', 8, 0.74, 0, 1), elite: true }, group('rimebeetle', 8, 0.87, 1),
+      { ...group('splitter', 8, 0.74, 0, 1), elite: true }, group('rimebeetle', 8, 0.52, 1),
       group('golem', 6, 1.11, 3.2, 1),
     ] },
     { name: 'Open the Sluice', clearBonus: 46, groups: [
@@ -71,7 +71,7 @@ export const I33 = {
     ] },
     { name: 'Water Below', clearBonus: 60, groups: [
       { ...group('kilnback', 8, 0.98, 0, 1), elite: true, hpScale: 5.5 }, group('golem', 5, 1.1, 8),
-      group('rimebeetle', 8, 0.85, 10.2, 1), group('sledguard', 4, 1.38, 12.4),
+      group('rimebeetle', 8, 0.85, 6.2, 1), group('sledguard', 4, 1.38, 12.4),
     ] },
   ],
   scriptedBuildOrder: [

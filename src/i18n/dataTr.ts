@@ -323,7 +323,7 @@ export const DATA_TR: DataTr = {
     // Chapter four (Kırağı Takımadası).
     rimebeetle: {
       name: 'Kırağı Böceği',
-      desc: 'Kırağı kabuklu bir böcek. Düştüğü yerde kabuğu dağılır ve yere bir kırağı lekesi bırakır; leke yakındaki kuleleri bir süre uyuşturur.',
+      desc: 'Kırağı kabuklu bir böcek. Düştüğü yerde kabuğu dağılır ve yere bir kırağı lekesi bırakır; lekedeki kuleler birkaç saniye %40 daha yavaş ateş eder.',
       counter: 'Kule kümene varmadan öldür. Balista ve Havan gibi uzun menzilli kuleler kırağının dışından ateş eder.',
     },
     sledguard: {

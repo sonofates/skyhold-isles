@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { runLevelBalanceSim } from '../../scripts/balanceSim.ts';
 import { campaignKit } from '../../scripts/lib/campaignKit.ts';
 import { balanceBuildOrder } from '../../scripts/lib/specializationBuilds.ts';
-import { CHAPTER4_ENEMY_TYPES } from '../../src/data/enemies.ts';
+import { CHAPTER4_ENEMY_DEFS, CHAPTER4_ENEMY_TYPES } from '../../src/data/enemies.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
 import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { FoesSeen, seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
@@ -79,7 +79,8 @@ describe('chapter four waves, i28–i30', () => {
     expect(w1.frost.lostSec).toBe(0);
     expect(w2.frost.lostSec).toBeGreaterThan(0);
     expect(w2.frost.slowedSec).toBeGreaterThan(w2.frost.lostSec);
-    // A patch slows by 30%, never more.
-    expect(w2.frost.lostSec).toBeCloseTo(w2.frost.slowedSec * 0.3, 6);
+    // A patch slows by 40% (rateMul 0.6), never more: overlapping patches do not stack.
+    expect(CHAPTER4_ENEMY_DEFS.rimebeetle.ability.rateMul).toBe(0.6);
+    expect(w2.frost.lostSec).toBeCloseTo(w2.frost.slowedSec * 0.4, 6);
   }, 30_000);
 });
