@@ -15,8 +15,8 @@ export const I31 = {
   pathWaypoints: [],
   flightPath: [],
   decorationSeed: 1540,
-  startingGold: 440,
-  enemyHpScale: 1.884,
+  startingGold: 435,
+  enemyHpScale: 1.842,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Iron on the Planks', clearBonus: 25, groups: [
@@ -50,7 +50,7 @@ export const I31 = {
       group('bellrunner', 11, 0.52, 3.2, 1),
     ] },
     { name: 'Drum and Ratchet', clearBonus: 39, groups: [
-      { ...group('kilnback', 6, 1.02), elite: true }, group('healer', 3, 1.32, 1, 1),
+      { ...group('kilnback', 6, 1.02), elite: true, hpScale: 1.05 }, group('healer', 3, 1.32, 1, 1),
       group('burrower', 7, 0.8, 3.2),
     ] },
     { name: 'The Bow in the Rope', clearBonus: 41, groups: [
@@ -58,20 +58,21 @@ export const I31 = {
       group('draftwing', 4, 0.89, 3.2, 1),
     ] },
     { name: 'Under Strain', clearBonus: 43, groups: [
-      { ...group('splitter', 7, 0.75), elite: true }, group('rimebeetle', 8, 0.87, 1, 1),
+      { ...group('splitter', 7, 0.75), elite: true, hpScale: 1.2 }, group('rimebeetle', 8, 0.87, 1, 1),
       group('bellrunner', 10, 0.51, 3.2),
     ] },
     { name: 'High Anchor', clearBonus: 45, groups: [
-      { ...group('sledguard', 5, 1.4, 0, 1), elite: true }, group('golem', 5, 1.11, 1),
+      // Spread the island's pressure (docs/handoff-ch4-final.md): a small, very hard warden column is the first wall.
+      { ...group('sledguard', 4, 1.4, 0, 1), elite: true, hpScale: 3.6 }, group('golem', 3, 1.11, 1),
       group('mite', 16, 0.28, 3.2, 1),
     ] },
     { name: 'Last Freight', clearBonus: 46, groups: [
       { ...group('brute', 8, 0.95), elite: true }, group('reedpiper', 4, 1.29, 1, 1),
-      group('kilnback', 7, 0.99, 3.2),
+      { ...group('kilnback', 3, 0.99, 3.2), hpScale: 1.45 },
     ] },
     { name: 'Mirror Signal', clearBonus: 60, groups: [
-      { ...group('sledguard', 7, 1.38, 0, 1), elite: true, hpScale: 1.5 }, group('rimebeetle', 7, 0.85, 8),
-      group('kilnback', 5, 0.98, 10.2, 1), group('bellrunner', 8, 0.5, 12.4),
+      { ...group('sledguard', 6, 1.38, 0, 1), elite: true, hpScale: 1.85 }, group('rimebeetle', 7, 0.85, 8),
+      group('kilnback', 2, 0.98, 10.2, 1), group('bellrunner', 8, 0.5, 12.4),
     ] },
   ],
   scriptedBuildOrder: [

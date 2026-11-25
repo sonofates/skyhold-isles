@@ -16,7 +16,7 @@ export const I33 = {
   flightPath: [],
   decorationSeed: 1586,
   startingGold: 445,
-  enemyHpScale: 1.928,
+  enemyHpScale: 1.96,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Hollow Ice', clearBonus: 25, groups: [
@@ -55,22 +55,23 @@ export const I33 = {
     ] },
     { name: 'Cave Breath', clearBonus: 41, groups: [
       group('sledguard', 6, 1.42, 0, 1), group('healer', 4, 1.31, 1),
-      group('draftwing', 5, 0.89, 3.2, 1),
+      // Spread the island's pressure (docs/handoff-ch4-final.md): a heavy moth flight over the falls.
+      { ...group('draftwing', 8, 0.89, 3.2, 1), hpScale: 2.5 },
     ] },
     { name: 'The Wheel Sticks', clearBonus: 43, groups: [
-      { ...group('brute', 8, 0.97), elite: true }, group('hexer', 4, 1.26, 1, 1),
+      { ...group('brute', 8, 0.97), elite: true, hpScale: 1.3 }, group('hexer', 4, 1.26, 1, 1),
       group('blinker', 9, 0.68, 3.2),
     ] },
     { name: 'First Seep', clearBonus: 45, groups: [
       { ...group('splitter', 8, 0.74, 0, 1), elite: true }, group('rimebeetle', 8, 0.52, 1),
-      group('golem', 6, 1.11, 3.2, 1),
+      { ...group('golem', 6, 1.11, 3.2, 1), hpScale: 1.25 },
     ] },
     { name: 'Open the Sluice', clearBonus: 46, groups: [
-      { ...group('sledguard', 6, 1.39), elite: true }, group('kilnback', 7, 0.99, 1, 1),
+      { ...group('sledguard', 6, 1.39), elite: true }, { ...group('kilnback', 7, 0.99, 1, 1), hpScale: 1.2 },
       group('bellrunner', 12, 0.5, 3.2),
     ] },
     { name: 'Water Below', clearBonus: 60, groups: [
-      { ...group('kilnback', 8, 0.98, 0, 1), elite: true, hpScale: 5.5 }, group('golem', 5, 1.1, 8),
+      { ...group('kilnback', 8, 0.98, 0, 1), elite: true, hpScale: 3.5 }, group('golem', 5, 1.1, 8),
       group('rimebeetle', 8, 0.85, 6.2, 1), group('sledguard', 4, 1.38, 12.4),
     ] },
   ],

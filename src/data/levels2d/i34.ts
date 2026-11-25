@@ -16,7 +16,7 @@ export const I34 = {
   flightPath: [],
   decorationSeed: 1609,
   startingGold: 440,
-  enemyHpScale: 3.45,
+  enemyHpScale: 3.65,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'First Bath', clearBonus: 25, groups: [
@@ -62,7 +62,8 @@ export const I34 = {
       group('rimebeetle', 8, 0.86, 3.9),
     ] },
     { name: 'Strainer Teeth', clearBonus: 45, groups: [
-      { ...group('burrower', 9, 0.8), elite: true }, group('sledguard', 6, 1.43, 1.7),
+      // Spread the island's pressure (docs/handoff-ch4-final.md): a short, very hard warden column.
+      { ...group('burrower', 9, 0.8), elite: true }, { ...group('sledguard', 4, 1.43, 1.7), hpScale: 2.5 },
       group('warden', 5, 1.15, 3.9),
     ] },
     { name: 'Bleed the Main', clearBonus: 47, groups: [
@@ -70,7 +71,7 @@ export const I34 = {
       group('reedpiper', 4, 1.4, 3.9),
     ] },
     { name: 'The Blue Stone', clearBonus: 60, groups: [
-      { ...group('golem', 10, 1.21), elite: true, hpScale: 1.5 }, group('bellrunner', 12, 0.51, 4),
+      { ...group('golem', 3, 1.21), elite: true, hpScale: 3 }, group('bellrunner', 12, 0.51, 4),
       group('rimebeetle', 8, 0.86, 6.5), group('sledguard', 5, 1.43, 10),
     ] },
   ],

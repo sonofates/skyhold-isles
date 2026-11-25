@@ -16,7 +16,7 @@ export const I32 = {
   flightPath: [],
   decorationSeed: 1563,
   startingGold: 415,
-  enemyHpScale: 2.959,
+  enemyHpScale: 2.96,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Parallax', clearBonus: 25, groups: [
@@ -62,15 +62,16 @@ export const I32 = {
       group('reedpiper', 4, 1.32, 3.2),
     ] },
     { name: 'Fine Adjustment', clearBonus: 45, groups: [
-      { ...group('kilnback', 8, 1.0), elite: true }, group('golem', 6, 1.11, 1),
-      group('draftwing', 5, 0.88, 3.2),
+      // Spread the island's pressure (docs/handoff-ch4-final.md): a heavy moth flight joins the kilns.
+      { ...group('kilnback', 8, 1.0), elite: true, hpScale: 1.1 }, group('golem', 6, 1.11, 1),
+      { ...group('draftwing', 7, 0.88, 3.2), hpScale: 2.7 },
     ] },
     { name: 'Two Images', clearBonus: 46, groups: [
-      { ...group('burrower', 10, 0.77), elite: true }, group('sledguard', 6, 1.39, 1),
+      { ...group('burrower', 10, 0.77), elite: true }, { ...group('sledguard', 6, 1.39, 1), hpScale: 1.15 },
       group('bellrunner', 13, 0.5, 3.2),
     ] },
     { name: 'True Meridian', clearBonus: 60, groups: [
-      group('golem', 6, 1.1), { ...group('sledguard', 7, 1.38, 1), elite: true, hpScale: 2.8 },
+      group('golem', 6, 1.1), { ...group('sledguard', 4, 1.38, 1), elite: true, hpScale: 3.5 },
       group('rimebeetle', 8, 0.85, 10.2), group('blinker', 8, 0.66, 12.4),
     ] },
   ],

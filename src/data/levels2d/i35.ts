@@ -16,7 +16,7 @@ export const I35 = {
   flightPath: [],
   decorationSeed: 1632,
   startingGold: 455,
-  enemyHpScale: 2.3,
+  enemyHpScale: 2.285,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Shift Lantern', clearBonus: 25, groups: [
@@ -58,23 +58,24 @@ export const I35 = {
       group('rimebeetle', 8, 0.86, 3.9, 1),
     ] },
     { name: 'White Heat', clearBonus: 43, groups: [
-      { ...group('burrower', 9, 0.8), elite: true }, group('blinker', 9, 0.72, 1.7, 1),
+      // Spread the island's pressure over the last five waves (docs/handoff-ch4-final.md).
+      { ...group('burrower', 9, 0.8), elite: true, hpScale: 1.25 }, group('blinker', 9, 0.72, 1.7, 1),
       group('sledguard', 5, 1.43, 3.9),
     ] },
     { name: 'Switch Lever', clearBonus: 45, groups: [
-      group('golem', 6, 1.21, 0, 1), group('rimebeetle', 8, 0.86, 1.7),
+      { ...group('golem', 6, 1.21, 0, 1), hpScale: 1.4 }, group('rimebeetle', 8, 0.86, 1.7),
       group('reedpiper', 4, 1.4, 3.9, 1),
     ] },
     { name: 'Pouring Sand', clearBonus: 47, groups: [
-      { ...group('sledguard', 6, 1.43), elite: true }, group('hexer', 4, 1.34, 1.7, 1),
+      { ...group('sledguard', 6, 1.43), elite: true, hpScale: 1.3 }, group('hexer', 4, 1.34, 1.7, 1),
       group('draftwing', 5, 0.93, 3.9),
     ] },
     { name: 'Quench Water', clearBonus: 48, groups: [
-      { ...group('splitter', 8, 0.77, 0, 1), elite: true }, group('kilnback', 7, 1.08, 1.7),
+      { ...group('splitter', 8, 0.77, 0, 1), elite: true }, { ...group('kilnback', 7, 1.08, 1.7), hpScale: 1.65 },
       group('rimebeetle', 8, 0.86, 3.9, 1),
     ] },
     { name: 'The Bell Cart', clearBonus: 60, groups: [
-      { ...group('kilnback', 8, 1.08), elite: true, hpScale: 2.5 }, group('sledguard', 6, 1.43, 4, 1),
+      { ...group('kilnback', 8, 1.08), elite: true, hpScale: 2.4 }, group('sledguard', 6, 1.43, 4, 1),
       group('bellrunner', 12, 0.51, 6.5), group('rimebeetle', 8, 0.86, 10, 1),
     ] },
   ],

@@ -16,7 +16,7 @@ export const I36 = {
   flightPath: [],
   decorationSeed: 1655,
   startingGold: 460,
-  enemyHpScale: 2,
+  enemyHpScale: 2.22,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Parade Ground', clearBonus: 25, groups: [
@@ -62,21 +62,22 @@ export const I36 = {
       group('bellrunner', 12, 0.51, 3.9),
     ] },
     { name: 'The Silent Bell', clearBonus: 45, groups: [
-      group('sledguard', 7, 1.43, 0, 2), group('rimebeetle', 9, 0.86, 1.7),
+      // Spread the finale's pressure over the last four waves (docs/handoff-ch4-final.md).
+      { ...group('sledguard', 7, 1.43, 0, 2), hpScale: 1.3 }, group('rimebeetle', 9, 0.86, 1.7),
       group('blinker', 9, 0.72, 3.9, 1),
     ] },
     { name: 'Raise the Sledge', clearBonus: 47, groups: [
-      { ...group('kilnback', 8, 1.08), elite: true }, group('draftwing', 5, 0.93, 1.7, 1),
+      { ...group('kilnback', 8, 1.08), elite: true, hpScale: 1.55 }, group('draftwing', 5, 0.93, 1.7, 1),
       group('hexer', 4, 1.34, 3.9, 2),
     ] },
     { name: 'The Last Pennant', clearBonus: 48, groups: [
-      { ...group('sledguard', 7, 1.43, 0, 1), elite: true }, group('rimebeetle', 8, 0.86, 1.7, 2),
+      { ...group('sledguard', 7, 1.43, 0, 1), elite: true, hpScale: 1.9 }, group('rimebeetle', 8, 0.86, 1.7, 2),
       group('bellrunner', 13, 0.51, 3.9),
     ] },
     { name: 'The Glacier Warden', clearBonus: 60, groups: [
       // The vanguard takes the side gates before the Warden opens the long central approach.
-      { ...group('glacier_warden', 1, 1, 24), hpScale: 0.95 },
-      { ...group('sledguard', 10, 1.43, 4, 2), hpScale: 5 },
+      { ...group('glacier_warden', 1, 1, 30), hpScale: 1.15 },
+      { ...group('sledguard', 10, 1.43, 2, 2), hpScale: 3 },
       group('rimebeetle', 8, 0.86, 7.5), group('bellrunner', 11, 0.51, 13, 1),
     ] },
   ],

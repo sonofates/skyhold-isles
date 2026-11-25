@@ -38,12 +38,12 @@ const baseline = [
   ['i28', 1.98, 5.430574],
   ['i29', 2.904, 7.964842],
   ['i30', 2.395, 6.568801],
-  ['i31', 1.884, 5.575019],
-  ['i32', 2.959, 8.756093],
-  ['i33', 1.928, 5.705221],
-  ['i34', 3.45, 10.209031],
-  ['i35', 2.3, 7.329196],
-  ['i36', 2, 6.373214],
+  ['i31', 1.842, 5.450735],
+  ['i32', 2.96, 8.759052],
+  ['i33', 1.96, 5.799913],
+  ['i34', 3.65, 10.800859],
+  ['i35', 2.285, 7.281397],
+  ['i36', 2.22, 7.074268],
 ] as const;
 
 // Named finale formations have their own HP on top of the story curve.
@@ -51,8 +51,8 @@ const finaleHp: Record<string, Record<string, number>> = {
   i02: { boss: 1.5 }, i04: { boss: 1.6 }, i05: { boss: 1.3 },
   i10: { boss: 2.5 },
   i17: { 'golem:1': 0.8 }, i22: { golem: 1.8 }, i24: { tempest: 2 }, i27: { 'golem:1': 2 },
-  i31: { sledguard: 1.5 }, i32: { sledguard: 2.8 }, i33: { kilnback: 5.5 },
-  i34: { golem: 1.5 }, i35: { kilnback: 2.5 }, i36: { glacier_warden: 0.95, sledguard: 5 },
+  i31: { sledguard: 1.85 }, i32: { sledguard: 3.5 }, i33: { kilnback: 3.5 },
+  i34: { golem: 3 }, i35: { kilnback: 2.4 }, i36: { glacier_warden: 1.15, sledguard: 3 },
 };
 
 it.each(baseline)('%s keeps its first and last story wave ground HP within ten percent', (id, first, last) => {
