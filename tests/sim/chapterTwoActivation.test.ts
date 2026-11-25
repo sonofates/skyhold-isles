@@ -93,10 +93,9 @@ describe('the four chapter enemies are fully registered', () => {
     }
   });
 
-  it('registers the painted death clips for the chapter three and four enemies', () => {
+  it('registers the painted death clips for the chapter enemies', () => {
     const withDeath = Object.entries(M.enemies).filter(([, a]) => a.death).map(([k]) => k).sort();
-    // Chapter four declares its clips ahead of the art (tinted fallback while pending, see
-    // tests/sim/chapterFourEnemies.test.ts).
-    expect(withDeath).toEqual([...CHAPTER_ENEMY_TYPES, ...CHAPTER4_ENEMY_TYPES].sort());
+    const chapterFiveArt = ['duskhound', 'veilcaster', 'eclipse_sovereign', 'eclipse_shade'];
+    expect(withDeath).toEqual([...CHAPTER_ENEMY_TYPES, ...CHAPTER4_ENEMY_TYPES, ...chapterFiveArt].sort());
   });
 });

@@ -1729,6 +1729,94 @@
     "tint": "#9fdcff",
     "scale": 1.05
    }
+  },
+  "duskhound": {
+   "mode": "sheet",
+   "file": "enemy-duskhound.webp",
+   "back": "enemy-duskhound-back.webp",
+   "sheet": {
+    "down": "anim/duskhound-walk-down.json",
+    "up": "anim/duskhound-walk-up.json",
+    "side": "anim/duskhound-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.35
+   },
+   "attack": "anim/duskhound-attack.json",
+   "death": "anim/duskhound-death.json",
+   "height": 1.57,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 0.39
+  },
+  "veilcaster": {
+   "mode": "sheet",
+   "file": "enemy-veilcaster.webp",
+   "back": "enemy-veilcaster-back.webp",
+   "sheet": {
+    "down": "anim/veilcaster-walk-down.json",
+    "up": "anim/veilcaster-walk-up.json",
+    "side": "anim/veilcaster-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.15
+   },
+   "attack": "anim/veilcaster-attack.json",
+   "death": "anim/veilcaster-death.json",
+   "height": 1.45,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 0.43
+  },
+  "eclipse_sovereign": {
+   "mode": "sheet",
+   "file": "enemy-eclipse_sovereign.webp",
+   "back": "enemy-eclipse_sovereign-back.webp",
+   "sheet": {
+    "down": "anim/eclipse_sovereign-walk-down.json",
+    "up": "anim/eclipse_sovereign-walk-up.json",
+    "side": "anim/eclipse_sovereign-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.9
+   },
+   "attack": "anim/eclipse_sovereign-attack.json",
+   "death": "anim/eclipse_sovereign-death.json",
+   "height": 3.34,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 1.02
+  },
+  "eclipse_shade": {
+   "mode": "sheet",
+   "file": "enemy-eclipse_shade.webp",
+   "back": "enemy-eclipse_shade-back.webp",
+   "sheet": {
+    "down": "anim/eclipse_shade-walk-down.json",
+    "up": "anim/eclipse_shade-walk-up.json",
+    "side": "anim/eclipse_shade-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.5
+   },
+   "attack": "anim/eclipse_shade-attack.json",
+   "death": "anim/eclipse_shade-death.json",
+   "height": 2.13,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 0.62
   }
  },
  "enemyMap": {
@@ -1761,7 +1849,11 @@
   "draftwing": "draftwing",
   "rimebeetle": "rimebeetle",
   "sledguard": "sledguard",
-  "glacier_warden": "glacier_warden"
+  "glacier_warden": "glacier_warden",
+  "duskhound": "duskhound",
+  "veilcaster": "veilcaster",
+  "eclipse_sovereign": "eclipse_sovereign",
+  "eclipse_shade": "eclipse_shade"
  },
  "plot": {
   "file": "plot-base.webp",
