@@ -1,6 +1,7 @@
 import type { HeroId, ProgressData } from '../core/types.ts';
 import { CHALLENGES, challengesForLevel, type ChallengeId } from '../data/challenges.ts';
-import { CAMPAIGN_ORDER, CHAPTERS } from '../data/chapters.ts';
+import { CHAPTERS } from '../data/chapters.ts';
+import { LEVELS_2D } from '../data/levels2d/index.ts';
 import { ENDLESS_TIERS, endlessWavesCleared } from '../data/endlessMutators.ts';
 import { HERO_DEFS, HERO_IDS, HERO_MAX_LEVEL, heroLevelFromXp } from '../data/heroes.ts';
 import { LEVELS, type LevelDef } from '../data/levels/index.ts';
@@ -399,10 +400,10 @@ const fullCampaignThreeStarAchievements: readonly SteamAchievementDef[] = [
   {
     id: 'STARS_ALL_ISLANDS',
     name: 'Constellation Complete',
-    description: `Earn 3 stars on all ${CAMPAIGN_ORDER.length} Skyhold islands`,
+    description: `Earn 3 stars on all ${LEVELS_2D.length} Skyhold islands`,
     category: 'stars',
     isEarned: (progress, levels) => {
-      if (levels.length < CAMPAIGN_ORDER.length) return false;
+      if (levels.length < LEVELS_2D.length) return false;
       for (let i = 0; i < levels.length; i++) {
         if (safeBestStarsAt(progress, i) < 3) return false;
       }
