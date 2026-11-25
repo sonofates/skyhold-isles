@@ -2,8 +2,8 @@
  * Headless Linux Xvfb smoke verification for the packaged AppImage (or unpackaged Electron build).
  *
  * Verifies both:
- *  1. Default launch (`http://skyhold.local/2d.html` -> World Map, >= 25 islands, Steam preload bridge,
- *     all 58 achievements loaded from `desktop/achievements.json`, 0 failed HTTP/bundle loads).
+ *  1. Default launch (`http://skyhold.local/2d.html` -> title screen with the PC Quit plank -> World Map,
+ *     >= 25 islands over the chapter pages, no store UI, Steam preload bridge, all 65 achievements loaded from `desktop/achievements.json`, 0 failed HTTP/bundle loads).
  *  2. Gameplay launch on Chapter-Two Boss `i24` (`?level=i24&diff=hard&hero=sela&herolevel=20` ->
  *     Pixi v8 WebGL2 canvas, 0 missing art files, Sela active, Steam preload bridge, 0 failed loads).
  */
@@ -19,6 +19,8 @@ interface SmokePayload {
   readonly achievementsLoaded: number;
   readonly failedLoads: number;
   readonly islands?: number;
+  readonly titleQuit?: boolean;
+  readonly storeVisible?: boolean;
   readonly mode?: string;
   readonly hero?: string | null;
   readonly art?: {
@@ -47,7 +49,7 @@ function runSmokeCase(
   const stdout = execFileSync(bin, fullArgs, {
     encoding: 'utf8',
     stdio: ['ignore', 'pipe', 'pipe'],
-    timeout: 45_000,
+    timeout: 120_000,
     env: {
       ...process.env,
       SKYHOLD_SMOKE_TEST: '1',
@@ -79,9 +81,11 @@ function main(): void {
     worldMap.scene !== 'worldMap' ||
     !worldMap.hasBridge ||
     !worldMap.secureContext ||
-    worldMap.achievementsLoaded < 58 ||
+    worldMap.achievementsLoaded < 65 ||
     worldMap.failedLoads !== 0 ||
-    (worldMap.islands ?? 0) < 25
+    (worldMap.islands ?? 0) < 25 ||
+    !worldMap.titleQuit ||
+    worldMap.storeVisible
   ) {
     throw new Error(`WorldMap smoke invariant failed: ${JSON.stringify(worldMap)}`);
   }
@@ -95,7 +99,7 @@ function main(): void {
     bossGame.hero !== 'sela' ||
     !bossGame.hasBridge ||
     !bossGame.secureContext ||
-    bossGame.achievementsLoaded < 58 ||
+    bossGame.achievementsLoaded < 65 ||
     bossGame.failedLoads !== 0 ||
     !bossGame.art ||
     bossGame.art.filesMissing !== 0 ||

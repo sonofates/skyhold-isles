@@ -575,7 +575,8 @@ function createMainWindow(ses, distDir) {
       console.error(`[renderer:did-fail-load] ${code} ${desc} ${url}`);
     });
     const expectsGameplay = Boolean(query);
-    const deadline = Date.now() + 25_000;
+    // SwiftShader on a busy CI box: the title, then the map, can take a while.
+    const deadline = Date.now() + 75_000;
     const poll = async () => {
       if (win.isDestroyed()) return;
       try {
@@ -608,6 +609,20 @@ function createMainWindow(ses, distDir) {
                 hero: heroSim ? heroSim.heroId : null,
               };
             }
+            // The title screen comes first in a fresh session: check its PC Quit plank, then go on.
+            if (window.__title && !window.__map && typeof window.__title.state === 'function') {
+              const phase = window.__title.state().phase;
+              if (phase === 'tap') window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+              if (phase === 'menu') {
+                window.__smokeTitleQuit = Boolean(document.querySelector('[data-testid="title2d-quit"]'));
+                const go = document.querySelector('[data-testid="title2d-continue"], [data-testid="title2d-new"]');
+                if (go && !window.__smokeTitleGo) {
+                  window.__smokeTitleGo = true;
+                  setTimeout(() => go.click(), 400);
+                }
+              }
+              return { ready: false, title: phase, href: location.href };
+            }
             if (!${JSON.stringify(expectsGameplay)} && window.__map && typeof window.__map.chapters === 'function') {
               const chapters = window.__map.chapters();
               const layout = typeof window.__map.layout === 'function' ? window.__map.layout() : null;
@@ -622,6 +637,7 @@ function createMainWindow(ses, distDir) {
                   isSteam: isSteamVal,
                   appId: appIdVal,
                   islands,
+                  titleQuit: window.__smokeTitleQuit === true,
                   storeVisible: Boolean(document.querySelector('[data-testid^="store"], [data-testid="set2d-store"]')),
                 };
               }
@@ -638,7 +654,8 @@ function createMainWindow(ses, distDir) {
             devTools,
             menu: Menu.getApplicationMenu() === null ? 'none' : 'app',
           };
-          if (!probe.hasBridge || !probe.hasDesktop || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 58) {
+          const badScene = probe.scene === 'worldMap' && (!probe.titleQuit || probe.storeVisible);
+          if (badScene || !probe.hasBridge || !probe.hasDesktop || !probe.secureContext || failedLoads.length > 0 || achievementsCount < 65) {
             console.error('[smoke] Invariant failed:', JSON.stringify({ summary, failedLoads }));
             app.exit(1);
             return;
