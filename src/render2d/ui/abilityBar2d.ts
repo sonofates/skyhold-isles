@@ -36,6 +36,7 @@ import {
   type AbilitySlotView,
 } from './abilities2d.ts';
 import { anySheetOpen, el, img, KIT } from './dom.ts';
+import { badgeLabel, eventKey, KEY_BINDINGS_EVENT } from './keyBindings.ts';
 import './abilityBar2d.css';
 
 const ICON_SVG: Readonly<Record<AbilityId, string>> = {
@@ -140,6 +141,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
   const root = el('div', `pu pu-abilities${opts.desktop ? ' desktop' : ''}`, { role: 'toolbar', 'aria-label': t('ab.bar'), 'data-testid': 'ab2d-bar' });
   const tip = el('div', 'pu-ab-tip', { role: 'tooltip', id: 'ab2d-tip', hidden: true });
   const hint = el('div', 'pu pu-ab-hint', { 'data-testid': 'ab2d-hint', hidden: true, 'aria-live': 'polite' });
+  const keyBadges: [AbilityId, HTMLElement][] = [];
   const slots: Slot[] = ABILITY_IDS.map((id) => {
     const btn = el('button', 'pu-ab', { type: 'button', 'data-ability': id, 'data-testid': `ab2d-${id}`, 'aria-describedby': 'ab2d-tip' });
     const frame = img(KIT.medallion, '', 'pu-ab-frame');
@@ -150,8 +152,16 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
     const secs = el('span', 'pu-ab-secs pu-letter');
     const cancel = el('span', 'pu-ab-cancel', { 'aria-hidden': 'true' }, '✕');
     btn.append(frame, icon, sweep, surge, secs, cancel);
-    if (opts.desktop) btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': PAD_BADGE[id] }, ABILITY_KEYS[id]));
+    if (opts.desktop) {
+      const badge = el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': PAD_BADGE[id] }, badgeLabel(ABILITY_KEYS[id]));
+      keyBadges.push([id, badge]);
+      btn.append(badge);
+    }
     return { id, btn, frame, icon, sweep, surge, secs, key: '', view: null };
+  });
+  // Settings → Controls may rebind Q / W mid-run: the badges follow.
+  window.addEventListener(KEY_BINDINGS_EVENT, () => {
+    for (const [id, badge] of keyBadges) badge.textContent = badgeLabel(ABILITY_KEYS[id]);
   });
   if (opts.lead) root.append(opts.lead.el);
   for (const s of slots) root.append(s.btn);
@@ -484,7 +494,7 @@ export function mountAbilityBar2D(game: Game2D, opts: AbilityBarOptions): Abilit
         return;
       }
       if (e.repeat) return;
-      const k = e.key.toUpperCase();
+      const k = eventKey(e);
       const id = ABILITY_IDS.find((a) => ABILITY_KEYS[a] === k);
       if (id) {
         e.preventDefault();

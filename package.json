@@ -18,6 +18,8 @@
     "sim:items": "node --import tsx scripts/itemSim.ts",
     "qa:bot": "tsx qa/bot/index.ts",
     "desktop:dev": "npm run build && electron .",
+    "desktop:smoke": "node --import tsx scripts/qaDesktopSmoke.ts",
+    "steam:achievements": "node --import tsx scripts/exportAchievements.ts",
     "desktop:build:linux": "npm run build && electron-builder --config desktop/electron-builder.json --linux AppImage --publish never",
     "desktop:build:win": "npm run build && electron-builder --config desktop/electron-builder.json --win nsis zip --publish never",
     "desktop:build:mac": "npm run build && electron-builder --config desktop/electron-builder.json --mac dmg --publish never",

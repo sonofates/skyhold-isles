@@ -53,6 +53,7 @@ import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
 import { installNav } from './ui/navFocus.ts';
+import { isDesktopShell, setPresence } from '../platform/desktopShell.ts';
 import { mountFpsCounter } from './ui/fpsCounter.ts';
 import { islandMapUrl } from './ui/islandArt.ts';
 import { dismissBoot, setBootArtwork, setBootProgress, navigateWithVeil, pickLoadTip, setBootText, setBootTip } from './ui/transition2d.ts';
@@ -292,7 +293,15 @@ async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/tit
       const { confirmBoard } = await import('./ui/runControls2d.ts');
       return confirmBoard({ title: t('title.newTitle'), body: t('title.newBody'), yes: t('title.newYes'), no: t('title.newNo'), testid: 'confirm-newgame' });
     },
+    ...(isDesktopShell()
+      ? {
+          quit: () => {
+            void import('./ui/gameMenu2d.ts').then(({ confirmQuit }) => confirmQuit());
+          },
+        }
+      : {}),
   });
+  setPresence('menu');
   window.__title = screen;
   await done;
 }
@@ -716,6 +725,7 @@ async function main(): Promise<void> {
   bootPhase('game-hooks');
   const game = new Game2D(app, art, level, hooks);
   gameRef = game;
+  setPresence('battle', islandName(level));
   if (run.runConfig.endless) game.hud.setEndless(level.waves.length);
   if (q.get('end') === 'won' || q.get('end') === 'lost') {
     const end = q.get('end') as 'won' | 'lost';
@@ -850,6 +860,17 @@ async function main(): Promise<void> {
           if (ok) hooks.onMenu?.();
         });
       },
+      ...(isDesktopShell()
+        ? {
+            quit: () => {
+              if (asking) return;
+              asking = true;
+              void import('./ui/gameMenu2d.ts').then(({ confirmQuit }) => confirmQuit()).finally(() => {
+                asking = false;
+              });
+            },
+          }
+        : {}),
     });
     replayBar = mountReplayBar(
       {

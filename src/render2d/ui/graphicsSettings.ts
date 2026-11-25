@@ -17,13 +17,16 @@ import type { QualityLevel } from '../../core/types.ts';
 import type { GraphicsPrefs, QualityTier } from '../renderResolution.ts';
 
 export type EffectsDensity = 'low' | 'normal' | 'high';
-export type FpsCap = 30 | 60 | 0;
+export type FpsCap = 30 | 60 | 120 | 144 | 0;
+
+/** The caps Settings → Graphics offers (0 = unlimited: the display's refresh rate, i.e. vsync). */
+export const FPS_CAPS: readonly FpsCap[] = [30, 60, 120, 144, 0];
 
 export interface GraphicsSettings {
   /** Canvas resolution 0.5..1, or null = Auto (full resolution, the game may trim it on phones). */
   renderScale: number | null;
   effects: EffectsDensity;
-  /** Frame-rate cap: 30, 60, or 0 = unlimited (the display's own refresh rate). */
+  /** Frame-rate cap: 30, 60, 120, 144, or 0 = unlimited (the display's own refresh rate). */
   fpsCap: FpsCap;
   showFps: boolean;
   /** No screen shake, no large flashes, calmer UI pulses. */
@@ -66,7 +69,7 @@ export function parseGraphics(raw: unknown, defaults: GraphicsSettings = default
   return {
     renderScale: typeof scale === 'number' && Number.isFinite(scale) ? Math.round(Math.max(0.5, Math.min(1, scale)) * 20) / 20 : null,
     effects: o.effects === 'low' || o.effects === 'normal' || o.effects === 'high' ? o.effects : defaults.effects,
-    fpsCap: o.fpsCap === 30 || o.fpsCap === 60 || o.fpsCap === 0 ? o.fpsCap : defaults.fpsCap,
+    fpsCap: (FPS_CAPS as readonly unknown[]).includes(o.fpsCap) ? (o.fpsCap as FpsCap) : defaults.fpsCap,
     showFps: typeof o.showFps === 'boolean' ? o.showFps : defaults.showFps,
     reducedMotion: typeof o.reducedMotion === 'boolean' ? o.reducedMotion : defaults.reducedMotion,
     uiScale: o.uiScale === undefined ? defaults.uiScale : clampUiScale(o.uiScale),

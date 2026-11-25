@@ -6,9 +6,15 @@
 import type { DifficultyId } from '../../data/difficulty.ts';
 import { ITEM_IDS, ITEMS, MARKET_RULES, type ItemCounts, type ItemId } from '../../data/market.ts';
 import type { MarketWallet } from '../../game/market.ts';
+import { keyFor, normalizeKey } from './keyBindings.ts';
 
-/** Keyboard keys of the belt slots, in slot order (free in the run: 1/2/3 speed, Q/W abilities, E/R/H hero, N horn). */
+/** Default keyboard keys of the belt slots, in slot order (free in the run: 1/2/3 speed, Q/W abilities, E/R/H hero, N horn). */
 export const ITEM_KEYS = ['Z', 'X', 'C'] as const;
+
+/** The belt keys as bound right now (Settings → Controls may rebind them; keyBindings.ts). */
+export function itemKeys(): readonly string[] {
+  return [keyFor('item0'), keyFor('item1'), keyFor('item2')];
+}
 
 export type ItemTarget = (typeof ITEMS)[ItemId]['target'];
 
@@ -186,10 +192,11 @@ export function beltSlotState(id: ItemId, uses: number, run: BeltRunState): Belt
 }
 
 export function beltView(ids: readonly ItemId[], belt: ItemCounts, inventory: Partial<Record<ItemId, number>>, run: BeltRunState): BeltSlotView[] {
+  const keys = itemKeys();
   return ids.map((id, i) => {
     const uses = run.disabled ? 0 : (belt[id] ?? 0);
     const owned = inventory[id] ?? 0;
-    return { id, key: ITEM_KEYS[i] ?? '', uses, owned, target: ITEMS[id].target, state: beltSlotState(id, uses, run) };
+    return { id, key: keys[i] ?? '', uses, owned, target: ITEMS[id].target, state: beltSlotState(id, uses, run) };
   });
 }
 
@@ -225,7 +232,8 @@ export function beltPress(s: Pick<BeltSlotView, 'state' | 'target'>): 'aim' | 'c
 
 /** Which slot a key press picks (Z / X / C), or -1. */
 export function beltKeyIndex(key: string, count: number): number {
-  const i = (ITEM_KEYS as readonly string[]).indexOf(key.toUpperCase());
+  const k = normalizeKey(key);
+  const i = k === null ? -1 : itemKeys().indexOf(k);
   return i >= 0 && i < count ? i : -1;
 }
 

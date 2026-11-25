@@ -1,6 +1,7 @@
 /**
  * Run flow controls over the canvas (DOM, painted kit):
- * - the pause menu under the "Paused" plate: Resume · Restart · Settings · World Map
+ * - the pause menu under the "Paused" plate: Resume · Restart · Settings · World Map (· Quit game
+ *   in the PC build)
  *   (Restart and World Map ask first, the run stays paused meanwhile);
  * - a small confirm board (`confirmBoard`);
  * - the replay player: a ribbon at the top with the replay badge, the wave, a progress line,
@@ -43,6 +44,8 @@ export interface PauseMenuHandlers {
   restart(): void;
   settings(): void;
   map(): void;
+  /** PC build only (Electron): Quit game. Absent = no plank (browser / phone). */
+  quit?(): void;
 }
 
 export interface PauseMenu2D {
@@ -61,6 +64,11 @@ export function mountPauseMenu(h: PauseMenuHandlers): PauseMenu2D {
   const map = plank(t('pause.map'), { kind: 'small', icon: 'map', testid: 'pause2d-map' });
   resume.classList.add('pu-pause-resume');
   wrap.append(resume, restart, settings, map);
+  if (h.quit) {
+    const quit = plank(t('menu.quit'), { kind: 'small', icon: 'close', testid: 'pause2d-quit' });
+    quit.addEventListener('click', () => h.quit?.());
+    wrap.append(quit);
+  }
   wrap.style.display = 'none';
   document.body.append(wrap);
   resume.addEventListener('click', () => h.resume());

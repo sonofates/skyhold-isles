@@ -2563,6 +2563,29 @@
   white-space: nowrap;
 }
 
+/* Rebindable battle keys (Settings → Controls): the cap is a button; "Press a key…" while waiting. */
+.pu-key.pu-key-bind {
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.pu-key.pu-key-bind:hover,
+.pu-key.pu-key-bind:focus-visible {
+  box-shadow: 0 0 0 2px var(--outline), 0 0 0 4px #ffd970, inset 0 1px 0 rgba(255, 230, 180, 0.5), 0 3px 0 #4a2a12;
+}
+
+.pu-key.pu-key-bind.waiting {
+  background: linear-gradient(#ffe08a, #d9a640);
+  color: #4a2a12;
+  font-size: calc(var(--s) * 1.05);
+}
+
+.pu-key-row.pu-key-note {
+  font-size: calc(var(--s) * 1.15);
+  border-bottom: 0;
+}
+
 /* Controller caps (Settings → Controls): dark pills, round coloured face buttons. */
 .pu-key.pad {
   border-radius: 999px;

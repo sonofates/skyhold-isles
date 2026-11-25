@@ -12,6 +12,7 @@ import { getPlatform, type PlatformAdapter } from './platform.ts';
 /**
  * Steam achievement catalog derived from Feats (`src/game/feats.ts`), difficulty star goals
  * (`src/data/stars.ts`), island challenges (`src/data/challenges.ts`), Chapter 3 (`i17`–`i24` + `i27`),
+ * Chapters 4 and 5 (`lateChapterAchievements`),
  * heroes (`src/data/heroes.ts`), Hard ribbons (`src/data/difficulty.ts`), Endless medals
  * (`src/data/endlessMutators.ts`), and Daily Squall streaks (`src/data/daily.ts`).
  *
@@ -554,6 +555,85 @@ const dailyAchievements: readonly SteamAchievementDef[] = [
   },
 ];
 
+/**
+ * Chapters 4 and 5 (added for the PC release, 2026-11-25), on the Chapter 3 pattern: first clear,
+ * all cleared, all three-starred, plus the chapter-4 boss island. Island lists come from
+ * src/data/chapters.ts by id, so islands still being authored count once they exist; a chapter is
+ * only "cleared" when every island it lists is present and cleared. Appended after the older
+ * entries so no existing index or ID moves. IDs are proposals until the owner publishes them in
+ * Steamworks (docs/handoff-pc-readiness.md).
+ */
+function chapterIslandSet(chapterId: string): { readonly ids: readonly string[]; readonly set: ReadonlySet<string> } {
+  const ids = CHAPTERS.find((c) => c.id === chapterId)?.islands ?? [];
+  return { ids, set: new Set(ids) };
+}
+
+function chapterSetAchievements(
+  chapterId: string,
+  token: string,
+  num: number,
+  names: { readonly landing: string; readonly cleared: string; readonly stars: string },
+): SteamAchievementDef[] {
+  const { ids, set } = chapterIslandSet(chapterId);
+  return [
+    {
+      id: `CHAPTER_${token}_LANDING`,
+      name: names.landing,
+      description: `Clear your first Chapter ${num} island`,
+      category: 'chapter',
+      isEarned: (progress, levels) => levels.some((l, i) => set.has(l.id) && isIslandClearedAt(progress, i)),
+    },
+    {
+      id: `CHAPTER_${token}_CLEARED`,
+      name: names.cleared,
+      description: `Clear all ${ids.length} Chapter ${num} islands`,
+      category: 'chapter',
+      isEarned: (progress, levels) => {
+        let matched = 0;
+        for (let i = 0; i < levels.length; i++) {
+          if (!set.has(levels[i].id)) continue;
+          matched++;
+          if (!isIslandClearedAt(progress, i)) return false;
+        }
+        return ids.length > 0 && matched === ids.length;
+      },
+    },
+    {
+      id: `CHAPTER_${token}_THREE_STARS`,
+      name: names.stars,
+      description: `Earn 3 stars on every Chapter ${num} island`,
+      category: 'chapter',
+      isEarned: (progress, levels) => {
+        let matched = 0;
+        for (let i = 0; i < levels.length; i++) {
+          if (!set.has(levels[i].id)) continue;
+          matched++;
+          if (safeBestStarsAt(progress, i) < 3) return false;
+        }
+        return ids.length > 0 && matched === ids.length;
+      },
+    },
+  ];
+}
+
+/** Chapter 4's finale (the Glacier Warden's ice gate). */
+const CHAPTER_FOUR_BOSS_ISLAND_ID = 'i36';
+
+const lateChapterAchievements: readonly SteamAchievementDef[] = [
+  ...chapterSetAchievements('ch4', 'FOUR', 4, { landing: 'First Thaw', cleared: 'Frostveil Charted', stars: 'Rime and Radiance' }),
+  {
+    id: 'BOSS_I36_CLEARED',
+    name: 'Warden of the Ice Gate',
+    description: 'Defeat the Glacier Warden and clear the last Frostveil island',
+    category: 'chapter',
+    isEarned: (progress, levels) => {
+      const idx = levels.findIndex((l) => l.id === CHAPTER_FOUR_BOSS_ISLAND_ID);
+      return idx >= 0 && isIslandClearedAt(progress, idx);
+    },
+  },
+  ...chapterSetAchievements('ch5', 'FIVE', 5, { landing: 'Into the Dusk', cleared: 'Eclipse Skies Charted', stars: 'Light Beyond the Eclipse' }),
+];
+
 export const STEAM_ACHIEVEMENTS: readonly SteamAchievementDef[] = [
   ...featAchievements,
   ...starTierAchievements,
@@ -564,6 +644,7 @@ export const STEAM_ACHIEVEMENTS: readonly SteamAchievementDef[] = [
   ...hardAchievements,
   ...endlessAchievements,
   ...dailyAchievements,
+  ...lateChapterAchievements,
 ];
 
 /** Pure metadata list matching `desktop/achievements.json`. */

@@ -130,6 +130,8 @@ export interface TitleHandlers {
   openCredits(onClose: () => void): void;
   /** Asks before New game erases progress (true = go). */
   confirmNewGame(): Promise<boolean>;
+  /** PC build (Electron) only: a Quit plank under Settings / Credits. */
+  quit?(): void;
 }
 
 export interface TitleScreen {
@@ -291,7 +293,16 @@ export function runTitle(q: URLSearchParams, h: TitleHandlers): { screen: TitleS
       if (performance.now() - menuAt >= 350) h.openCredits(back(credits));
     });
     buttons.push(settings, credits);
-    menu.append(el('div', 'pu-title-row', {}, settings, credits));
+    const row = el('div', 'pu-title-row', {}, settings, credits);
+    if (h.quit) {
+      const quit = plank(t('menu.quit'), { kind: 'small', icon: 'close', testid: 'title2d-quit' });
+      quit.addEventListener('click', () => {
+        if (performance.now() - menuAt >= 350) h.quit?.();
+      });
+      buttons.push(quit);
+      row.append(quit);
+    }
+    menu.append(row);
   };
 
   const showMenu = (): void => {

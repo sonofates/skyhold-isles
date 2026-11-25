@@ -13,6 +13,10 @@ import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../data/runModifiers.t
 import { getTowerTierStats, specializationsFor, TOWER_DEFS, towerStats } from '../data/towers.ts';
 import { bindHaptics, haptics } from '../platform/haptics.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
+import { isDesktopShell } from '../platform/desktopShell.ts';
+import { getPlatform } from '../platform/platform.ts';
+import { isSteamOverlayHotkey, shouldPauseOnBlur } from './pausePolicy.ts';
+import { actionForKey, loadKeyBindings } from './ui/keyBindings.ts';
 import type { EnemyEntity, TowerEntity } from '../sim/entities.ts';
 import { enemyArtFor } from './manifest.ts';
 import type { HeroInitConfig, HeroRuntimeState } from '../sim/heroSystem.ts';
@@ -2072,9 +2076,20 @@ export class Game2D {
     });
     // Desktop: the run pauses when the window loses focus (alt-tab, another app on top), like
     // backgrounding does; the player resumes on purpose. Touch devices pause via visibility already.
+    // The desktop shell (Electron) always pauses on blur, also on a touchscreen laptop.
     window.addEventListener('blur', () => {
-      if (!isTouchDevice() && this.stepper.simActive && !this.stepper.paused && !this.hooks.endless && !anySheetOpen()) this.pauseForBackground();
+      if (shouldPauseOnBlur({ touch: isTouchDevice(), desktopShell: isDesktopShell(), simActive: this.stepper.simActive, paused: this.stepper.paused, endless: !!this.hooks.endless, sheetOpen: anySheetOpen() })) this.pauseForBackground();
     });
+    // Steam overlay (Shift+Tab): steamworks.js 0.4 reports no overlay callback, so the overlay's
+    // own hotkey pauses the run too (the GameOverlayActivated path in bindBackgroundLifecycle2D
+    // takes over once the shell reports it).
+    window.addEventListener(
+      'keydown',
+      (e) => {
+        if (isSteamOverlayHotkey(e, getPlatform().isSteam)) this.pauseForBackground();
+      },
+      { capture: true },
+    );
     window.addEventListener('storage', () => this.refreshSettings());
     window.addEventListener('focus', () => this.refreshSettings());
     this.lifecycle?.dispose();
@@ -2120,12 +2135,17 @@ export class Game2D {
         if (this.pan.nudge(dx, dy, this.reducedMotion)) this.applyPan();
         return;
       }
-      if (e.key === ' ') this.stepper.paused = !this.stepper.paused;
-      else if (e.key === '1') this.setSpeed(1);
-      else if (e.key === '2') this.setSpeed(2);
-      else if (e.key === '3') this.setSpeed(3);
-      else if (e.key === 'n' || e.key === 'N') this.command({ k: 'wave' });
-      else if ((e.key === 'h' || e.key === 'H') && !e.repeat && !e.ctrlKey && !e.metaKey && !this.stepper.paused) this.setHeroSelected(!this.heroSel);
+      // Rebindable (Settings → Controls, ui/keyBindings.ts): pause, speeds, horn, hero select.
+      const action = e.key === 'Escape' ? null : actionForKey(loadKeyBindings(), e);
+      if (action === 'pause') {
+        if (e.repeat) return;
+        e.preventDefault();
+        this.stepper.paused = !this.stepper.paused;
+      } else if (action === 'speed1') this.setSpeed(1);
+      else if (action === 'speed2') this.setSpeed(2);
+      else if (action === 'speed3') this.setSpeed(3);
+      else if (action === 'wave') this.command({ k: 'wave' });
+      else if (action === 'heroSelect' && !e.repeat && !this.stepper.paused) this.setHeroSelected(!this.heroSel);
       else if (e.key === 'Escape') {
         // Esc closes what is open (ring, hero move mode, foe card); with nothing open it opens /
         // closes the pause menu, as in most games. Synthetic Esc (the ability bar closing the

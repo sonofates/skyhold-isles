@@ -862,6 +862,27 @@ export const EN = {
   'credits.assets': 'Other assets',
   'credits.kenney': 'Tower Defense Kit by Kenney — CC0 1.0 (the classic 3D mode)',
   'credits.thanks': 'Thank you for playing!',
+  // PC build (Settings, Esc menu, rebindable keys)
+  'set.sfx': 'Effects',
+  'set.sfxAria': 'Effects volume',
+  'set.sfxNote': 'Towers, foes and buttons',
+  'set.display': 'Display mode',
+  'set.displayNote': 'F11 or Alt+Enter switches it at any time',
+  'set.displayWindowed': 'Windowed',
+  'set.displayFullscreen': 'Fullscreen',
+  'set.vsync': 'VSync',
+  'set.vsyncNote': 'Smooth frames without tearing. Applies after a restart',
+  'set.vsyncRestart': 'Restart the game to apply',
+  'set.rebindNote': 'Click a key to change it. A key already in use swaps places',
+  'set.rebindWait': 'Press a key…',
+  'set.keysReset': 'Reset keys',
+  'set.keysResetDone': 'Keys reset',
+  'key.rebindAria': 'Change the key for: {what}',
+  'menu.title': 'Menu',
+  'menu.quit': 'Quit game',
+  'confirm.quitTitle': 'Quit the game?',
+  'confirm.quitBody': 'Your progress is saved. A battle in progress is not.',
+  'confirm.quitYes': 'Quit',
 } as const satisfies Record<string, Msg>;
 
 export type MsgKey = keyof typeof EN;

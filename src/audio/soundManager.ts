@@ -3,7 +3,7 @@ import type { EnemyType, GameSettings, TowerType } from '../core/types.ts';
 import { ENEMY_DEFS } from '../data/enemies.ts';
 import { MusicEngine } from './music/musicEngine.ts';
 import type { MusicScene } from './music/sequencer.ts';
-import { getMusicVolume, onMusicVolumeChange } from './musicPrefs.ts';
+import { getMusicVolume, getSfxVolume, onMusicVolumeChange, onSfxVolumeChange } from './musicPrefs.ts';
 import { VoiceCap } from './voiceCap.ts';
 
 type MixerSettings = Pick<GameSettings, 'muted' | 'masterVolume'>;
@@ -48,6 +48,8 @@ export class SoundManager {
   private ctx: AudioContext | null = null;
   private noiseBuffer: AudioBuffer | null = null;
   private masterGain: GainNode | null = null;
+  /** Sound effects only (music bypasses it): Settings → Audio → Effects. */
+  private sfxGain: GainNode | null = null;
   private settings: MixerSettings;
   private background = false;
   private panBucket: number | null = null;
@@ -66,10 +68,12 @@ export class SoundManager {
   private musicScene: MusicScene = 'menu';
   private musicDucked = false;
   private readonly unsubMusicVolume: () => void;
+  private readonly unsubSfxVolume: () => void;
 
   constructor(initialSettings: MixerSettings) {
     this.settings = { ...initialSettings };
     this.unsubMusicVolume = onMusicVolumeChange(() => this.syncMusic());
+    this.unsubSfxVolume = onSfxVolumeChange(() => this.applySfxVolume());
   }
 
   unlock(): void {
@@ -88,6 +92,9 @@ export class SoundManager {
       limiter.release.value = 0.15;
       this.masterGain.connect(limiter);
       limiter.connect(this.ctx.destination);
+      this.sfxGain = this.ctx.createGain();
+      this.sfxGain.connect(this.masterGain);
+      this.applySfxVolume();
       this.noiseBuffer = this.createNoiseBuffer(this.ctx);
       this.music = new MusicEngine(this.ctx, this.masterGain, this.noiseBuffer);
       this.syncMusic();
@@ -158,9 +165,14 @@ export class SoundManager {
     this.masterGain.gain.setValueAtTime(gain, this.ctx.currentTime);
   }
 
+  private applySfxVolume(): void {
+    if (!this.sfxGain || !this.ctx) return;
+    this.sfxGain.gain.setValueAtTime(getSfxVolume(), this.ctx.currentTime);
+  }
+
   private canPlay(tag: string, minIntervalMs: number): boolean {
     if (!this.ctx || !this.masterGain || this.ctx.state !== 'running') return false;
-    if (this.background || this.settings.muted || this.settings.masterVolume <= 0.01) return false;
+    if (this.background || this.settings.muted || this.settings.masterVolume <= 0.01 || getSfxVolume() <= 0.005) return false;
     const now = performance.now();
     const prev = this.lastPlayedMs.get(tag) ?? -Infinity;
     if (now - prev < minIntervalMs) return false;
@@ -182,14 +194,15 @@ export class SoundManager {
   }
 
   private voiceOutput(): AudioNode | null {
-    if (this.panBucket === null) return this.masterGain; // 3D mixer
+    const sfx = this.sfxGain ?? this.masterGain;
+    if (this.panBucket === null) return sfx; // 3D mixer
     if (!this.voices.acquire(this.voiceTag)) return null;
-    if (this.panBucket === 4 || !this.ctx?.createStereoPanner) return this.masterGain;
+    if (this.panBucket === 4 || !this.ctx?.createStereoPanner) return sfx;
     let bus = this.panners[this.panBucket];
     if (!bus) {
       bus = this.ctx.createStereoPanner();
       bus.pan.value = this.panBucket / 4 - 1;
-      bus.connect(this.masterGain!);
+      bus.connect((this.sfxGain ?? this.masterGain)!);
       this.panners[this.panBucket] = bus;
     }
     return bus;
@@ -644,12 +657,14 @@ export class SoundManager {
 
   dispose(): void {
     this.unsubMusicVolume();
+    this.unsubSfxVolume();
     this.music?.dispose();
     this.music = null;
     if (this.ctx) {
       void this.ctx.close();
       this.ctx = null;
       this.masterGain = null;
+      this.sfxGain = null;
       this.noiseBuffer = null;
     }
   }

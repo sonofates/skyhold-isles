@@ -27,6 +27,7 @@ import { anySheetOpen, el, img, KIT } from './dom.ts';
 import { secsLabel } from './abilities2d.ts';
 import { heroPortraitUrl, heroSkillUrl, levelBadge, type HeroArtFiles } from './heroBits.ts';
 import { HERO_KEYS } from './heroKeys.ts';
+import { badgeLabel, eventKey, KEY_BINDINGS_EVENT } from './keyBindings.ts';
 import './heroHud2d.css';
 
 export { HERO_KEYS };
@@ -90,7 +91,17 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
   const lvl = levelBadge(first.level, 'pu-hero-port-lvl');
   const down = el('span', 'pu-hero-down pu-letter');
   port.append(hpRing, portImg, down, lvl);
-  if (opts.desktop) port.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': PAD_BADGE.heroSelect }, HERO_KEYS.select));
+  // Key badges (desktop), re-lettered when Settings → Controls rebinds a key mid-run.
+  const keyBadges: [() => string, HTMLElement][] = [];
+  const keyBadge = (key: () => string, pad: string): HTMLElement => {
+    const b = el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': pad }, badgeLabel(key()));
+    keyBadges.push([key, b]);
+    return b;
+  };
+  window.addEventListener(KEY_BINDINGS_EVENT, () => {
+    for (const [key, b] of keyBadges) b.textContent = badgeLabel(key());
+  });
+  if (opts.desktop) port.append(keyBadge(() => HERO_KEYS.select, PAD_BADGE.heroSelect));
   const slots: SkillSlot[] = ([0, 1] as const).map((slot) => {
     const btn = el('button', 'pu-ab pu-hs', { type: 'button', 'data-testid': `hero2d-skill${slot}`, 'data-slot': slot, 'aria-describedby': 'hero2d-tip' });
     const frame = img(KIT.medallion, '', 'pu-ab-frame');
@@ -101,7 +112,7 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
     btn.append(frame, icon, sweep, secs, cancel);
     if (opts.desktop) {
       const pad = slot === 0 ? PAD_BADGE.heroSkill0 : PAD_BADGE.heroSkill1;
-      btn.append(el('span', 'pu-ab-key pu-letter', { 'aria-hidden': 'true', 'data-pad': pad }, slot === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1));
+      btn.append(keyBadge(() => (slot === 0 ? HERO_KEYS.skill0 : HERO_KEYS.skill1), pad));
     }
     return { slot, btn, frame, icon, sweep, secs, key: '', state: null };
   });
@@ -443,8 +454,8 @@ export function createHeroHud2D(game: Game2D, opts: HeroHudOptions): HeroHud2D |
         return;
       }
       if (e.repeat) return;
-      const k = e.key.toUpperCase();
-      if (k === HERO_KEYS.skill0 || k === HERO_KEYS.skill1) {
+      const k = eventKey(e);
+      if (k !== null && (k === HERO_KEYS.skill0 || k === HERO_KEYS.skill1)) {
         e.preventDefault();
         press(k === HERO_KEYS.skill0 ? 0 : 1);
       }

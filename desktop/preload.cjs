@@ -1,5 +1,7 @@
 'use strict';
 
+// Sandboxed preload: only `electron` may be required here (no local modules), so the channel names
+// are spelled out; tests/platform/desktopShell.test.ts keeps them equal to shellCore.IPC_CHANNELS.
 const { contextBridge, ipcRenderer } = require('electron');
 
 const initialStatus = ipcRenderer.sendSync('steam:get-status') || {
@@ -47,5 +49,52 @@ contextBridge.exposeInMainWorld('skyholdSteam', {
     return () => {
       overlayListeners.delete(listener);
     };
+  },
+  setPresence(state, island) {
+    if (typeof state !== 'string') return;
+    ipcRenderer.send('steam:set-presence', { state, island: typeof island === 'string' ? island : '' });
+  },
+});
+
+// The desktop shell itself (with or without Steam): window mode, vsync, quit.
+const desktopState = ipcRenderer.sendSync('desktop:get-state') || { mode: 'windowed', vsync: true, platform: 'unknown' };
+let windowMode = desktopState.mode === 'fullscreen' ? 'fullscreen' : 'windowed';
+const modeListeners = new Set();
+ipcRenderer.on('desktop:window-mode-changed', (_event, mode) => {
+  windowMode = mode === 'fullscreen' ? 'fullscreen' : 'windowed';
+  for (const listener of [...modeListeners]) {
+    try {
+      listener(windowMode);
+    } catch {
+      // ignore listener errors
+    }
+  }
+});
+
+contextBridge.exposeInMainWorld('skyholdDesktop', {
+  platform: String(desktopState.platform || 'unknown'),
+  getWindowMode() {
+    return windowMode;
+  },
+  setWindowMode(mode) {
+    if (mode !== 'windowed' && mode !== 'fullscreen') return Promise.resolve(windowMode);
+    return ipcRenderer.invoke('desktop:set-window-mode', mode);
+  },
+  onWindowModeChange(listener) {
+    if (typeof listener !== 'function') return () => {};
+    modeListeners.add(listener);
+    return () => {
+      modeListeners.delete(listener);
+    };
+  },
+  getVsync() {
+    return desktopState.vsync !== false;
+  },
+  setVsync(on) {
+    if (typeof on !== 'boolean') return Promise.resolve(desktopState.vsync !== false);
+    return ipcRenderer.invoke('desktop:set-vsync', on);
+  },
+  quit() {
+    ipcRenderer.send('desktop:quit');
   },
 });
