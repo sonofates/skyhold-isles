@@ -3,7 +3,8 @@
  * spread": the painting on the left page, the words on the right):
  * - the title card when a chapter first opens (the painting of its first island's intro story),
  * - "Chapter complete" after its finale is won (the finale's outro painting, the chapter's stars,
- *   and the next chapter button, or the "coming soon" line before chapters 4-5 exist).
+ *   and the next chapter button, or the "coming soon" line before chapters 4-5 exist; the last
+ *   chapter's card says the voyage ends and offers only the map).
  * Which card is due is decided in chapterState.ts (`cardsDue`).
  */
 import type { ChapterDef } from '../../data/chapters.ts';
@@ -15,7 +16,7 @@ export interface ChapterCard {
   close(): void;
 }
 
-function spread(art: string | null, accent: string, ...words: (HTMLElement | null)[]): HTMLElement {
+export function spread(art: string | null, accent: string, ...words: (HTMLElement | null)[]): HTMLElement {
   const v = el('div', 'pu-vignette pu-chapter-art');
   if (art) v.style.background = `center / cover no-repeat url("${art}")`;
   const text = el('div', 'pu-panel-text pu-chapter-words', {}, ...words);
@@ -81,7 +82,10 @@ export function showChapterDone(o: ChapterDoneOptions): ChapterCard {
     el('small', '', {}, `/ ${o.maxStars}`),
   );
   const islands = el('div', 'pu-chapter-blurb', {}, t('chapter.doneIslands', { done: o.cleared, total: o.total }));
-  const soon = o.next && o.next.status === 'soon' ? el('div', 'pu-chapter-blurb soon', {}, t('chapter.doneSoon', { n: o.next.n })) : null;
+  // The last chapter promises nothing further: it closes the voyage.
+  const soon = o.next && o.next.status === 'soon'
+    ? el('div', 'pu-chapter-blurb soon', {}, t('chapter.doneSoon', { n: o.next.n }))
+    : !o.next ? el('div', 'pu-chapter-blurb soon', { 'data-testid': 'chapter2d-final' }, t('chapter.doneFinal')) : null;
   const playable = o.next && o.next.status === 'playable';
   const main = playable && o.next
     ? plank(t('chapter.doneNext', { n: o.next.n }), { kind: 'primary', icon: 'next', testid: 'chapter2d-next' })

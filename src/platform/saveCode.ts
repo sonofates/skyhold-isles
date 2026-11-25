@@ -145,6 +145,7 @@ export function encodeSaveCode(progress: ProgressData, levelIds?: readonly strin
   if (safeWonChallenges) {
     payload.wc = safeWonChallenges;
   }
+  if (progress.campaignComplete === true || rawProgress.cc === 1) payload.cc = 1;
   const rawDifficultyWins = progress.difficultyWins ?? rawProgress.dw;
   if (rawDifficultyWins !== undefined) {
     const rawDw = normalizeRawDifficultyWins(rawDifficultyWins) as Record<string, unknown> | null;
@@ -257,6 +258,7 @@ export function decodeSaveCode(code: string, levelCount: number): SaveCodeResult
       ...(r.wc !== undefined || r.wonChallenges !== undefined
         ? { wonChallenges: r.wc ?? r.wonChallenges }
         : {}),
+      ...(r.cc === 1 ? { campaignComplete: true } : {}),
       ...(rawDw
         ? {
             difficultyWins: {
@@ -448,6 +450,8 @@ export function mergeProgress(a: ProgressData, b: ProgressData, levelCount: numb
     // Either side recorded difficulty: keep the best of both (a legacy side's wins read as Normal).
     ...(mergedDifficultyWins !== undefined ? { difficultyWins: mergedDifficultyWins } : {}),
     ...(mergedWonChallenges !== undefined ? { wonChallenges: mergedWonChallenges } : {}),
+    // Either device finished the 2D campaign.
+    ...(a.campaignComplete === true || b.campaignComplete === true ? { campaignComplete: true as const } : {}),
   };
   if (starWallet(merged).available < 0) {
     const totalEarned = starWallet(merged).earned;

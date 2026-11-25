@@ -59,6 +59,8 @@ export function frontierPage(chapters: readonly ChapterState[]): number {
 export interface CardsSeen {
   readonly title: readonly string[];
   readonly done: readonly string[];
+  /** The "Campaign complete" card was shown (absent on records from before the ending). */
+  readonly campaign?: boolean;
 }
 
 export interface CardsDue {
@@ -66,6 +68,11 @@ export interface CardsDue {
   readonly done: ChapterDef | null;
   /** Then the title card of this chapter (null: none). */
   readonly title: ChapterDef | null;
+  /**
+   * Show the "Campaign complete" card (ending2d.ts), once. It stands in for the last chapter's
+   * "Chapter complete" card (that one is marked seen silently: no two cards in a row).
+   */
+  readonly campaign: boolean;
   /** What to store as seen (everything due now, plus cards skipped silently). */
   readonly seen: CardsSeen;
 }
@@ -76,8 +83,10 @@ export interface CardsDue {
  *   is untouched (just finished). An old save that is already further along marks it seen silently.
  * - The title card of an open chapter none of whose islands was won yet (just opened), once.
  *   Chapters a save already plays in are marked seen silently: no stack of cards after an update.
+ * - "Campaign complete" once `campaignComplete` (progress2d.ts `isCampaignComplete`), once; it
+ *   replaces the last chapter's "Chapter complete" card.
  */
-export function cardsDue(chapters: readonly ChapterState[], seen: CardsSeen): CardsDue {
+export function cardsDue(chapters: readonly ChapterState[], seen: CardsSeen, campaignComplete = false): CardsDue {
   const title = new Set(seen.title);
   const done = new Set(seen.done);
   let showDone: ChapterDef | null = null;
@@ -95,8 +104,16 @@ export function cardsDue(chapters: readonly ChapterState[], seen: CardsSeen): Ca
       if (!c.played) showTitle = c.chapter;
     }
   }
+  const campaign = campaignComplete && seen.campaign !== true;
+  // The campaign card says everything the last chapter's card would (and that one has no next chapter).
+  if (campaign && showDone && !nextChapter(showDone)) showDone = null;
   // Only the latest of each kind (a fresh update could find two "just opened" chapters).
-  return { done: showDone, title: showTitle, seen: { title: [...title], done: [...done] } };
+  return {
+    done: showDone,
+    title: showTitle,
+    campaign,
+    seen: { title: [...title], done: [...done], ...(campaignComplete || seen.campaign ? { campaign: true } : {}) },
+  };
 }
 
 export function parseCardsSeen(raw: string | null): CardsSeen | null {
@@ -104,7 +121,7 @@ export function parseCardsSeen(raw: string | null): CardsSeen | null {
   try {
     const v = JSON.parse(raw) as Partial<CardsSeen> | null;
     const list = (x: unknown): string[] => (Array.isArray(x) ? x.filter((s): s is string => typeof s === 'string') : []);
-    return v && typeof v === 'object' ? { title: list(v.title), done: list(v.done) } : null;
+    return v && typeof v === 'object' ? { title: list(v.title), done: list(v.done), ...(v.campaign === true ? { campaign: true } : {}) } : null;
   } catch {
     return null;
   }

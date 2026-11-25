@@ -595,6 +595,8 @@ export function migrateProgress(parsed: unknown, levelCount: number): ProgressDa
   if (difficultyWins) progress.difficultyWins = difficultyWins;
   const wonChallenges = sanitizeWonChallenges(raw.wonChallenges ?? raw.wc);
   if (wonChallenges) progress.wonChallenges = wonChallenges;
+  // 2D campaign finished (only ever true; `cc` = save-code spelling).
+  if (raw.campaignComplete === true || raw.cc === 1 || raw.cc === true) progress.campaignComplete = true;
   // Upgrades are always refundable: if a save somehow spends more stars than it has earned
   // (edited save, retuned costs), refund everything instead of keeping an impossible state.
   if (starWallet(progress).available < 0) progress.workshop = {};

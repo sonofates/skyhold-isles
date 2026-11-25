@@ -30,7 +30,8 @@ import { difficultySeal } from './difficulty2d.ts';
 import { dailyForToday, dailyHref2D } from './modes2d.ts';
 import { openCredits } from './credits2d.ts';
 import { navigateWithVeil } from './transition2d.ts';
-import { resetProgress2D, saveProgress2D } from './progress2d.ts';
+import { isCampaignComplete, loadProgress2D, resetProgress2D, saveProgress2D } from './progress2d.ts';
+import { fetchMapsManifest } from './islandArt.ts';
 import { openStore, ownsFullAdventure, storeEnabled } from './store2d.ts';
 
 export interface MetaContext {
@@ -561,6 +562,16 @@ export function openSettings(ctx: SettingsContext): Sheet {
     credits.addEventListener('click', () => openCredits(() => credits.focus({ preventScroll: true })));
     rows.push(row(t('credits.title'), t('set.creditsNote'), credits));
     if (ctx.inGame) return rows;
+    // After the campaign: replay the ending (story beats + credits roll). Hidden before (no spoiler).
+    if (isCampaignComplete(loadProgress2D(ctx.levels), ctx.levels)) {
+      const watch = plank(t('ending.watch'), { kind: 'small', icon: 'play', testid: 'set2d-ending' });
+      watch.addEventListener('click', () => {
+        void Promise.all([import('./ending2d.ts'), fetchMapsManifest()]).then(([m, manifest]) =>
+          m.playEnding(manifest, () => watch.focus({ preventScroll: true })),
+        );
+      });
+      rows.push(row(t('ending.watchRow'), t('ending.watchNote'), watch, 'set2d-ending-row'));
+    }
     // Mobile builds only: the store (Buy / Restore purchases must stay reachable after a purchase).
     if (storeEnabled()) {
       const shop = plank(t('set.storeOpen'), { kind: 'small', testid: 'set2d-store' });

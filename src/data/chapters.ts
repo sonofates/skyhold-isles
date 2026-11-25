@@ -152,6 +152,19 @@ export function nextChapter(c: ChapterDef): ChapterDef | null {
   return CHAPTERS.find((x) => x.n === c.n + 1) ?? null;
 }
 
+/**
+ * The island whose first win completes the whole campaign: the last chapter's finale (Chapter 5's
+ * `i45` today). Derived from the chapter list, so adding a chapter moves it. Null when no chapter
+ * names a finale.
+ */
+export function campaignFinaleId(): string | null {
+  for (let k = CHAPTERS.length - 1; k >= 0; k--) {
+    const f = CHAPTERS[k].finale;
+    if (f) return f;
+  }
+  return null;
+}
+
 /** The free version's scope on mobile (owner decision 2026-11-24): the Prologue + Chapter 1. */
 export function freeIslandIds(): string[] {
   return [...PROLOGUE.islands, ...CHAPTERS[0].islands];

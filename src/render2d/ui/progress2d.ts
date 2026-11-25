@@ -32,7 +32,7 @@ import {
   isHeroId,
 } from '../../data/heroes.ts';
 import { rankOf, sanitizeRanks, WORKSHOP_UPGRADES, workshopStarsSpent } from '../../data/workshop.ts';
-import { LEGACY_2D_ORDER } from '../../data/chapters.ts';
+import { campaignFinaleId, LEGACY_2D_ORDER } from '../../data/chapters.ts';
 import { LEVELS_2D } from '../../data/levels2d/index.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { applyEndlessRecord, applyWin, isIslandMastered, starWallet, type WinRecord } from '../../game/progression.ts';
@@ -204,6 +204,7 @@ export function remapProgress(raw: unknown, oldIds: readonly string[], levels: r
   if (old.wonChallenges && old.wonChallenges.length > 0) {
     out.wonChallenges = [...old.wonChallenges];
   }
+  if (old.campaignComplete === true) out.campaignComplete = true;
   out.unlockedLevelIndex = frontier;
   // Same walk-forward the campaign migration does: everything after a cleared island opens.
   const remapped = migrateProgress(out, n);
@@ -475,6 +476,8 @@ function foldPendingCloudThreeWay2D(
 /** The 2D save, migrated to the current island list (with truncated-JSON & cloud-mirror recovery). Never throws. */
 export function loadProgress2D(levels: readonly LevelDef[] = LEVELS_2D): ProgressData {
   const result = loadLocalProgress2DInternal(levels);
+  // A save from before the `campaignComplete` flag: the finale's win says it (stored on the next save).
+  if (isCampaignComplete(result, levels)) result.campaignComplete = true;
   const platform = getPlatform();
   if (platform.isSteam && !isMockLevelRoster(levels) && completedHydrated2DAdapters.has(platform)) {
     postHydrationStarsRefs.add(result.bestStars);
@@ -986,6 +989,37 @@ export function indexOf2D(levelId: string, levels: readonly LevelDef[] = LEVELS_
   return levels.findIndex((l) => l.id === levelId);
 }
 
+/**
+ * Is the 2D campaign complete? The save's `campaignComplete` flag, or (a save written before the
+ * flag) a recorded win of the last chapter's finale (`campaignFinaleId`, i45). Pure.
+ */
+export function isCampaignComplete(progress: ProgressData, levels: readonly Pick<LevelDef, 'id'>[] = LEVELS_2D): boolean {
+  if (progress.campaignComplete === true) return true;
+  const finale = campaignFinaleId();
+  const i = finale ? levels.findIndex((l) => l.id === finale) : -1;
+  if (i < 0) return false;
+  const won = (arr: unknown): boolean => {
+    const v = Array.isArray(arr) ? (arr[i] as unknown) : 0;
+    return typeof v === 'number' && Number.isFinite(v) && v > 0;
+  };
+  return won(progress.clears) || won(progress.bestStars);
+}
+
+/**
+ * The `campaignComplete` hook (docs/handoff-ending.md): after a recorded win, sets the save flag
+ * when that win completed the campaign. True only for the run that did it (the first win of the
+ * last chapter's finale); replays and every other island return false.
+ */
+function markCampaignComplete(progress: ProgressData, levelId: string, before: boolean, levels: readonly Pick<LevelDef, 'id'>[]): boolean {
+  if (before) {
+    progress.campaignComplete = true;
+    return false;
+  }
+  if (levelId !== campaignFinaleId() || !isCampaignComplete(progress, levels)) return false;
+  progress.campaignComplete = true;
+  return true;
+}
+
 /** Is the island playable from the map (deep links ignore this)? */
 export function isUnlocked2D(progress: ProgressData, levelId: string, levels: readonly LevelDef[] = LEVELS_2D): boolean {
   const i = indexOf2D(levelId, levels);
@@ -1034,7 +1068,9 @@ export function recordWin2D(
   // Read (and for a legacy save, derive) the record before applyWin moves bestStars.
   const dw = sizedDifficultyWins(p, levels.length);
   const prevBestLives = p.bestLives[i] ?? 0;
+  const completeBefore = isCampaignComplete(p, levels);
   let rec = applyWin(p, i, levels.length, awarded, safeLives, badges);
+  markCampaignComplete(p, levelId, completeBefore, levels);
   if (diff === 'easy') {
     p.bestLives[i] = prevBestLives;
     rec = { ...rec, newBestLives: false };
@@ -1131,6 +1167,11 @@ export interface RunResultRecord2D {
   readonly daily: { readonly counted: boolean; readonly streak: number } | null;
   readonly endless: EndlessRecord2D | null;
   readonly hero?: HeroRunXpRecord;
+  /**
+   * This win completed the campaign (the first recorded win of the last chapter's finale): the
+   * ending sequence is due (ui/ending2d.ts). Absent on every other run.
+   */
+  readonly campaignComplete?: true;
 }
 
 function recordHeroOutcome(
@@ -1239,6 +1280,7 @@ export function applyRunResult2D(
     : 0;
   let win: WinRecord | null = null;
   let difficulty: DifficultyResult2D | undefined;
+  let campaignComplete = false;
   const allows = DIFFICULTIES[diff].allowsChallenges;
   if (i >= 0) {
     ensureDenseIslandArrays(progress, levels.length);
@@ -1248,7 +1290,9 @@ export function applyRunResult2D(
     const badges = allows ? badgesForWin(challengesForLevel(levels[i]), cfg.challenges) : [];
     if (allows) recordExtraWonChallenges(progress, cfg.challenges, badges);
     const prevBestLives = progress.bestLives[i] ?? 0;
+    const completeBefore = isCampaignComplete(progress, levels);
     win = applyWin(progress, i, levels.length, stars, safeLives, badges);
+    campaignComplete = markCampaignComplete(progress, outcome.levelId, completeBefore, levels);
     if (diff === 'easy') {
       // Easy's bonus lives would inflate the island's "best lives left" record: Easy keeps it.
       progress.bestLives[i] = prevBestLives;
@@ -1273,7 +1317,12 @@ export function applyRunResult2D(
     win.firstClear, daily?.counted ? cfg.daily : null,
   ) : 0;
   const base = difficulty ? { win, difficulty, daily, endless: null } : { win, daily, endless: null };
-  return { ...base, ...(crystalsEarned ? { crystalsEarned } : {}), ...(hero ? { hero } : {}) };
+  return {
+    ...base,
+    ...(crystalsEarned ? { crystalsEarned } : {}),
+    ...(hero ? { hero } : {}),
+    ...(campaignComplete ? { campaignComplete: true as const } : {}),
+  };
 }
 
 /** Loads the 2D save, applies `applyRunResult2D`, persists if anything changed, and returns the record. */

@@ -68,6 +68,7 @@ import { dismissBoot, setBootArtwork, setBootProgress, navigateWithVeil, pickLoa
  *   ?level=l1c        play an island (deep link, skips the map; any debug param below defaults to l1c)
  *   &intro=1          show the island's story panels first (once; the map adds it on a first play)
  *   ?story=intro|outro QA: force the story panels (intro on load, outro after a win)
+ *   ?end=won&story=ending  QA: the ending (beats + credits roll, then the map) over the won board
  *   ?ab=1             enemy-animation A/B showcase (no combat)
  *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
  *   ?autoplay=1       plays the greedy build script and auto-calls waves
@@ -639,6 +640,8 @@ async function main(): Promise<void> {
       if (!shown || !w || gameRef?.replaying) return;
       const won = w.outcome === 'won';
       let heroRecorded = false;
+      // This win completed the campaign (the last chapter's finale, first win): the ending follows.
+      let endingDue = false;
       if (plainPlay) {
         const masteredBefore = routing.isMastered(level.id);
         const progressBefore = loadProgress2D();
@@ -654,6 +657,7 @@ async function main(): Promise<void> {
           wavesCleared: won ? level.waves.length : Math.max(0, w.waveSystem.currentWaveOneBased - 1),
           heroXpEarned: w.heroSystem.runXp,
         });
+        endingDue = result.campaignComplete === true;
         // Feats this run completed: cards over the board (the Logbook lists them all).
         void import('./ui/featToast2d.ts').then((m) => m.showNewFeats(progressBefore, loadProgress2D(), LEVELS_2D));
         // Sky Crystals the win paid (Market): "+n" with the crystal on the board.
@@ -704,7 +708,9 @@ async function main(): Promise<void> {
         });
       }
       const story = q.get('story');
-      if (won && (plainPlay || story === 'outro')) void routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro');
+      const outro = won && (plainPlay || story === 'outro') ? routing.playStoryOnce(level, 'outro', art.manifest, art.baseUrl, story === 'outro') : Promise.resolve(false);
+      // `?end=won&story=ending` (QA): the ending over the board without recording a run.
+      if (won && (endingDue || story === 'ending')) void outro.then((shown) => routing.playEndingAfterWin(art.manifest, art.baseUrl, shown));
     },
     onMenu: () => {
       recordEndlessQuit();

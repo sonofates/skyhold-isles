@@ -5,6 +5,8 @@
  * screens (Workshop, Logbook, Daily, Settings) open from the round buttons top-right.
  *
  * QA params: ?screen=brief|workshop|logbook|daily|settings|store|heroes|herosel|credits opens that screen
+ * (ending = the ending's story beats, endcredits[&at=0..1] = its credits roll, paused at `at`,
+ * campaign = the "Campaign complete" card; ending2d.ts)
  * (heroes = skill tree, herosel = hero picker, both take &focus=<hero id>; brief = frontier
  * island), ?mockislands=N appends N stand-in islands (layout check only; they reuse the first
  * island's map), window.__map exposes the layout. ?store=<island id> opens the store card for
@@ -42,7 +44,7 @@ import { escOpensGameMenu, openGameMenu } from './gameMenu2d.ts';
 import { setPresence } from '../../platform/desktopShell.ts';
 import { unseenFeats } from './featSeen.ts';
 import { availableChallenges, buildRunHref2D, canPlayEndless } from './modes2d.ts';
-import { islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
+import { isCampaignComplete, islandStates, loadProgress2D, type IslandState } from './progress2d.ts';
 import { openCredits } from './credits2d.ts';
 import { navigateWithVeil } from './transition2d.ts';
 import { heroArtFiles } from './heroBits.ts';
@@ -852,6 +854,13 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     });
   };
 
+  /** "Campaign complete" (ending2d.ts): the whole campaign's tally, the third ending painting. */
+  const campaignCard = (then: () => void): void => {
+    void import('./ending2d.ts').then((m) => {
+      m.showCampaignCard({ summary: m.campaignSummary(states), art: m.endingArt(manifest)[2] ?? null, onDone: then });
+    });
+  };
+
   const screen = q.get('screen');
   if (screen === 'brief') {
     // QA: &pick=endless or &pick=<challenge id>[,<id>] pre-selects modes on the card.
@@ -879,6 +888,18 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
   // QA: the chapter cards of the page shown (?chapter=N&screen=chaptertitle|chapterdone).
   else if (screen === 'chaptertitle' && chapters[page]) titleCard(chapters[page].chapter);
   else if (screen === 'chapterdone' && chapters[page]) doneCard(chapters[page].chapter, () => undefined);
+  // QA: the ending (beat 1), the credits roll (&at=0..1 seeks there and pauses), the campaign card.
+  else if (screen === 'ending') void import('./ending2d.ts').then((m) => m.playEnding(manifest, () => undefined));
+  else if (screen === 'endcredits') {
+    const at = Number(q.get('at'));
+    void import('./ending2d.ts').then((m) => {
+      const roll = m.playEnding(manifest, () => undefined, { startAt: 'credits' }).roll();
+      if (roll && q.has('at') && Number.isFinite(at)) {
+        roll.pause(true);
+        requestAnimationFrame(() => roll.seek(at));
+      }
+    });
+  } else if (screen === 'campaign') campaignCard(() => undefined);
   // A deep link into an island the free version does not include lands here (main2d.ts).
   const storeFor = q.get('store');
   if (storeFor && storeEnabled()) {
@@ -889,11 +910,14 @@ export async function mountWorldMap(q: URLSearchParams): Promise<void> {
     }
   }
   // A chapter just finished / just opened: its card, once (not over a QA screen or a deep link).
+  // After the ending (the last finale's first win): the "Campaign complete" card, once.
   if (!screen && !storeFor && mock === 0) {
-    const due = cardsDue(chapters, readCardsSeen());
+    const due = cardsDue(chapters, readCardsSeen(), isCampaignComplete(progress, levels));
     writeCardsSeen(due.seen);
     const title = due.title;
-    if (due.done) doneCard(due.done, () => (title ? titleCard(title) : undefined));
+    const titleNext = (): void => (title ? titleCard(title) : undefined);
+    if (due.campaign) campaignCard(() => (due.done ? doneCard(due.done, titleNext) : titleNext()));
+    else if (due.done) doneCard(due.done, titleNext);
     else if (title) titleCard(title);
   }
 }
