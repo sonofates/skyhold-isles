@@ -1,0 +1,10 @@
+{
+  "island": "i35",
+  "maxParticles": 9,
+  "glows": [
+    { "id": "forge-mouth", "x": 306, "y": 767, "rx": 66, "ry": 37, "color": "#ff9a36", "minAlpha": 0.07, "maxAlpha": 0.31, "speed": 1.63, "phase": 0.3 }
+  ],
+  "zones": [
+    { "id": "forge-cinders", "kind": "ember", "rect": [268, 751, 66, 24], "rate": 1.2, "color": "#ffbb57", "color2": "#ff7131", "size": 5, "drift": [8, -19], "life": 2.7, "alpha": 0.68 }
+  ]
+}

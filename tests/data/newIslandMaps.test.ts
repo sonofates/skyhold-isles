@@ -21,15 +21,19 @@ import i30 from '../../src/data/levels2d/i30.json';
 import i31 from '../../src/data/levels2d/i31.json';
 import i32 from '../../src/data/levels2d/i32.json';
 import i33 from '../../src/data/levels2d/i33.json';
+import i34 from '../../src/data/levels2d/i34.json';
+import i35 from '../../src/data/levels2d/i35.json';
+import i36 from '../../src/data/levels2d/i36.json';
 
-it.each([i25, i26, i27, i28, i29, i30, i31, i32, i33])('$id ships each map variant, both gate depths and protected life masks', level => {
+it.each([i25, i26, i27, i28, i29, i30, i31, i32, i33, i34, i35, i36])('$id ships each map variant, both gate depths and protected life masks', level => {
   const layout = parseLevel2D(level);
   const maps: Record<string, string> = manifest.maps;
   const fronts: Record<string, string> = manifest.overlays;
   for (const suffix of ['', '@1x', '@1.5x', '@3x']) {
     expect(existsSync('public/art2d/' + maps[layout.image + suffix])).toBe(true);
   }
-  expect(layout.entrances).toHaveLength(level.id === 'i32' ? 1 : 2);
+  const entranceCounts: Record<string, number> = { i32: 1, i34: 1, i36: 3 };
+  expect(layout.entrances).toHaveLength(entranceCounts[level.id] ?? 2);
   expect(layout.gates).toHaveLength(layout.entrances.length + 1);
   for (const gate of layout.gates ?? []) {
     for (const suffix of ['', '@3x']) expect(existsSync('public/art2d/' + fronts[gate.front!.art + suffix])).toBe(true);
@@ -56,7 +60,7 @@ it.each([i25, i26, i27, i28, i29, i30, i31, i32, i33])('$id ships each map varia
   }
 });
 
-it.each(['i31', 'i32', 'i33'])('%s keeps roads, gates, keep and plots clear of the landscape phone HUD', id => {
+it.each(['i31', 'i32', 'i33', 'i34', 'i35', 'i36'])('%s keeps roads, gates, keep and plots clear of the landscape phone HUD', id => {
   const level = getLevelById(id)!;
   const layout = level.layout2d!;
   const entrances = waveEntranceCounts(level.waves[0].groups, layout.paths, layout.flightPath, t => ENEMY_DEFS[t].flying);

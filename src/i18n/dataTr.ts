@@ -140,6 +140,36 @@ export const DATA_TR: DataTr = {
         'Kapağı Aç', 'Buzun Altında Su',
       ],
     },
+    i34: {
+      name: 'Buhar Pınarları', subtitle: 'Kaplıca bekçisi yamaçta sıkışan buharı tahliye edene dek havuzların üstündeki dönemeçleri tut.',
+      waves: [
+        'İlk Banyo', 'Bakır Oluk', 'Borudaki Kireç',
+        'Kaynar Su İzi', 'Boş Küvetler', 'Alt Seki',
+        'Havlu Askısı', 'Vanadaki Pas', 'Taşan Su',
+        'Uzun Serpantin', 'Kızgın Taşlar', 'Süzgecin Dişleri',
+        'Ana Vanayı Aç', 'Mavi Taş',
+      ],
+    },
+    i35: {
+      name: 'Soğuk Demirhane', subtitle: 'İki galeri demirhaneye yük taşıyor. Kale çanına yeni bir dil dökülene dek rayları açık tut.',
+      waves: [
+        'Vardiya Feneri', 'Mavi Damar', 'Gevşek Travers',
+        'Haznede Cevher', 'Çifte Yük', 'Hava Bacası',
+        'Kırık Çan Dili', 'Alt Makas', 'Kara Körük',
+        'Potayı Çek', 'Ak Kor', 'Makas Kolu',
+        'Döküm Kumu', 'Su Verme', 'Çan Vagonu',
+      ],
+    },
+    i36: {
+      name: 'Kırağı Kalesi', subtitle: 'Çancılar tören avlusundan geçiyor. Üç yolu da savun ve buz kapısını Buzul Muhafızı’nın elinden al.',
+      waves: [
+        'Tören Avlusu', 'Huruç Kapısı', 'İlk Sancak',
+        'Kesişen Emirler', 'Kızıl Flamalar', 'Demir Menteşe',
+        'Kapı Nöbeti', 'Batıdan Selam', 'Buz Tutmuş Zincir',
+        'Üç İşaret', 'Kemerin Altında', 'Sessiz Çan',
+        'Kızağı Kaldır', 'Son Flama', 'Buzul Muhafızı',
+      ],
+    },
   },
   towers: {
     archer: {

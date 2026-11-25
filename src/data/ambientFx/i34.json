@@ -1,0 +1,8 @@
+{
+  "island": "i34",
+  "maxParticles": 17,
+  "zones": [
+    { "id": "upper-spring-steam", "kind": "mist", "rect": [640, 708, 347, 26], "rate": 1.6, "color": "#fff4de", "color2": "#d1ebe5", "size": 66, "drift": [11, -21], "life": 4.5, "alpha": 0.2 },
+    { "id": "lower-spring-steam", "kind": "mist", "rect": [762, 774, 307, 36], "rate": 0.9, "color": "#f8eee2", "color2": "#bee2eb", "size": 59, "drift": [9, -16], "life": 4.1, "alpha": 0.16 }
+  ]
+}

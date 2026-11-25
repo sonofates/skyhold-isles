@@ -34,8 +34,7 @@ import {
 import { pageFrontier } from '../../src/render2d/ui/worldMap.ts';
 
 const ids = (levels: readonly { id: string }[]): string[] => levels.map((l) => l.id);
-const FROSTVEIL = ['i28', 'i29', 'i30', 'i31', 'i32', 'i33'];
-const SHIPPING_ORDER = [...CAMPAIGN_ORDER.filter(id => chapterOf(id)?.id !== 'ch4'), ...FROSTVEIL];
+const FROSTVEIL = ['i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36'];
 /** The real roster: the three new islands (i25 Galeglass Orrery, i26, i27) are registered. */
 const WITH_NEW: readonly LevelDef[] = LEVELS_2D;
 /** A synthetic pool with two chapter slots unfilled (i25 in Chapter 2, i27 in Chapter 3). */
@@ -101,18 +100,17 @@ describe('chapter list', () => {
 });
 
 describe('LEVELS_2D order comes from the chapters', () => {
-  it('orders the 34 shipping islands and reserves three later Frostveil slots', () => {
-    expect(ids(LEVELS_2D)).toEqual(SHIPPING_ORDER);
+  it('orders all 37 shipping islands through the Frostveil finale', () => {
+    expect(ids(LEVELS_2D)).toEqual(CAMPAIGN_ORDER);
     expect(PLAYABLE_ISLAND_IDS).toEqual(ids(LEVELS_2D));
-    expect(CAMPAIGN_ORDER.filter(id => !SHIPPING_ORDER.includes(id))).toEqual(['i34', 'i35', 'i36']);
-    expect(LEVELS_2D).toHaveLength(34);
+    expect(LEVELS_2D).toHaveLength(37);
     // The new islands moved i16..i24 off their flat (pre-chapter) indexes.
     expect(ids(LEVELS_2D)).not.toEqual([...LEGACY_2D_ORDER]);
     for (const l of LEVELS_2D) expect(chapterOf(l.id), l.id).not.toBeNull();
   });
 
   it('an unregistered slot is skipped (synthetic pool without i25 / i27)', () => {
-    expect(ids(PARTIAL)).toEqual(SHIPPING_ORDER.filter((id) => id !== 'i25' && id !== 'i27'));
+    expect(ids(PARTIAL)).toEqual(CAMPAIGN_ORDER.filter((id) => id !== 'i25' && id !== 'i27'));
     // Without any of the three new islands the order is exactly the old flat one.
     expect(ids(PRE_NEW)).toEqual([...LEGACY_2D_ORDER]);
   });
@@ -121,12 +119,12 @@ describe('LEVELS_2D order comes from the chapters', () => {
     const order = ids(WITH_NEW);
     expect(order.slice(order.indexOf('i15'), order.indexOf('i17'))).toEqual(['i15', 'i25', 'i26', 'i16']);
     expect(order.slice(order.indexOf('i23'))).toEqual(['i23', 'i27', 'i24', ...FROSTVEIL]);
-    expect(order).toHaveLength(34);
+    expect(order).toHaveLength(37);
   });
 
-  it('the first three chapters are full and Frostveil shows its six shipping islands', () => {
+  it('the first four chapters each show their nine islands', () => {
     const pages = chapterPages(ids(LEVELS_2D));
-    expect(pages.map((p) => p.own.length)).toEqual([9, 9, 9, 6, 0]);
+    expect(pages.map((p) => p.own.length)).toEqual([9, 9, 9, 9, 0]);
     expect(pages[0].indexes).toEqual([0, ...pages[0].own]);
     expect(ids(pages[1].own.map((i) => LEVELS_2D[i]))).toEqual([...CHAPTERS[1].islands]);
     expect(ids(pages[2].own.map((i) => LEVELS_2D[i]))).toEqual([...CHAPTERS[2].islands]);
@@ -136,7 +134,7 @@ describe('LEVELS_2D order comes from the chapters', () => {
 
   it('missing slots leave a shorter chapter page that still works', () => {
     const pages = chapterPages(ids(PARTIAL));
-    expect(pages.map((p) => p.own.length)).toEqual([9, 8, 8, 6, 0]);
+    expect(pages.map((p) => p.own.length)).toEqual([9, 8, 8, 9, 0]);
     // Chapter 1's page leads with the Prologue.
     expect(pages[0].indexes).toEqual([0, ...pages[0].own]);
     expect(ids(pages[1].own.map((i) => PARTIAL[i]))).toEqual(['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i26', 'i16']);
@@ -186,9 +184,16 @@ describe('unlock chain', () => {
     ]);
     for (const id of FROSTVEIL) {
       expect(roster[p.unlockedLevelIndex].id).toBe(id);
+      expect(chapters().find(c => c.chapter.id === 'ch4')!.complete).toBe(false);
       win(id);
     }
-    expect(chapters().find(c => c.chapter.id === 'ch4')).toMatchObject({ cleared: 6, total: 6, complete: false });
+    expect(chapters().find(c => c.chapter.id === 'ch4')).toMatchObject({ cleared: 9, total: 9, complete: true });
+    const due = cardsDue(chapters(), { done: ['ch1', 'ch2', 'ch3'], title: ['ch1', 'ch2', 'ch3', 'ch4'] });
+    expect(due.done?.id).toBe('ch4');
+    expect(due.title).toBeNull();
+    expect(nextChapter(due.done!)).toMatchObject({ id: 'ch5', status: 'soon' });
+    expect(chapters().find(c => c.chapter.id === 'ch5')).toMatchObject({ opened: false, total: 0 });
+    expect(cardsDue(chapters(), due.seen).done).toBeNull();
     expect(chapters()[1]).toMatchObject({ cleared: 9, total: 9, stars: 18, maxStars: 27 });
   });
 
@@ -208,6 +213,9 @@ describe('unlock chain', () => {
     expect(nextIslandOpen('i24', true)).toBeUndefined();
     expect(nextIslandOpen('i29', true)?.id).toBe('i30');
     expect(nextIslandOpen('i30', true)?.id).toBe('i31');
+    expect(nextIslandOpen('i33', true)?.id).toBe('i34');
+    expect(nextIslandOpen('i35', true)?.id).toBe('i36');
+    expect(nextIslandOpen('i36', true)).toBeUndefined();
     expect(nextIslandOpen('i08', true)?.id).toBe('i09');
     expect(nextIslandOpen('i10', true)?.id).toBe('i11');
   });
@@ -228,6 +236,19 @@ describe('old saves never relock', () => {
     for (let i = 0; i < order.indexOf(upTo); i++) applyWin(p, i, order.length, i % 3 === 0 ? 3 : 2, 10, []);
     return p;
   }
+
+  it('a batch-two save opens the springs only after the cascade was won', () => {
+    const before = ids(LEVELS_2D).slice(0, ids(LEVELS_2D).indexOf('i34'));
+    const p = createDefaultProgress(before.length);
+    for (const id of before) {
+      if (id === 'i33') break;
+      applyWin(p, before.indexOf(id), before.length, 2, 10, []);
+    }
+    const frontier = () => islandStates(remapProgress(p, before, LEVELS_2D), LEVELS_2D).find(s => s.frontier)?.level.id;
+    expect(frontier()).toBe('i33');
+    applyWin(p, before.indexOf('i33'), before.length, 2, 10, []);
+    expect(frontier()).toBe('i34');
+  });
 
   it('a player who beat i16 keeps i17+, and the new i25 / i26 appear open and unplayed', () => {
     const old = flatSave('i19');

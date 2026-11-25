@@ -244,6 +244,25 @@ it('previews the unseen sledge on arrival at Crevasse Span and keeps both winter
   }
 });
 
+it('saves the Glacier Warden for the long approach on the last wave of Frostveil', () => {
+  const finale = getLevelById('i36')!;
+  const earlier = LEVELS_2D.slice(0, LEVELS_2D.indexOf(finale));
+  expect(seenFromCleared(earlier, () => true).has('glacier_warden')).toBe(false);
+  for (const id of ['i34', 'i35', 'i36']) {
+    const types = getLevelById(id)!.waves.flatMap(w => w.groups.map(g => g.enemyType));
+    expect(types).toContain('rimebeetle');
+    expect(types).toContain('sledguard');
+  }
+  const bossWaves = finale.waves.filter(w => w.groups.some(g => g.enemyType === 'glacier_warden'));
+  expect(bossWaves).toEqual([finale.waves.at(-1)]);
+  const groups = bossWaves[0].groups;
+  expect(groups.filter(g => g.enemyType === 'glacier_warden')).toMatchObject([{ count: 1, lane: 0 }]);
+  expect(new Set(groups.map(g => g.lane))).toEqual(new Set([0, 1, 2]));
+  const world = new SimWorld(finale, new EventBus());
+  expect(world.extraGroundPaths.every(p => world.groundPath.totalLength > p.totalLength)).toBe(true);
+  world.dispose();
+});
+
 it('Lanternfall hexers can jam the hedge plots while the clearing stays out of reach', () => {
   const level = getLevelById('i12')!;
   const layout = level.layout2d!;
@@ -300,7 +319,8 @@ describe('per-chapter wave-count curve and adjustWaveCount', () => {
       { ids: ['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16'], min: 11, max: 13 },
       { ids: ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'], min: 12, max: 14 },
       { ids: ['i28', 'i29', 'i30'], min: 13, max: 13 },
-      { ids: ['i31', 'i32', 'i33'], min: 14, max: 14 },
+      { ids: ['i31', 'i32', 'i33', 'i34'], min: 14, max: 14 },
+      { ids: ['i35', 'i36'], min: 15, max: 15 },
     ] as const;
     for (const { ids: chapterIds, min, max } of chapters) {
       const counts = chapterIds.map((id) => getLevelById(id)!.waves.length);

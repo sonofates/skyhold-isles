@@ -1,0 +1,5 @@
+{
+  "island": "i36",
+  "wind": { "mask": "life/i36-snow.webp", "dir": [-0.96, 0.27], "strength": 1.38, "gustPeriod": 4.9, "gustSpeed": 182, "breezeFreq": 0.96, "sheen": 0.03 },
+  "water": { "mask": "life/i36-ice.webp", "dir": [-0.88, 0.47], "strength": 0.23, "flowSpeed": 0.4, "rippleScale": 1.1, "glintColor": "#d1efff", "glintStrength": 0.17, "glintSpeed": 0.6 }
+}

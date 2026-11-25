@@ -93,6 +93,9 @@ function verdict(rows: Row[]): void {
   const lives = frostveil.map(normalLives);
   check(lives[0] > normalLives('i24') && lives.every((n, i) => n > 0 && (i === 0 || n < lives[i - 1])),
     `Frostveil eases after Lastlight and rises on Normal: i24 ${normalLives('i24')}, ${frostveil.map((id, i) => id + ' ' + lives[i]).join(', ')} lives`);
+  const finaleApproach = ['i33', 'i34', 'i35', 'i36'].map(normalLives);
+  check(finaleApproach.every((n, i) => n > 0 && (i === 0 || n < finaleApproach[i - 1])),
+    `Normal first clears tighten from Stillfall to the Citadel: ${finaleApproach.join(' > ')} lives`);
   const twos = normal.filter(r => r.stars === 2).length;
   const threes = normal.filter(r => r.stars === 3).length;
   check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),
