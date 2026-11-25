@@ -13,6 +13,7 @@ const BANDS: readonly (Band & { match: (id: string) => boolean })[] = [
   { label: 'Ch 1', min: 8, max: 11, finale: 'i09', match: (id) => /^i0[1-9]$/.test(id) },
   { label: 'Ch 2', min: 11, max: 13, finale: 'i16', match: (id) => /^i1[0-6]$/.test(id) },
   { label: 'Ch 3', min: 12, max: 14, finale: 'i24', match: (id) => /^i(1[7-9]|2[0-4])$/.test(id) },
+  { label: 'Ch 4', min: 13, max: 15, finale: 'i36', match: (id) => /^i(2[89]|3[0-6])$/.test(id) },
 ];
 
 function storyHpScale(base: number, growth: number, waveIndex: number): number {

@@ -11,7 +11,7 @@ import { LEVELS, type LevelDef } from '../src/data/levels/index.ts';
 import { LEVELS_2D } from '../src/data/levels2d/index.ts';
 import { chapterOf } from '../src/data/chapters.ts';
 import { NEUTRAL_RUN_MODIFIERS, type RunModifiers } from '../src/data/runModifiers.ts';
-import { getTowerTierStats, specializationsFor } from '../src/data/towers.ts';
+import { getTowerTierStats, specializationsFor, TOWER_DEFS } from '../src/data/towers.ts';
 import { maxedWorkshopRanks, workshopModifiers, workshopStarsSpent } from '../src/data/workshop.ts';
 import { endlessMutatorsAt } from '../src/data/endlessMutators.ts';
 import { challengesForLevel, runModifiersFor } from '../src/data/challenges.ts';
@@ -31,6 +31,15 @@ interface WaveStatRow {
   leaksByType: Partial<Record<EnemyType, number>>;
   /** Lives lost per enemy type (a leaking brute/boss/hauler costs more than 1). */
   livesByType: Partial<Record<EnemyType, number>>;
+  /** Rime Beetle frost, summed over the attack towers' fire cycles while the wave runs. */
+  frost: FrostTally;
+}
+
+/** Tower-seconds of fire cycle (reloading): total, lost to frost patches (Σ frostSlow·dt), and spent inside a patch. */
+export interface FrostTally {
+  towerSec: number;
+  lostSec: number;
+  slowedSec: number;
 }
 
 export interface SimRunResult {
@@ -164,6 +173,39 @@ function spendEndlessGold(world: SimWorld): void {
   }
 }
 
+/** Counts only towers in their fire cycle (reloading after a shot): an idle tower loses nothing to frost. */
+function tallyFrost(world: SimWorld, tally: FrostTally): void {
+  const dt = BALANCE.fixedDt;
+  for (const t of world.towers) {
+    if (TOWER_DEFS[t.type].role !== 'attack' || t.cooldownTimer <= 0 || t.stunTimer > 0) continue;
+    tally.towerSec += dt;
+    const slow = t.frostSlow ?? 0;
+    if (slow > 0) {
+      tally.lostSec += slow * dt;
+      tally.slowedSec += dt;
+    }
+  }
+}
+
+/**
+ * Share of tower fire capacity lost to Rime Beetle frost: over the whole run, and over the waves
+ * that send beetles (the waves where the patch is the threat). 0 when the island has no beetles.
+ */
+export function frostShare(res: SimRunResult, level: LevelDef): { run: number; beetleWaves: number; slowedBeetleWaves: number } {
+  const sum = (rows: readonly WaveStatRow[]) => rows.reduce(
+    (acc, r) => ({ towerSec: acc.towerSec + r.frost.towerSec, lostSec: acc.lostSec + r.frost.lostSec, slowedSec: acc.slowedSec + r.frost.slowedSec }),
+    { towerSec: 0, lostSec: 0, slowedSec: 0 },
+  );
+  const all = sum(res.waves);
+  const beetle = sum(res.waves.filter(r => level.waves[r.waveNumber - 1]?.groups.some(g => g.enemyType === 'rimebeetle')));
+  const share = (a: number, b: number) => (b > 0 ? a / b : 0);
+  return {
+    run: share(all.lostSec, all.towerSec),
+    beetleWaves: share(beetle.lostSec, beetle.towerSec),
+    slowedBeetleWaves: share(beetle.slowedSec, beetle.towerSec),
+  };
+}
+
 export function runLevelBalanceSim(
   level: LevelDef,
   scriptKind: ScriptKind,
@@ -201,6 +243,7 @@ export function runLevelBalanceSim(
       nominalLeakCost: 0,
       leaksByType: {},
       livesByType: {},
+      frost: { towerSec: 0, lostSec: 0, slowedSec: 0 },
     };
     waveRows.push(activeWaveRow);
   });
@@ -297,6 +340,7 @@ export function runLevelBalanceSim(
         const prog = e.dist / e.totalDist;
         if (prog > activeWaveRow.peakGroundProgress) activeWaveRow.peakGroundProgress = prog;
       }
+      if (world.waveSystem.state !== 'betweenWaves') tallyFrost(world, activeWaveRow.frost);
     }
   }
 
@@ -470,6 +514,9 @@ export function evaluateBalance(
   /** Max share of lives lost to flyers in a greedy run / a lost weak run. */
   const MAX_FLYER_SHARE_GREEDY = 0.55;
   const MAX_FLYER_SHARE_WEAK_LOSS = 0.7;
+  /** Greedy fire time lost to Rime Beetle frost on the waves that send beetles: noticeable, not crippling. */
+  const MIN_FROST_LOSS = 0.03;
+  const MAX_FROST_LOSS = 0.15;
 
   function livesLostTotals(res: SimRunResult): { total: number; flyers: number; byType: Partial<Record<EnemyType, number>> } {
     const byType: Partial<Record<EnemyType, number>> = {};
@@ -562,6 +609,16 @@ export function evaluateBalance(
         `weak ${weakRes.outcome === 'won' ? 'W' : weakRes.outcome === 'lost' ? 'L' : '?'} ` +
         `${String(weakRes.finalLives).padStart(2)}L ${weakRes.stars}* (reached wave ${weakRes.waves.length}/${level.waves.length}) leaks[${fmt(wT)}]`,
     );
+    // Rime Beetle frost must register in play without crippling the defence (docs/handoff-ch4-waves-1.md).
+    if (level.waves.some(w => w.groups.some(g => g.enemyType === 'rimebeetle'))) {
+      const frost = frostShare(greedyRes, level);
+      const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
+      summary[summary.length - 1] += ` | frost: greedy fire time lost ${pct(frost.beetleWaves)} on beetle waves` +
+        ` (${pct(frost.slowedBeetleWaves)} inside a patch), ${pct(frost.run)} over the run`;
+      if (frost.beetleWaves < MIN_FROST_LOSS || frost.beetleWaves > MAX_FROST_LOSS) {
+        failures.push(`${label} greedy loses ${pct(frost.beetleWaves)} of fire time to frost on beetle waves (want ${pct(MIN_FROST_LOSS)}-${pct(MAX_FROST_LOSS)})`);
+      }
+    }
 
     if (greedyRes.outcome !== 'won') {
       failures.push(`${label} greedy did not win`);

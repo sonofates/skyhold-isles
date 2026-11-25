@@ -17,16 +17,16 @@ export const I29 = {
   flightPath: [],
   decorationSeed: 1494,
   startingGold: 405,
-  enemyHpScale: 2.93,
+  enemyHpScale: 2.95,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Cold Hearths', clearBonus: 25, groups: [
       group('bellrunner', 7, 0.55, 0, 1), group('grunt', 10, 0.59, 1.8),
     ] },
-    // Phase 2: introduce rimebeetle from the east boathouse in this wave.
+    // Rime Beetles first march here, a small file out of the east boathouse (lane 1).
     { name: 'First Basket', clearBonus: 27, groups: [
       group('mite', 14, 0.29), group('burrower', 5, 0.84, 0.75, 1),
-      group('brute', 4, 1.08, 2.8),
+      group('brute', 4, 1.08, 2.8), group('rimebeetle', 4, 0.9, 4.4, 1),
     ] },
     { name: 'Under the Nets', clearBonus: 29, groups: [
       group('reedpiper', 2, 1.42, 0, 1), group('kilnback', 5, 1.08, 0.75),
@@ -41,8 +41,8 @@ export const I29 = {
       group('brute', 6, 1.04, 2.8, 1),
     ] },
     { name: 'Fish Under Glass', clearBonus: 34, groups: [
-      { ...group('kilnback', 5, 1.04), elite: true }, group('bellrunner', 10, 0.52, 0.75, 1),
-      group('reedpiper', 3, 1.37, 2.8),
+      { ...group('kilnback', 5, 1.04), elite: true }, group('reedpiper', 3, 1.37, 2.8),
+      group('rimebeetle', 6, 0.9, 4.4, 1),
     ] },
     { name: 'At the Hatch', clearBonus: 36, groups: [
       group('golem', 5, 1.16, 0, 1), group('hexer', 4, 1.3, 0.75),
@@ -53,8 +53,8 @@ export const I29 = {
       group('burrower', 8, 0.78, 2.8),
     ] },
     { name: 'The Racks Fill', clearBonus: 39, groups: [
-      { ...group('warden', 6, 1.14, 0, 1), elite: true }, group('kilnback', 6, 1.0, 0.75),
-      group('reedpiper', 4, 1.32, 2.8, 1),
+      { ...group('warden', 6, 1.14, 0, 1), elite: true }, group('reedpiper', 4, 1.32, 2.8, 1),
+      group('rimebeetle', 6, 0.9, 4.4),
     ] },
     { name: 'Borrowed Coals', clearBonus: 41, groups: [
       { ...group('bellrunner', 10, 0.5), elite: true }, group('golem', 6, 1.12, 0.75, 1),
@@ -67,6 +67,7 @@ export const I29 = {
     { name: 'The Draught Changes', clearBonus: 46, groups: [
       { ...group('kilnback', 7, 0.97), elite: true }, group('reedpiper', 4, 1.27, 0.75, 1),
       { ...group('burrower', 7, 0.75, 2.8), elite: true }, group('mite', 16, 0.25, 5, 1),
+      group('rimebeetle', 5, 0.9, 6.2),
     ] },
     { name: 'Smoke Above the Lake', clearBonus: 60, groups: [
       { ...group('golem', 8, 1.08, 0, 1), elite: true }, group('healer', 4, 1.23, 0.75),

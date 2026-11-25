@@ -125,7 +125,7 @@ export const CHAPTER4_ENEMY_DEFS = {
     counterHint: 'Kill it before it reaches your tower cluster. Long-reach towers such as the ballista and mortar fire from outside the frost.',
     maxHp: 150, speed: 1.9, armor: 3, reward: 7, livesCost: 1,
     flying: false, radius: 0.44, height: 0.92,
-    ability: { kind: 'rime', patchRadius: 3.2, patchSec: 3, rateMul: 0.7 },
+    ability: { kind: 'rime', patchRadius: 4, patchSec: 3.75, rateMul: 0.7 },
   },
   sledguard: {
     type: 'sledguard', name: 'Sledge Warden',
