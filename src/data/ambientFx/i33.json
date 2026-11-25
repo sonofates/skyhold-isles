@@ -1,0 +1,7 @@
+{
+  "island": "i33",
+  "maxParticles": 14,
+  "zones": [
+    { "id": "fall-mist", "kind": "mist", "rect": [120, 746, 436, 69], "rate": 1.5, "color": "#e3fffa", "color2": "#93d4ef", "size": 77, "drift": [11, -15], "life": 4.8, "alpha": 0.21 }
+  ]
+}

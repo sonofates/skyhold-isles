@@ -1,0 +1,7 @@
+{
+  "island": "i31",
+  "maxParticles": 10,
+  "zones": [
+    { "id": "rift-vapour", "kind": "mist", "rect": [975, 666, 126, 75], "rate": 0.9, "color": "#ceecff", "color2": "#a4c6e6", "size": 58, "drift": [-8, -13], "life": 4.4, "alpha": 0.18 }
+  ]
+}

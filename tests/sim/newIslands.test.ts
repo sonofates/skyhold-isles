@@ -25,15 +25,20 @@ it.each(NEW_ISLANDS)('$id has a Master encounter using its chapter roster and bo
   expect(new Set(waves.flatMap(w => w.groups.map(g => g.lane)))).toEqual(new Set([0, 1]));
 });
 
-it.each(CHAPTER4_ISLANDS)('$id fields two lanes and thirteen Master waves from the previous chapters', level => {
-  const previous = new Set(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
+it.each(CHAPTER4_ISLANDS)('$id uses its shipping chapter roster, wave count and ground lanes', level => {
+  const roster = new Set(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
     .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
   expect(LEVELS_2D.filter(l => l.id === level.id)).toEqual([level]);
   expect(level.difficulty).toBe('Master');
-  expect(level.waves).toHaveLength(13);
+  const secondBatch = ['i31', 'i32', 'i33'].includes(level.id);
+  if (secondBatch) {
+    roster.add('rimebeetle');
+    roster.add('sledguard');
+  }
+  expect(level.waves).toHaveLength(secondBatch ? 14 : 13);
   const groups = level.waves.flatMap(w => w.groups);
-  for (const g of groups) expect(previous.has(g.enemyType), g.enemyType).toBe(true);
-  expect(new Set(groups.map(g => g.lane))).toEqual(new Set([0, 1]));
+  for (const g of groups) expect(roster.has(g.enemyType), g.enemyType).toBe(true);
+  expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.id === 'i32' ? [0] : [0, 1]));
 });
 
 it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {

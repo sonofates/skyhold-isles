@@ -14,6 +14,7 @@ import { entranceFacing } from '../../src/data/levels2d/gates.ts';
 import { SimWorld } from '../../src/sim/world.ts';
 import { parseManifest } from '../../src/render2d/manifest.ts';
 import { pickMapVariant } from '../../src/render2d/mapVariant.ts';
+import { seenFromCleared } from '../../src/render2d/ui/newFoes2d.ts';
 import manifestJson from '../../public/art2d/manifest.json';
 import moonwell from '../../src/data/levels2d/i15.json';
 
@@ -227,6 +228,22 @@ describe.each(ids)('%s campaign plot map', (id) => {
   });
 });
 
+it('previews the unseen sledge on arrival at Crevasse Span and keeps both winter foes in the next two islands', () => {
+  const first = getLevelById('i31')!;
+  const previous = LEVELS_2D.slice(0, LEVELS_2D.indexOf(first));
+  expect(seenFromCleared(previous, () => true).has('sledguard')).toBe(false);
+  const preview = new SimWorld(first, new EventBus()).waveSystem.getNextWavePreview();
+  expect(preview?.items.map(item => item.enemyType)).toContain('sledguard');
+  for (const id of ['i31', 'i32', 'i33']) {
+    const level = getLevelById(id)!;
+    const foes = level.waves.flatMap(w => w.groups.map(g => g.enemyType));
+    expect(level.difficulty).toBe('Master');
+    expect(foes).toContain('sledguard');
+    expect(foes).toContain('rimebeetle');
+    expect(foes).not.toContain('glacier_warden');
+  }
+});
+
 it('Lanternfall hexers can jam the hedge plots while the clearing stays out of reach', () => {
   const level = getLevelById('i12')!;
   const layout = level.layout2d!;
@@ -283,6 +300,7 @@ describe('per-chapter wave-count curve and adjustWaveCount', () => {
       { ids: ['i10', 'i11', 'i12', 'i13', 'i14', 'i15', 'i16'], min: 11, max: 13 },
       { ids: ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'], min: 12, max: 14 },
       { ids: ['i28', 'i29', 'i30'], min: 13, max: 13 },
+      { ids: ['i31', 'i32', 'i33'], min: 14, max: 14 },
     ] as const;
     for (const { ids: chapterIds, min, max } of chapters) {
       const counts = chapterIds.map((id) => getLevelById(id)!.waves.length);

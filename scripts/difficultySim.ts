@@ -89,11 +89,10 @@ function verdict(rows: Row[]): void {
   check(Object.keys(DIFFICULTIES.normal.patch).length === 0 && normal.length === rows.length,
     `Normal uses the island tuning and clears the campaign: ${normal.length}/${rows.length}`);
   const normalLives = (id: string) => rows.find(r => r.level.id === id)?.runs.normal.campaign.finalLives ?? 0;
-  const rimeharbor = normalLives('i28');
-  const hamlet = normalLives('i29');
-  const ridge = normalLives('i30');
-  check(rimeharbor > normalLives('i24') && rimeharbor > hamlet && hamlet > ridge && ridge > 0,
-    `Frostveil eases after Lastlight and rises on Normal: i24 ${normalLives('i24')}, i28 ${rimeharbor}, i29 ${hamlet}, i30 ${ridge} lives`);
+  const frostveil = ['i28', 'i29', 'i30', 'i31', 'i32', 'i33'];
+  const lives = frostveil.map(normalLives);
+  check(lives[0] > normalLives('i24') && lives.every((n, i) => n > 0 && (i === 0 || n < lives[i - 1])),
+    `Frostveil eases after Lastlight and rises on Normal: i24 ${normalLives('i24')}, ${frostveil.map((id, i) => id + ' ' + lives[i]).join(', ')} lives`);
   const twos = normal.filter(r => r.stars === 2).length;
   const threes = normal.filter(r => r.stars === 3).length;
   check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),

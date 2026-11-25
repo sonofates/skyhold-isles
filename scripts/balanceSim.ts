@@ -415,7 +415,10 @@ function printResult(label: string, res: SimRunResult, level: LevelDef): void {
 }
 
 /** First-clear targets in campaign order, expressed in lives LOST including Bastion's lives. */
-function islandLossWindow(index: number): readonly [number, number] {
+function islandLossWindow(index: number, id: string): readonly [number, number] {
+  // The second Frostveil leg climbs past Pinewhite's thirteen lost lives.
+  if (id === 'i32') return [14, 16];
+  if (id === 'i33') return [15, 17];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
@@ -536,7 +539,7 @@ export function evaluateBalance(
     }
 
     const start = greedyRes.startingLives;
-    const [minLost, maxLost] = islandLossWindow(index);
+    const [minLost, maxLost] = islandLossWindow(index, level.id);
     const [gMin, gMax] = kit ? [start - maxLost, start - minLost] : GREEDY_LIVES[level.difficulty];
     if (robust && !kit) {
       // Informational: greedy lives when every enemy HP is scaled by +-1.5% / +-3% (knife-edge detector).

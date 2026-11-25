@@ -110,6 +110,36 @@ export const DATA_TR: DataTr = {
         'Sırtın Altında Işıklar',
       ],
     },
+    i31: {
+      name: 'Yarık Köprüsü', subtitle: 'Yük kızakları, kayan buzulun üstündeki iki halat köprüden geçiyor. Son kızak geçene dek batı yakasındaki demirleri koru.',
+      waves: [
+        'Tahtada Demir', 'Alt Halat', 'Bağlarda Kırağı',
+        'Bekçi Düğümü', 'İkiz Köprüler', 'Gevşek Sikke',
+        'Karşı Ağırlık', 'Dar Basamak', 'Tambur ve Mandal',
+        'Halatın Bel Vermesi', 'Gerilim Altında', 'Üst Çıpa',
+        'Son Yük', 'Ayna İşareti',
+      ],
+    },
+    i32: {
+      name: 'Kutup Işığı Rasathanesi', subtitle: 'Dev mercek meridyen çizgisinden kaydı. Usta merceği yeniden odaklayana dek gözlem avlusunu dolanan yolu savun.',
+      waves: [
+        'Iraklık Açısı', 'Tunç Çember', 'Yeşil Cam',
+        'Dış Halka', 'Gece Nöbeti', 'Geçiş İşareti',
+        'Perde Dişleri', 'Yavaş Yörünge', 'İsli Cam',
+        'Tersine Dönüş', 'İlk Kırılma', 'İnce Ayar',
+        'Çift Görüntü', 'Gerçek Meridyen',
+      ],
+    },
+    i33: {
+      name: 'Donmuş Çağlayan', subtitle: 'Buz perdesinin arkasında su birikiyor. Bent bekçisi havzayı boşaltana kadar iki mağara sekisini de savun.',
+      waves: [
+        'Kof Buz', 'Bakır Çekül', 'Saçağın Altında',
+        'Çifte Yankı', 'Kör Havuz', 'Ölçü Çizgileri',
+        'Buz Dişleri', 'Dalgalı Taş', 'Su Basıncı',
+        'Mağaranın Soluğu', 'Sıkışan Çark', 'İlk Sızıntı',
+        'Kapağı Aç', 'Buzun Altında Su',
+      ],
+    },
   },
   towers: {
     archer: {
