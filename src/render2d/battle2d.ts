@@ -12,7 +12,7 @@ import { changeMapVariant, loadArt } from './assets2d.ts';
 import { autoplayHooks, benchHooks } from './benchScene.ts';
 import { codexEnemyUrl, mountCodex2D } from './codex2d.ts';
 import { specPortraitUrl } from './specArt.ts';
-import { initLocale, t } from '../i18n/index.ts';
+import { t } from '../i18n/index.ts';
 import { heroName, islandName, islandWaveTitle } from '../i18n/data.ts';
 import { AimOverlay, aimHooks, meleeHooks, towersHooks, zooHooks, ZooLabels, type AimSceneState, type MeleeSceneState } from './debugScenes.ts';
 import { ENEMY_DEFS, ENEMY_TYPES } from '../data/enemies.ts';
@@ -24,20 +24,19 @@ import { heroLevelProgress, resolveHeroForRun } from './heroes2d.ts';
 import type { HeroHud2D } from './ui/heroHud2d.ts';
 import type { HeroSkillSlot } from '../core/types.ts';
 import type { RunCommand } from './ui/replay2d.ts';
-import { HUD_FONT } from './hudText.ts';
 import {
   detectSoftwareWebGL,
   isDesktopClient,
   MOBILE_SETTLE_GRACE_MS,
   qualityOverride,
   renderResolution,
-  setGraphicsPrefs,
   type QualityTier,
 } from './renderResolution.ts';
 import { setFxPrefs } from './fxLayer.ts';
 import type { GameSettings } from '../core/types.ts';
 import { isTouchDevice, loadSettings } from '../platform/storage.ts';
-import { GRAPHICS_EVENT, graphicsEngineState, loadGraphics, type GraphicsEngineState, type GraphicsSettings } from './ui/graphicsSettings.ts';
+import { GRAPHICS_EVENT, loadGraphics, type GraphicsEngineState, type GraphicsSettings } from './ui/graphicsSettings.ts';
+import { applyPageGraphics, showError } from './bootShared2d.ts';
 import type { AbilityBar2D } from './ui/abilityBar2d.ts';
 import type { AbilityId } from '../core/types.ts';
 import { mapAnimLayer } from './mapAnimLayer.ts';
@@ -47,46 +46,19 @@ import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
 import { mountSettings2D, type Settings2D } from './settingsButton2d.ts';
 import { hudKeepOuts, hudKeepOutsVersion, invalidateSafeInsets, readSafeInsets } from './uiKit.ts';
-import { gateKeepOutsPx, hudButtonsKeepOut, setUserUiScale, userUiScale } from './uiLayout.ts';
+import { gateKeepOutsPx, hudButtonsKeepOut } from './uiLayout.ts';
 import { uiUnit } from './hudDock.ts';
 import { hudCheck } from './hudCheck.ts';
 import { auditCanvasTexts } from './qaText.ts';
 import { anySheetOpen } from './ui/dom.ts';
-import { installNav } from './ui/navFocus.ts';
 import { mountFpsCounter } from './ui/fpsCounter.ts';
 import { islandMapUrl } from './ui/islandArt.ts';
 import { dismissBoot, setBootArtwork, setBootProgress, navigateWithVeil, pickLoadTip, setBootText, setBootTip } from './ui/transition2d.ts';
 
 /**
- * 2d.html entry — the painted 2D renderer (Pixi v8) on the real sim.
- *   (no params)       the title screen once per session (titleScreen.ts; ?title=1 forces it, ?title=0 or
- *                     an automated browser skips it), then the world map (island select, briefing,
- *                     Workshop / Logbook / Daily / Settings);
- *                     map QA: ?screen=brief|workshop|logbook|daily|settings|store, ?mockislands=N,
- *                     ?store=<id> (store card for a paid island), ?iapmock=1 (mock store, mobile scope)
- *   ?level=l1c        play an island (deep link, skips the map; any debug param below defaults to l1c)
- *   &intro=1          show the island's story panels first (once; the map adds it on a first play)
- *   ?story=intro|outro QA: force the story panels (intro on load, outro after a win)
- *   ?ab=1             enemy-animation A/B showcase (no combat)
- *   ?bench=150        stress scene: ~N enemies, towers on every plot, window.__bench stats
- *   ?autoplay=1       plays the greedy build script and auto-calls waves
- *   ?raider=veo31q    raider walk-cycle variant (default omni12; `cheap` = procedural)
- *   ?codex=1          opens the codex (painted art) on load; a Codex button is always top-left
- *   ?artcheck=1       overlay: which manifest art files are present / missing (and the stand-ins)
- *   ?zoo=1[&types=a,b]  all 26 enemy types (or only `types`) walking, specials triggered periodically (labelled)
- *   ?towers=1[&tier=N] every tower type built and firing (cycles T1-T3 unless tier is given)
- *   ?towers=aim&type=cannon|archer|ballista|mortar[&tier=N]  turret aim QA (window.__aim, aim overlay)
- *   ?melee=1[&tier=N][&types=a,b][&plot=N][&die=1][&kill=1][&crowd=N]  barracks melee QA
- *                     (window.__meleeScene; with &manual=1 the game only advances through
- *                     window.__meleeScene.step(frames), for frame-exact captures)
- *   ?speed=2|3|4      start at 2× / 3× / 4× sim speed (QA recordings)
- *   ?end=won|lost     force the end panel shortly after load (UI QA)
- *   ?mapmips=1        QA: draw the map texture mipmapped (default: resolution variant, no mips)
- *   &settings=1       open the in-game Settings on load (a language switch reloads with it)
- *   &settab=general|audio|graphics|controls   the Settings section it opens on (QA; map too)
- *   ?desktop=1|0      QA: force the desktop / phone render-resolution policy (renderResolution.ts)
- *   ?hero=<id>|none   run with that hero (or none); &herolevel=1..20 forces its level (QA)
- *   &herosel=1        QA: start with the hero selected (move mode)
+ * The battle half of 2d.html (every `?level=` / debug scene; the URL parameters are listed in
+ * main2d.ts). Loaded on demand by the entry, so the title screen and world map never fetch Pixi,
+ * the sim or the battle layers (docs/handoff-perf.md).
  */
 interface BenchStats {
   readonly fps: number;
@@ -197,27 +169,11 @@ declare global {
   }
 }
 
-/**
- * Settings → Graphics into the renderer (resolution / tier lock, effects density, reduced-motion
- * flashes) and the page (reduced-motion class). Returns the engine state for the ticker cap.
- */
+/** Settings → Graphics: the page half (bootShared2d.ts) plus the battle's effects density. */
 function applyGraphics(g: GraphicsSettings, quality: GameSettings['quality'], desktop: boolean): GraphicsEngineState {
-  const engine = graphicsEngineState(quality, g, desktop);
-  setGraphicsPrefs(engine.prefs);
+  const engine = applyPageGraphics(g, quality, desktop);
   setFxPrefs(engine.fx);
-  document.documentElement.classList.toggle('pu-reduce-motion', g.reducedMotion);
-  applyUiScale(g.uiScale);
   return engine;
-}
-
-/** Interface size: the CSS unit (`--ui-scale`) and the HUD layout math (uiLayout.ts) together. */
-function applyUiScale(k: number): void {
-  if (k === userUiScale() && document.documentElement.style.getPropertyValue('--ui-scale') === String(k)) return;
-  const changed = k !== userUiScale();
-  setUserUiScale(k);
-  document.documentElement.style.setProperty('--ui-scale', String(k));
-  // Everything laid out from the screen size (map fit, HUD dock, boards) lays out again.
-  if (changed) requestAnimationFrame(() => window.dispatchEvent(new Event('resize')));
 }
 
 /** Pixi skips a frame that comes a hair early: leave 8% slack so a 60 cap keeps every 60 Hz frame. */
@@ -247,79 +203,20 @@ function countDrawCalls(gl: WebGLRenderingContext | WebGL2RenderingContext | und
   };
 }
 
-function showError(msg: string): void {
-  const el = document.getElementById('boot');
-  if (el) el.textContent = msg;
+/** What the entry (main2d.ts) hands over: the boot it already did before the battle loaded. */
+export interface BattleBoot {
+  readonly fontsReady: Promise<unknown>;
+  readonly desktop: boolean;
+  readonly gfx: GraphicsSettings;
+  readonly engine: GraphicsEngineState;
 }
 
-/** Query keys that start a game scene; without any of them 2d.html opens the world map. */
-const GAME_PARAMS = ['level', 'hero', 'daily', 'challenge', 'endless', 'ab', 'bench', 'autoplay', 'raider', 'codex', 'artcheck', 'zoo', 'towers', 'melee', 'speed', 'end', 'mapmips'] as const;
-
-/**
- * Language first (before any text is built): `?lang=`, the stored setting, else the browser. The
- * boot line and the page title follow it, and the Turkish letters Fredoka lacks (ğ ş İ, served by
- * the 'Fredoka TR' faces of ui/fredokaTr.css) are fetched up front, so canvas text never falls
- * back to another font for them.
- */
-function bootLocale(): Promise<unknown> {
-  initLocale();
-  document.title = t('page.title');
-  setBootText(t('boot.loading'));
-  return Promise.all([
-    document.fonts.load(`700 32px ${HUD_FONT}`, 'Aa'), // i18n-ignore (font probe)
-    document.fonts.load(`700 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
-    document.fonts.load(`600 32px ${HUD_FONT}`, 'ğşıİçöüĞŞÇÖÜ'),
-  ]).catch(() => undefined);
-}
-
-/** The title screen in front of the world map (titleScreen.ts); the map mounts on Continue / New game. */
-async function runTitleScreen(q: URLSearchParams, title: typeof import('./ui/titleScreen.ts')): Promise<void> {
-  dismissBoot();
-  const { screen, done } = title.runTitle(q, {
-    openMap: async () => {
-      const { mountWorldMap } = await import('./ui/worldMap.ts');
-      await mountWorldMap(q);
-    },
-    openSettings: (onClose) => {
-      void import('./ui/metaScreens.ts').then(({ openSettings }) =>
-        openSettings({ levels: LEVELS_2D, onChange: () => undefined, onClose, reloadTo: '?title=1&titleopen=settings' }),
-      );
-    },
-    openCredits: (onClose) => {
-      void import('./ui/credits2d.ts').then(({ openCredits }) => openCredits(onClose));
-    },
-    confirmNewGame: async () => {
-      const { confirmBoard } = await import('./ui/runControls2d.ts');
-      return confirmBoard({ title: t('title.newTitle'), body: t('title.newBody'), yes: t('title.newYes'), no: t('title.newNo'), testid: 'confirm-newgame' });
-    },
-  });
-  window.__title = screen;
-  await done;
-}
-
-async function main(): Promise<void> {
-  const q = new URLSearchParams(location.search);
-  bootPhase('js-entry');
-  const fontsReady = bootLocale();
-  installNav();
-  // Interface size changes on the map too (the run's own listener re-applies the rest).
-  window.addEventListener(GRAPHICS_EVENT, () => applyUiScale(loadGraphics().uiScale));
-  const desktop = isDesktopClient(q);
-  document.documentElement.classList.toggle('pu-phone', !desktop);
-  let gfx = loadGraphics();
-  let engine = applyGraphics(gfx, loadSettings().quality, desktop);
-  if (!GAME_PARAMS.some((k) => q.has(k))) {
-    await fontsReady;
-    const title = await import('./ui/titleScreen.ts');
-    if (title.shouldShowTitle(q, { seen: title.titleSeen(), automated: navigator.webdriver === true })) {
-      await runTitleScreen(q, title);
-      return;
-    }
-    const { mountWorldMap } = await import('./ui/worldMap.ts');
-    await mountWorldMap(q);
-    dismissBoot();
-    return;
-  }
+/** Runs a battle (or debug scene) for the query `q`; main2d.ts calls this after its own boot. */
+export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise<void> {
+  const { fontsReady, desktop } = boot;
+  let gfx = boot.gfx;
+  let engine = boot.engine;
+  setFxPrefs(engine.fx);
   // A battle is loading: the boot screen names the island and shows a tip.
   const bootLevel = getLevelById(q.get('level') ?? '');
   if (bootLevel && !q.has('bench') && !q.has('ab')) setBootText(t('boot.course', { name: islandName(bootLevel) }));
@@ -1400,8 +1297,3 @@ async function main(): Promise<void> {
   });
   if (window.__p0.textureWarmup().pending > 0) game.setQualityWarmupPending(true);
 }
-
-main().catch((err: unknown) => {
-  console.error(err);
-  showError(t('boot.failed', { msg: err instanceof Error ? err.message : String(err) }));
-});

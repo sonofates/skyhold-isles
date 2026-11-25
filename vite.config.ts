@@ -71,11 +71,16 @@ export default defineConfig({
       },
       output: {
         // three.js (~60% of the JS) changes far less often than game code: its own chunk downloads in
-        // parallel with the app chunk and stays cached across deploys.
-        manualChunks(id) {
-          if (id.includes('/node_modules/three/')) return 'three';
-          if (id.includes('/node_modules/pixi.js/') || id.includes('/node_modules/@pixi/')) return 'pixi';
-          return undefined;
+        // parallel with the app chunk and stays cached across deploys. Pixi likewise (2D only).
+        // Vite's dynamic-import helper gets its own tiny chunk at a higher priority: Pixi's own
+        // lazy imports depend on it, and as a plain `manualChunks` name it was pulled into `pixi`
+        // with them, so the 2D title / world map downloaded all of Pixi just to lazy-load a screen.
+        codeSplitting: {
+          groups: [
+            { name: 'preload', test: /vite\/preload-helper/, priority: 3 },
+            { name: 'three', test: /\/node_modules\/three\//, priority: 2 },
+            { name: 'pixi', test: /\/node_modules\/(pixi\.js|@pixi)\//, priority: 1 },
+          ],
         },
       },
     },

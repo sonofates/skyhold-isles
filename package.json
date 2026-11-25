@@ -17,6 +17,7 @@
     "sim:difficulty": "node --import tsx scripts/difficultySim.ts",
     "sim:items": "node --import tsx scripts/itemSim.ts",
     "qa:bot": "tsx qa/bot/index.ts",
+    "perf:bundle": "node --import tsx scripts/bundleReport.ts",
     "desktop:dev": "npm run build && electron .",
     "desktop:build:linux": "npm run build && electron-builder --config desktop/electron-builder.json --linux AppImage --publish never",
     "desktop:build:win": "npm run build && electron-builder --config desktop/electron-builder.json --win nsis zip --publish never",

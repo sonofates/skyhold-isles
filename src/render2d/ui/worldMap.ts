@@ -25,7 +25,7 @@ import { nextRankCost, WORKSHOP_UPGRADES } from '../../data/workshop.ts';
 import { starWallet, totalCampaignStars } from '../../game/progression.ts';
 import { islandName } from '../../i18n/data.ts';
 import { t } from '../../i18n/index.ts';
-import { readSafeInsets } from '../uiKit.ts';
+import { readSafeInsets } from '../safeInsets.ts';
 import { hardRibbon, showBriefing, type RunChoice } from './briefing.ts';
 import { readMarket2D } from './market2d.ts';
 import { markMarketSeen, marketSeen } from './marketModel.ts';
