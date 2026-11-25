@@ -191,7 +191,20 @@ These are starting values. The Phase 2/3 wave/balance agents should tune them wi
   the road and a tower is veiled.
 
 ## Gate (Node 22, final tree, hermes)
-GATE_RESULTS
+- `npx tsc --noEmit` ✔ · `npm run lint` ✔
+- `npx vitest run`: **148 files passed (2 skipped), 2,008 tests passed, 15 skipped**, including
+  `tests/sim/qaBot.test.ts` (QA bot suite with the new invariants) and the new 32 chapter-five tests.
+- `npm run sim:balance`: **PASSED (53 levels)**. Stdout is 1,365 lines, SHA-256
+  `a875a8d57b8ad4e0476d05eb1417976aa775a359030466dd06606b2708f89ebd`, **byte-identical to the base
+  revision af731ac5** (both run on hermes, same node_modules; driver: `git archive` of the base's
+  `src`, `scripts`, `package.json`, `tsconfig.json` into /tmp, deleted afterwards).
+- `npm run sim:items -- --workers=2`: exit 0, 6 PASS / 0 FAIL in the summary block.
+- `npm run sim:difficulty`: 11 PASS / 0 FAIL.
+- `npm run build` ✔ (the usual Vite ineffective-dynamic-import and chunk-size advisories).
+- Browser QA: `qa/ch5zoo.mjs` (one Chromium, own preview port 4471, stopped afterwards) produced
+  `docs/ch5-shots/zoo-1280x800.jpg`: eclipse shade on (alpha 0.42, timer 3.8 s), both Shadow Halves
+  and 5 Dusk Hounds on the road, the Veilcaster beside a veiled tower (dark ring; 6 towers range-cut
+  by the eclipse). No page or console errors apart from the expected 404s for the pending art.
 
 ## Open / doubtful
 1. **Balance:** all numbers are first guesses against chapter four; no island uses the foes yet.
