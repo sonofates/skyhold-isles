@@ -17,7 +17,7 @@ export const I29 = {
   flightPath: [],
   decorationSeed: 1494,
   startingGold: 405,
-  enemyHpScale: 2.95,
+  enemyHpScale: 2.93,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Cold Hearths', clearBonus: 25, groups: [

@@ -18,7 +18,7 @@ export const I30 = {
   flightPath: [],
   decorationSeed: 1517,
   startingGold: 405,
-  enemyHpScale: 2.42,
+  enemyHpScale: 2.36,
   waveHpGrowth: 0.1,
   waves: [
     { name: 'Brake Shoe', clearBonus: 25, groups: [
@@ -26,7 +26,7 @@ export const I30 = {
     ] },
     { name: 'Red Pennant', clearBonus: 27, groups: [
       group('warden', 4, 1.24, 0, 1), group('brute', 5, 1.08, 0.75),
-      group('mite', 12, 0.29, 2.8, 1),
+      group('mite', 13, 0.29, 2.8, 1),
     ] },
     { name: 'Needles on the Wind', clearBonus: 29, groups: [
       group('draftwing', 4, 0.97), group('kilnback', 5, 1.08, 0.75, 1),

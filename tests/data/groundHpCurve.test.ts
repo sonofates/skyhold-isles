@@ -36,8 +36,8 @@ const baseline = [
   ['i26', 2.31, 6.162879],
   ['i27', 1.62, 4.443197],
   ['i28', 1.98, 5.430574],
-  ['i29', 2.95, 8.091007],
-  ['i30', 2.42, 6.637368],
+  ['i29', 2.93, 8.036153],
+  ['i30', 2.36, 6.472806],
 ] as const;
 
 // Named finale formations have their own HP on top of the story curve.
