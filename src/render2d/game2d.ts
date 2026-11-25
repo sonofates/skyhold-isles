@@ -2179,7 +2179,7 @@ export class Game2D {
         progress: this.replayProgress,
         matched: this.replayMatched,
       },
-      towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode })),
+      towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode, frostSlow: t.frostSlow ?? 0, frozen: t.frostLockTimer ?? 0 })),
       ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), compare: this.ring.compareSpot(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
       hud: this.hud.rects(),
       end: this.end.debug(),

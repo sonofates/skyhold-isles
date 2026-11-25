@@ -38,6 +38,8 @@ export interface ProcTextures {
   readonly star: Texture;
   /** Frosted-tower marker (ice-blue disc with a white six-arm snowflake). */
   readonly ice: Texture;
+  /** Rime Beetle frost patch on the ground: pale blue rime with crystal flecks and a crisp rim. */
+  readonly frost: Texture;
 }
 
 function canvas(w: number, h: number): [HTMLCanvasElement, CanvasRenderingContext2D] {
@@ -377,8 +379,40 @@ export function createProcTextures(): ProcTextures {
     }
   }
 
+  const [frostC, fc] = canvas(256, 256);
+  const fg = fc.createRadialGradient(128, 128, 0, 128, 128, 126);
+  fg.addColorStop(0, 'rgba(236,250,255,0.85)');
+  fg.addColorStop(0.55, 'rgba(206,238,255,0.62)');
+  fg.addColorStop(0.9, 'rgba(170,220,248,0.5)');
+  fg.addColorStop(1, 'rgba(170,220,248,0)');
+  fc.fillStyle = fg;
+  fc.beginPath();
+  fc.arc(128, 128, 126, 0, Math.PI * 2);
+  fc.fill();
+  // Crystal flecks: short white strokes on a fixed golden-angle spiral (deterministic).
+  fc.strokeStyle = 'rgba(255,255,255,0.9)';
+  fc.lineCap = 'round';
+  for (let k = 0; k < 46; k++) {
+    const a = k * 2.399963;
+    const r = 112 * Math.sqrt((k + 0.5) / 46);
+    const x = 128 + Math.cos(a) * r;
+    const y = 128 + Math.sin(a) * r;
+    const len = 4 + (k % 4) * 2;
+    fc.lineWidth = 1.5 + (k % 3) * 0.6;
+    fc.beginPath();
+    fc.moveTo(x - Math.cos(a * 3) * len, y - Math.sin(a * 3) * len);
+    fc.lineTo(x + Math.cos(a * 3) * len, y + Math.sin(a * 3) * len);
+    fc.stroke();
+  }
+  fc.strokeStyle = 'rgba(120,190,235,0.9)';
+  fc.lineWidth = 4;
+  fc.beginPath();
+  fc.arc(128, 128, 121, 0, Math.PI * 2);
+  fc.stroke();
+
   return {
     ice: Texture.from(iceC),
+    frost: Texture.from(frostC),
     wring: Texture.from(wringC),
     orb: Texture.from(orb),
     crater: Texture.from(crater),

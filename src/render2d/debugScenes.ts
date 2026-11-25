@@ -113,8 +113,9 @@ function force(world: SimWorld, e: EnemyEntity, slot: ZooSlot, age: number): voi
       break;
     case 'glacier_warden':
       // Both phases: tower freeze + 3 Rime Beetles each.
-      if (step(1, 6)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
-      else if (step(2, 13)) e.hp = Math.min(e.hp, e.maxHp * 0.31);
+      // Late enough that it has walked well into the map (it is slow).
+      if (step(1, 22)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
+      else if (step(2, 30)) e.hp = Math.min(e.hp, e.maxHp * 0.31);
       break;
     case 'rimebeetle':
       // Dies mid-road: frost patch decal + snowflakes on the towers it covers.

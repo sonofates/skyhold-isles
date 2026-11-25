@@ -504,7 +504,7 @@ export class EnemySpecials {
       if (anim.dustT <= 0) {
         anim.dustT = ICE_TRAIL_SEC;
         const jx = (this.fx.random() - 0.5) * L.shadowR * 1.4;
-        this.fx.spawn('crater', L.px + jx, L.py + 2, L.shadowR * (0.7 + 0.3 * this.fx.random()), 0, 0, 1.4, RIME);
+        this.fx.spawn('puff', L.px + jx, L.py + 2, L.shadowR * (0.5 + 0.25 * this.fx.random()), 0, -4, 1.1, RIME);
         this.fx.spawn('spark', L.px + jx, L.py - 4, 6, 0, -10, 0.5, 0xffffff);
       }
     }

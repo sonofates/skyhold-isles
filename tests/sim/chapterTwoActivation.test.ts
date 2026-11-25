@@ -3,7 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyWin } from '../../src/game/progression.ts';
 import { CAMPAIGN_ORDER } from '../../src/data/chapters.ts';
-import { CHAPTER_ENEMY_DEFS, CHAPTER_ENEMY_MELEE, CHAPTER_ENEMY_TYPES, ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
+import { CHAPTER4_ENEMY_TYPES, CHAPTER_ENEMY_DEFS, CHAPTER_ENEMY_MELEE, CHAPTER_ENEMY_TYPES, ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { getLevelById, LEVELS_2D, registeredChapterIslands } from '../../src/data/levels2d/index.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
 import { DATA_TR } from '../../src/i18n/dataTr.ts';
@@ -95,6 +95,8 @@ describe('the four chapter enemies are fully registered', () => {
 
   it('only the chapter enemies (the ones with painted clips) carry side/death sheets today', () => {
     const withDeath = Object.entries(M.enemies).filter(([, a]) => a.death).map(([k]) => k).sort();
-    expect(withDeath).toEqual([...CHAPTER_ENEMY_TYPES].sort());
+    // Chapter four declares its clips ahead of the art (tinted fallback while pending, see
+    // tests/sim/chapterFourEnemies.test.ts).
+    expect(withDeath).toEqual([...CHAPTER_ENEMY_TYPES, ...CHAPTER4_ENEMY_TYPES].sort());
   });
 });

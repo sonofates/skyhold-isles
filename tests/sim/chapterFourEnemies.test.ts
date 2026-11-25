@@ -1,3 +1,5 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { EnemyType, TowerType } from '../../src/core/types.ts';
 import { EventBus } from '../../src/core/eventBus.ts';
@@ -14,6 +16,11 @@ import type { LevelDef } from '../../src/data/levels/types.ts';
 import { I16 } from '../../src/data/levels2d/i16.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
 import { towerStats } from '../../src/data/towers.ts';
+import { DATA_TR } from '../../src/i18n/dataTr.ts';
+import { resolveEnemyType } from '../../src/render2d/artResolve.ts';
+import { enemyArtFor, parseManifest } from '../../src/render2d/manifest.ts';
+import { ENEMY_LORE } from '../../src/ui/content/codexData.ts';
+import { ENEMY_BADGE_META, ENEMY_ICON_SVGS } from '../../src/ui/icons.ts';
 import type { EnemyEntity, TowerEntity } from '../../src/sim/entities.ts';
 import { computeSimStateHash } from '../../src/sim/replay.ts';
 import { buildEndlessWaveDef, ENDLESS_CHAPTER4_SPOTLIGHTS, hasChapterFourEnemies } from '../../src/sim/waveSystem.ts';
@@ -24,6 +31,9 @@ const RIME = CHAPTER4_ENEMY_DEFS.rimebeetle.ability;
 const GUARD = CHAPTER4_ENEMY_DEFS.sledguard.ability;
 const GLACIER = CHAPTER4_ENEMY_DEFS.glacier_warden.ability;
 const noop = (): void => {};
+const ROOT = resolve(import.meta.dirname, '../..');
+const M = parseManifest(JSON.parse(readFileSync(resolve(ROOT, 'public/art2d/manifest.json'), 'utf8')) as Record<string, unknown>);
+const onDisk = (p: string): boolean => existsSync(resolve(ROOT, 'public/art2d', p));
 
 /** A 2D plot island (I16) with every plot built as `type` and plenty of gold. */
 function plotWorld(type: TowerType = 'archer', plots = Infinity) {
@@ -59,6 +69,34 @@ describe('chapter four roster wiring', () => {
     // Bestiary order: ordinary foes before the bosses, the bosses last.
     if (ENEMY_DEFS[type].isBoss) expect(ENEMY_TYPES.indexOf(type)).toBeGreaterThan(ENEMY_TYPES.indexOf('tempest'));
     else expect(ENEMY_TYPES.indexOf(type)).toBeLessThan(ENEMY_TYPES.indexOf('tempest'));
+  });
+
+  it.each(CHAPTER4_ENEMY_TYPES)('%s: codex lore, HUD badge + glyph and Turkish text', (type) => {
+    expect(ENEMY_LORE[type].blurb.length).toBeGreaterThan(10);
+    expect(ENEMY_LORE[type].counter).toBe(CHAPTER4_ENEMY_DEFS[type].counterHint);
+    expect(ENEMY_BADGE_META[type].label).toBeTruthy();
+    expect(ENEMY_ICON_SVGS[type]).toContain('<svg');
+    expect(DATA_TR.enemies[type]?.name).toBeTruthy();
+    expect(DATA_TR.enemies[type]?.desc).toBeTruthy();
+    expect(DATA_TR.enemies[type]?.counter).toBeTruthy();
+  });
+
+  it.each(CHAPTER4_ENEMY_TYPES)('%s: own manifest art; a tinted placeholder until the files land, then its own', (type) => {
+    expect(enemyArtFor(M, type, false).art).toBe(type);
+    const art = M.enemies[type];
+    expect(art.file).toBe(`enemy-${type}.webp`);
+    expect(art.sheet?.side).toBe(`anim/${type}-walk-side.json`);
+    expect(art.death).toBe(`anim/${type}-death.json`);
+    expect(art.attack).toBe(`anim/${type}-attack.json`);
+    // Today: whatever is drawn has its front file on disk (own art, or the tinted fallback).
+    const now = resolveEnemyType(M, type, false, onDisk);
+    expect(onDisk(M.enemies[now.key].file), `${type} → ${now.key}`).toBe(true);
+    if (!now.own) {
+      expect(art.fallback).toBeDefined();
+      expect(now.key).toBe(art.fallback!.art);
+    }
+    // Once the painted files exist the real art wins with no code change.
+    expect(resolveEnemyType(M, type, false, () => true)).toMatchObject({ key: type, own: true });
   });
 
   it('the Glacier Warden is boss-class everywhere bosses are special-cased', () => {

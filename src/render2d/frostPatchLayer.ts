@@ -3,7 +3,6 @@ import type { FrostPatch } from '../sim/enemySystem.ts';
 import type { MapView } from './mapView.ts';
 import type { ProcTextures } from './procTextures.ts';
 
-const FROST_DISC = 0xcfefff;
 const FROST_RIM = 0x9fdcff;
 const FROST_CORE = 0xe8f8ff;
 
@@ -15,9 +14,9 @@ interface PatchView {
 
 /**
  * Rime Beetle frost patches, drawn from the sim's patch slots every frame (state-driven, so a
- * replay seek, a skip or the run end can never leave a stale decal): a pale frost disc covering
- * the whole radius that slows towers, a crisp rim at that radius and a bright rime splat where the
- * beetle fell. Everything fades out over the last 40 % of the patch's life.
+ * replay seek, a skip or the run end can never leave a stale decal): a pale rime disc covering
+ * the whole radius that slows towers (procTextures `frost`), a pulsing rim at that radius and a
+ * bright glint where the beetle fell. Everything fades out over the last 40 % of the patch's life.
  */
 export class FrostPatchLayer {
   private readonly views: PatchView[] = [];
@@ -38,15 +37,14 @@ export class FrostPatchLayer {
   private view(i: number): PatchView {
     let v = this.views[i];
     if (v) return v;
-    const disc = new Sprite(this.tex.rangeDisc);
+    const disc = new Sprite(this.tex.frost);
     const rim = new Sprite(this.tex.wring);
-    const core = new Sprite(this.tex.crater);
+    const core = new Sprite(this.tex.orb);
     for (const s of [disc, rim, core]) {
       s.anchor.set(0.5);
       s.visible = false;
       this.root.addChild(s);
     }
-    disc.tint = FROST_DISC;
     rim.tint = FROST_RIM;
     core.tint = FROST_CORE;
     v = { disc, rim, core };
@@ -77,14 +75,14 @@ export class FrostPatchLayer {
       v.disc.visible = v.rim.visible = v.core.visible = true;
       v.disc.position.set(px, py);
       v.disc.scale.set((rx * 2) / v.disc.texture.width, (ry * 2) / v.disc.texture.height);
-      v.disc.alpha = 0.5 * fade;
+      v.disc.alpha = 0.8 * fade;
       v.rim.position.set(px, py);
       v.rim.scale.set((rx * 2) / v.rim.texture.width, (ry * 2) / v.rim.texture.height);
-      v.rim.alpha = (0.75 + 0.15 * Math.sin(this.time * 5 + i)) * fade;
+      v.rim.alpha = (0.55 + 0.15 * Math.sin(this.time * 5 + i)) * fade;
       v.core.position.set(px, py);
-      const cr = ppu * 1.1;
+      const cr = ppu * 0.9;
       v.core.scale.set((cr * 2) / v.core.texture.width, (cr * 1.3) / v.core.texture.height);
-      v.core.alpha = 0.7 * fade;
+      v.core.alpha = 0.6 * fade;
       drawn++;
     }
     this.drawn = drawn;
