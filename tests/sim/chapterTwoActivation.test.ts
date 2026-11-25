@@ -93,8 +93,8 @@ describe('the four chapter enemies are fully registered', () => {
     }
   });
 
-  it('only the chapter enemies (the ones with painted clips) carry side/death sheets today', () => {
+  it('registers the painted death clips for the chapter three and four enemies', () => {
     const withDeath = Object.entries(M.enemies).filter(([, a]) => a.death).map(([k]) => k).sort();
-    expect(withDeath).toEqual([...CHAPTER_ENEMY_TYPES].sort());
+    expect(withDeath).toEqual([...CHAPTER_ENEMY_TYPES, 'rimebeetle', 'sledguard', 'glacier_warden'].sort());
   });
 });

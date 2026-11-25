@@ -1,0 +1,12 @@
+{
+ "frameW": 240,
+ "frameH": 184,
+ "count": 6,
+ "cols": 6,
+ "fps": 12,
+ "anchor": [
+  120,
+  176
+ ],
+ "image": "glacier_warden-walk-up.webp"
+}

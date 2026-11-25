@@ -1533,6 +1533,72 @@
    ],
    "facing": "right",
    "shadow": 0.32
+  },
+  "rimebeetle": {
+   "mode": "sheet",
+   "file": "enemy-rimebeetle.webp",
+   "back": "enemy-rimebeetle-back.webp",
+   "sheet": {
+    "down": "anim/rimebeetle-walk-down.json",
+    "up": "anim/rimebeetle-walk-up.json",
+    "side": "anim/rimebeetle-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.0
+   },
+   "attack": "anim/rimebeetle-attack.json",
+   "death": "anim/rimebeetle-death.json",
+   "height": 1.45,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 0.42
+  },
+  "sledguard": {
+   "mode": "sheet",
+   "file": "enemy-sledguard.webp",
+   "back": "enemy-sledguard-back.webp",
+   "sheet": {
+    "down": "anim/sledguard-walk-down.json",
+    "up": "anim/sledguard-walk-up.json",
+    "side": "anim/sledguard-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.5
+   },
+   "attack": "anim/sledguard-attack.json",
+   "death": "anim/sledguard-death.json",
+   "height": 1.42,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 0.48
+  },
+  "glacier_warden": {
+   "mode": "sheet",
+   "file": "enemy-glacier_warden.webp",
+   "back": "enemy-glacier_warden-back.webp",
+   "sheet": {
+    "down": "anim/glacier_warden-walk-down.json",
+    "up": "anim/glacier_warden-walk-up.json",
+    "side": "anim/glacier_warden-walk-side.json",
+    "facing": "right",
+    "facingUp": "right",
+    "stride": 1.8
+   },
+   "attack": "anim/glacier_warden-attack.json",
+   "death": "anim/glacier_warden-death.json",
+   "height": 3.36,
+   "anchor": [
+    0.5,
+    0.9565
+   ],
+   "facing": "right",
+   "shadow": 0.95
   }
  },
  "enemyMap": {
@@ -1562,7 +1628,10 @@
   "bellrunner": "bellrunner",
   "kilnback": "kilnback",
   "reedpiper": "reedpiper",
-  "draftwing": "draftwing"
+  "draftwing": "draftwing",
+  "rimebeetle": "rimebeetle",
+  "sledguard": "sledguard",
+  "glacier_warden": "glacier_warden"
  },
  "plot": {
   "file": "plot-base.webp",
