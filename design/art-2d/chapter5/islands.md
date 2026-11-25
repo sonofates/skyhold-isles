@@ -73,3 +73,15 @@ Original storybook gouache adventure illustration, wide 3:2 landscape, intimate 
 ### story-i39-outro-1
 
 Original storybook gouache adventure illustration, wide 3:2 landscape, intimate expressive people with practical workwear, tangible brushwork, layered silhouettes, violet-indigo dusk and pockets of warm copper lantern light. No text, border or UI. The grove keeper peers through a gap in the black leaves. Beyond her luminous shelf mushrooms a star has fallen; a far crater in violet clouds burns copper gold. Her face warmly lit from below.
+
+## Starfall Crater, Sundial Ruins and Chainward Bastion
+
+ImageGen supplied three original overhead gouache terrain paintings, three transparent scenery sheets, three road materials and six story illustrations. Each sheet has an east-facing gate in the upper left, separate props in the upper right and lower left, and the chart miniature in the lower right. The chart icons use a 512 × 512 transparent canvas. The campaign recipe mirrors the gate when a lane heads west.
+
+| Island | Terrain and scenery direction | Road material direction | Intro and outro painting direction |
+| --- | --- | --- | --- |
+| i40 | Embed a blue-silver meteor with orange fissures in the north rim. Break the ash plain with impact furrows and cut mining galleries along the lower cliff. Give the basalt adit a yellow lantern. Place an ore sieve and a loaded assay cart at opposite bends. | Pack warm grey cinders into scoured ridges with dark scoria and scattered pale blades of star-metal. The final swatch uses broad ridges and short, bright slivers. Feather patches and shoulders along the switchback. | A silver-haired assayer lifts a sample pan as a veil steals the lamplight. In the second panel, the filings point from her cloth towards the ruined dial. |
+| i41 | Centre a split limestone dial and triangular brass gnomon in a roofless blue-green court. Ring the court with fallen hour niches and mossy columns. A sextant and a lamp with calibrated rods flank the two processions. | Paint warm, cracked limestone flagstones with dark teal joints. The road plate carries the gnomon's tapering shadow across the southern approach. | A braided astronomer measures the long shadow at night. When she sets a meteor sliver into the brass sight, a ray strikes the sign of a chain link. |
+| i42 | Wind heavy anchor chain around a flanged bronze wheel on the north battlement. Paint a quench trough between the lower counterweights, with forge scale over the yard. Riveted posterns, a ratchet winch and a rivet basket furnish the firing lanes. | Lay broad staggered iron plates with paired copper rivets, rusted edges, dark seams and cool reflected light. | A chainwright braces the pawl under load. In the second panel he seats the star-metal pin and the lanterns along the taut chain lead to the First Forge. |
+
+The source kit also holds the buildable-ground masks and the aligned sundial paving plate. Running the compositor from these assets preserves the shadow crossing and the material scale at each map resolution.

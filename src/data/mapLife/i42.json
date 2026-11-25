@@ -1,0 +1,4 @@
+{
+  "island": "i42",
+  "heatHaze": { "mask": "life/i42-haze.webp", "strength": 0.47, "dir": [0.12, -0.99], "speed": 0.88, "warmth": 0.015 }
+}

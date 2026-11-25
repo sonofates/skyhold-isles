@@ -197,6 +197,33 @@ export const DATA_TR: DataTr = {
         'Kül Yağmuru', 'Son Kor',
       ],
     },
+    i40: {
+      name: 'Yıldız Düşüğü', subtitle: 'Ayar ustası yıldız madenini ayıklarken kül kıvrımını tut. Uzun menzilli kuleler örtünün ötesine erişebilir.',
+      waves: [
+        'İlk Örtü', 'Döküntü Tazıları', 'Numune Tavaları', 'Düşüş Hattı',
+        'Tavadaki Parıltı', 'Mavi Korlar', 'Cam Damarı', 'Kayan Şist',
+        'Elenmiş Gümüş', 'Kararan Lamba', 'Demir Yağmuru', 'İkinci Çarpışma',
+        'Elekteki Işık', 'Ayar Ateşi', 'Kraterin Kalbi',
+      ],
+    },
+    i41: {
+      name: 'Güneş Saati Harabesi', subtitle: 'İki alay kırık saatin çevresini dolanıyor. Saat yollarının kavuştuğu batı kemerini tut.',
+      waves: [
+        'İlk Ölçüm', 'Doğu Nişleri', 'Pirinç Nişangâh', 'Kısa Saat',
+        'Yosunlu Kadran', 'Alacakaranlık Ölçüsü', 'Eksik İşaret', 'Öğle Gölgesi',
+        'Yarım Dönüş', 'Kör Dakika', 'Kırık Taksimat', 'Denge Taşları',
+        'Alçalan Güneş', 'İkiz Gölgeler', 'On Beşinci Saat',
+      ],
+    },
+    i42: {
+      name: 'Zincir Burcu', subtitle: 'İki yan kapı çapa avlusuna açılıyor. Son kilit dişi kurtulmadan çarka çıkan dönemeci savun.',
+      waves: [
+        'Mandala Asıl', 'Gevşek Zincir', 'Çapa Yatağı', 'Perçin Maşası',
+        'Avlu Geçişi', 'Yük Denemesi', 'İşaret Çekici', 'Kopan Diş',
+        'Soğutma Teknesi', 'Sallanan Halka', 'Demir Pulu', 'Ölü Ağırlık',
+        'Pimi Çek', 'Tam Gerilim', 'Son Kilit Dişi',
+      ],
+    },
   },
   towers: {
     archer: {

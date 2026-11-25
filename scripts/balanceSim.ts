@@ -537,6 +537,9 @@ function islandLossWindow(index: number, id: string): readonly [number, number] 
   if (id === 'i37') return [14, 16];
   if (id === 'i38') return [15, 17];
   if (id === 'i39') return [16, 18];
+  if (id === 'i40') return [18, 20];
+  if (id === 'i41') return [19, 21];
+  if (id === 'i42') return [20, 21];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
