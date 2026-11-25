@@ -83,7 +83,7 @@ import random
 import sys
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFilter
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import numpy as np  # noqa: E402
@@ -797,6 +797,8 @@ if 'branchMaterial' in dressing:
     ImageDraw.Draw(branch).line([P(p) for p in first], fill=255, width=round(rw * 1.6), joint='curve')
     dirt = Image.composite(branch_paint, dirt, branch.filter(ImageFilter.GaussianBlur(rw * 0.1)))
     del branch_paint, branch
+if 'roadSaturation' in dressing:
+    dirt = ImageEnhance.Color(dirt).enhance(dressing['roadSaturation'])
 if dressing.get('snowShoulders'):
     ground = Image.composite(dirt, ground, windblown_road_coverage(road_mask, S, SEED + 51))
 elif dressing.get('dustyShoulders'):
