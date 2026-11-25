@@ -379,7 +379,7 @@ describe('IAP store adapter: native RevenueCat bridge', () => {
       }),
     };
 
-    const store = createIapStore({ platform, storage, nativeBridge });
+    const store = createIapStore({ platform, mode: 'native', storage, nativeBridge });
     const prods = await store.products();
     expect(prods).toEqual([
       {

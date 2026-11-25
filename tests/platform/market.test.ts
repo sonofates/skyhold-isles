@@ -441,7 +441,7 @@ describe('mobile crystal receipts & IAP grant idempotency', () => {
     const { native, tx } = bridge();
     const p = mobile();
     setPlatformAdapter(p);
-    const iap = createIapStore({ platform: p, nativeBridge: native, storage });
+    const iap = createIapStore({ platform: p, mode: 'native', nativeBridge: native, storage });
     setIapStore(iap);
     expect((await listCrystalPacks())[0]).toMatchObject({ id: pack, kind: 'consumable', priceString: 'Store price' });
     expect((await purchaseCrystalPack(pack)).status).toBe('pending_delivery');
