@@ -252,9 +252,11 @@ for _i, _e in enumerate(L['entrances']):
     _f = entrance_facing(raw_paths[_i])
     _kind = dressing.get('entranceArt', {}).get(_e['id'], 'cave')
     _prop, _file, _flip = resolve_prop(_kind, _f, asset_file)
-    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit),
+    # The citadel's main arch and its smaller sally ports share a road width.
+    _height = ROAD_W * dressing.get('entranceHeights', {}).get(_e['id'], CAVE_H)
+    _g = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, _height, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit),
                     seat=CAVE_SEAT)
-    _gx = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, ROAD_W * CAVE_H, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
+    _gx = place_gate(load(_file), _flip, (_e['x'], _e['y']), _f, _height, ROAD_W * GATE_INSET, entrance_dir(raw_paths[_i]), fit_opening=bool(kit))
     GATES.append({'role': 'entrance', 'lane': _i, 'id': str(_e['id']), 'prop': _prop, 'facing': _f, 'g': _g, 'g_exit': _gx})
 LANDMARKS = []  # (name, layout x centre, layout y bottom, layout height)
 mill = opt('--windmill', '1609,298,2.7')

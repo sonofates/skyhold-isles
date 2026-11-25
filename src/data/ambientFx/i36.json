@@ -1,0 +1,10 @@
+{
+  "island": "i36",
+  "maxParticles": 10,
+  "glows": [
+    { "id": "court-brazier", "x": 971, "y": 663, "rx": 21, "ry": 23, "color": "#ffa14b", "minAlpha": 0.07, "maxAlpha": 0.28, "speed": 1.4, "phase": 0.7 }
+  ],
+  "zones": [
+    { "id": "battlement-spindrift", "kind": "mist", "rect": [664, 708, 432, 34], "rate": 0.8, "color": "#dbf2ff", "color2": "#c0d7ee", "size": 64, "drift": [-26, 6], "life": 3.8, "alpha": 0.14 }
+  ]
+}

@@ -33,6 +33,8 @@ interface WaveStatRow {
   livesByType: Partial<Record<EnemyType, number>>;
   /** Rime Beetle frost, summed over the attack towers' fire cycles while the wave runs. */
   frost: FrostTally;
+  frozenTowers: number[];
+  bossSummons: number;
 }
 
 /**
@@ -265,9 +267,14 @@ export function runLevelBalanceSim(
       leaksByType: {},
       livesByType: {},
       frost: { towerSec: 0, lostSec: 0, slowedSec: 0 },
+      frozenTowers: [],
+      bossSummons: 0,
     };
     waveRows.push(activeWaveRow);
   });
+
+  events.on('towerFrozen', ev => activeWaveRow?.frozenTowers.push(ev.towerId));
+  events.on('bossSummon', ev => { if (activeWaveRow) activeWaveRow.bossSummons += ev.count; });
 
   events.on('enemyKilled', (ev) => {
     goldEarned += ev.reward;
@@ -485,6 +492,9 @@ function islandLossWindow(index: number, id: string): readonly [number, number] 
   // The second Frostveil leg climbs past Pinewhite's thirteen lost lives.
   if (id === 'i32') return [14, 16];
   if (id === 'i33') return [15, 17];
+  if (id === 'i34') return [16, 18];
+  if (id === 'i35') return [18, 20];
+  if (id === 'i36') return [20, 21];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
@@ -726,6 +736,13 @@ export function evaluateBalance(
       }
       if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
         failures.push(`${label} weak must lose with the campaign kit`);
+      }
+      if (level.id === 'i36') {
+        const last = greedyRes.waves.at(-1);
+        if (!last || last.waveNumber !== level.waves.length || new Set(last.frozenTowers).size !== 2 ||
+            last.bossSummons !== 6 || last.leaksByType.glacier_warden) {
+          failures.push('i36 must defeat the Glacier Warden after it freezes two different towers and summons six beetles');
+        }
       }
       if (level.id === 'i24' && (greedyRes.waves.at(-1)?.livesLost ?? 0) < 3) {
         failures.push('i24 greedy must lose at least 3 lives during the Tempest wave');

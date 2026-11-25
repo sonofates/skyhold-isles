@@ -27,6 +27,14 @@ ICE = {
             [(1198, 532), (1430, 434), (1516, 445), (1448, 514), (1240, 557)]],
     'i33': [[(0, 488), (240, 529), (442, 608), (625, 656), (753, 768),
              (723, 851), (0, 851)]],
+    # Stepped mineral pools, two crystal galleries, and the ice at the outer battlements.
+    'i34': [[(242, 751), (557, 718), (664, 695), (1003, 687), (1261, 732),
+             (1537, 740), (1504, 798), (1152, 793), (940, 850), (690, 850), (685, 795), (272, 795)]],
+    'i35': [[(0, 0), (486, 0), (464, 102), (89, 180), (0, 162)],
+            [(1228, 0), (1845, 0), (1818, 118), (1510, 153), (1198, 116)],
+            [(1126, 765), (1569, 690), (1845, 594), (1845, 850), (1084, 850)]],
+    'i36': [[(0, 711), (268, 716), (607, 755), (876, 768), (974, 827),
+             (900, 851), (0, 851)], [(1384, 743), (1694, 721), (1845, 675), (1845, 851), (1410, 851)]],
 }
 
 
@@ -43,6 +51,12 @@ def bake(island, recipe):
     clear = ImageChops.darker(clear, Image.fromarray(np.uint8(np.asarray(difference).max(axis=2) < 39) * 255))
     r, g, b = np.asarray(plate, dtype=np.int16).transpose(2, 0, 1)
     land = Image.open(KIT / recipe['dressingMask']).convert('L')
+    if island == 'i34':
+        # The spring terraces are warm. The larger snowdrifts lie outside the buildable apron.
+        drift = ImageDraw.Draw(land)
+        drift.polygon([(0, 480), (198, 447), (267, 482), (180, 554), (296, 587),
+                      (243, 665), (0, 677)], fill=255)
+        drift.polygon([(1554, 307), (1780, 243), (1845, 275), (1845, 376), (1674, 384)], fill=255)
     ice = Image.new('L', size)
     for region in ICE[island]:
         ImageDraw.Draw(ice).polygon(region, fill=255)

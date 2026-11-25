@@ -33,12 +33,14 @@ it.each(CHAPTER4_ISLANDS)('$id uses its shipping chapter roster, wave count and 
   if (level.id !== 'i28') roster.add('rimebeetle');
   expect(LEVELS_2D.filter(l => l.id === level.id)).toEqual([level]);
   expect(level.difficulty).toBe('Master');
-  const secondBatch = ['i31', 'i32', 'i33'].includes(level.id);
-  if (secondBatch) roster.add('sledguard');
-  expect(level.waves).toHaveLength(secondBatch ? 14 : 13);
+  const thirteenWaves = ['i28', 'i29', 'i30'].includes(level.id);
+  if (!thirteenWaves) roster.add('sledguard');
+  if (level.id === 'i36') roster.add('glacier_warden');
+  const fifteenWaves = ['i35', 'i36'].includes(level.id);
+  expect(level.waves).toHaveLength(thirteenWaves ? 13 : fifteenWaves ? 15 : 14);
   const groups = level.waves.flatMap(w => w.groups);
   for (const g of groups) expect(roster.has(g.enemyType), g.enemyType).toBe(true);
-  expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.id === 'i32' ? [0] : [0, 1]));
+  expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.layout2d.entrances.map((_, lane) => lane)));
 });
 
 it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {

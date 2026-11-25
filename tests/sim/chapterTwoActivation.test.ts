@@ -22,8 +22,8 @@ const CHAPTER = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'];
 describe('chapter two is in the shipping campaign', () => {
   it('LEVELS_2D registers every shipping island exactly once, in chapter order', () => {
     const ids = LEVELS_2D.map((l) => l.id);
-    expect(ids).toHaveLength(34);
-    expect(new Set(ids)).toEqual(new Set(['l1c', ...Array.from({ length: 33 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)]));
+    expect(ids).toHaveLength(37);
+    expect(new Set(ids)).toEqual(new Set(['l1c', ...Array.from({ length: 36 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)]));
     expect(ids).toEqual(CAMPAIGN_ORDER.filter((id) => getLevelById(id) !== null));
     expect(registeredChapterIslands().map((l) => l.id)).toEqual(CHAPTER);
     for (const id of CHAPTER) expect(getLevelById(id)).toBe(LEVELS_2D[ids.indexOf(id)]);
