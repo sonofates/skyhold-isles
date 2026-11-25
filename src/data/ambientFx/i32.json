@@ -1,0 +1,8 @@
+{
+  "island": "i32",
+  "maxParticles": 8,
+  "glows": [
+    { "id": "lens-reflection", "x": 930, "y": 83, "rx": 68, "ry": 40, "color": "#aaffcc", "minAlpha": 0.04, "maxAlpha": 0.20, "speed": 0.72, "phase": 0.8 }
+  ],
+  "zones": []
+}

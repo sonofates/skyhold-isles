@@ -25,18 +25,20 @@ it.each(NEW_ISLANDS)('$id has a Master encounter using its chapter roster and bo
   expect(new Set(waves.flatMap(w => w.groups.map(g => g.lane)))).toEqual(new Set([0, 1]));
 });
 
-// i28 opens the chapter with the older roster only; from i29 on the Rime Beetle joins
-// (docs/handoff-ch4-waves-1.md, tests/sim/chapterFourWaves.test.ts).
-it.each(CHAPTER4_ISLANDS)('$id fields two lanes and thirteen Master waves from the previous chapters (+ the Rime Beetle after i28)', level => {
-  const previous = new Set<string>(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
+// i28 opens the chapter with the older roster only; the Rime Beetle joins from i29
+// (docs/handoff-ch4-waves-1.md) and the Sledge Warden from i31 (docs/handoff-ch4-isles-2.md).
+it.each(CHAPTER4_ISLANDS)('$id uses its shipping chapter roster, wave count and ground lanes', level => {
+  const roster = new Set<string>(LEVELS_2D.filter(l => ['ch1', 'ch2', 'ch3'].includes(chapterOf(l.id)?.id ?? ''))
     .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
-  if (level.id !== 'i28') previous.add('rimebeetle');
+  if (level.id !== 'i28') roster.add('rimebeetle');
   expect(LEVELS_2D.filter(l => l.id === level.id)).toEqual([level]);
   expect(level.difficulty).toBe('Master');
-  expect(level.waves).toHaveLength(13);
+  const secondBatch = ['i31', 'i32', 'i33'].includes(level.id);
+  if (secondBatch) roster.add('sledguard');
+  expect(level.waves).toHaveLength(secondBatch ? 14 : 13);
   const groups = level.waves.flatMap(w => w.groups);
-  for (const g of groups) expect(previous.has(g.enemyType), g.enemyType).toBe(true);
-  expect(new Set(groups.map(g => g.lane))).toEqual(new Set([0, 1]));
+  for (const g of groups) expect(roster.has(g.enemyType), g.enemyType).toBe(true);
+  expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.id === 'i32' ? [0] : [0, 1]));
 });
 
 it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {
