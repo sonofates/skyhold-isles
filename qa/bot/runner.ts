@@ -1,6 +1,6 @@
 import { EventBus } from '../../src/core/eventBus.ts';
 import { BALANCE } from '../../src/data/balance.ts';
-import { CHAPTER4_ENEMY_TYPES, CHAPTER_ENEMY_TYPES } from '../../src/data/enemies.ts';
+import { CHAPTER4_ENEMY_TYPES, CHAPTER5_ENEMY_TYPES, CHAPTER_ENEMY_TYPES } from '../../src/data/enemies.ts';
 import {
   ReplayCursor,
   runFingerprint,
@@ -8,7 +8,7 @@ import {
   type RecordedCommand,
   type RunReplay,
 } from '../../src/render2d/ui/replay2d.ts';
-import { hasChapterFourEnemies, hasChapterTwoEnemies } from '../../src/sim/waveSystem.ts';
+import { hasChapterFiveEnemies, hasChapterFourEnemies, hasChapterTwoEnemies } from '../../src/sim/waveSystem.ts';
 import {
   parseSimReplay,
   serializeSimReplay,
@@ -48,6 +48,7 @@ export interface ScenarioResult {
 
 const CHAPTER_FOE_SET: ReadonlySet<string> = new Set<string>(CHAPTER_ENEMY_TYPES);
 const CHAPTER4_FOE_SET: ReadonlySet<string> = new Set<string>(CHAPTER4_ENEMY_TYPES);
+const CHAPTER5_FOE_SET: ReadonlySet<string> = new Set<string>(CHAPTER5_ENEMY_TYPES);
 
 function verifyUiReplayCursor(
   scenario: BotScenario,
@@ -174,11 +175,13 @@ function executeOnce(
   const waveHashes: string[] = [];
   let endlessChapterFoesSpawned = 0;
   let endlessChapter4FoesSpawned = 0;
+  let endlessChapter5FoesSpawned = 0;
 
   events.on('enemySpawned', (ev) => {
     if (world.waveSystem.isEndless && world.waveSystem.currentWaveIndex >= scenario.level.waves.length) {
       if (CHAPTER_FOE_SET.has(ev.enemyType)) endlessChapterFoesSpawned++;
       if (CHAPTER4_FOE_SET.has(ev.enemyType)) endlessChapter4FoesSpawned++;
+      if (CHAPTER5_FOE_SET.has(ev.enemyType)) endlessChapter5FoesSpawned++;
     }
   });
 
@@ -352,6 +355,7 @@ function executeOnce(
   if (
     scenario.endlessWaves > 0 &&
     hasChapterFourEnemies(scenario.level) &&
+    !hasChapterFiveEnemies(scenario.level) &&
     world.waveSystem.currentWaveOneBased >= scenario.level.waves.length + 2 &&
     endlessChapter4FoesSpawned === 0
   ) {
@@ -359,6 +363,18 @@ function executeOnce(
       kind: 'wave_never_ends',
       tick,
       message: `Chapter 4 endless waves on ${scenario.level.id} spawned 0 chapter-four enemies across endless waves`,
+    });
+  }
+  if (
+    scenario.endlessWaves > 0 &&
+    hasChapterFiveEnemies(scenario.level) &&
+    world.waveSystem.currentWaveOneBased >= scenario.level.waves.length + 2 &&
+    endlessChapter5FoesSpawned === 0
+  ) {
+    monitor.violations.push({
+      kind: 'wave_never_ends',
+      tick,
+      message: `Chapter 5 endless waves on ${scenario.level.id} spawned 0 chapter-five enemies across endless waves`,
     });
   }
   const stateHash = hashWorldState(world);

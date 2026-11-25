@@ -1,5 +1,5 @@
 import type { EnemyType, TowerType } from '../../core/types.ts';
-import { CHAPTER4_ENEMY_DEFS, CHAPTER_ENEMY_DEFS, type ChapterEnemyType, ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
+import { CHAPTER4_ENEMY_DEFS, CHAPTER5_ENEMY_DEFS, CHAPTER_ENEMY_DEFS, type ChapterEnemyType, ELITE_MODIFIERS, ENEMY_DEFS, ENEMY_TYPES } from '../../data/enemies.ts';
 import { getTowerTierStats, specializationsFor, type TowerSpecializationDef, TOWER_DEFS, TOWER_TYPES } from '../../data/towers.ts';
 import { ELITE_SEEN_ID, enemySeenId, towerSeenId, type SeenId } from '../../platform/contentStorage.ts';
 
@@ -53,6 +53,26 @@ export const ENEMY_LORE: Record<EnemyType | ChapterEnemyType, EnemyLore> = {
     blurb: 'At 66% and 33% health: freezes the nearest tower for 4 s, wakes 3 Rime Beetles.',
     counter: CHAPTER4_ENEMY_DEFS.glacier_warden.counterHint,
     tags: ['Ground', 'Boss', 'Armored'],
+  },
+  duskhound: {
+    blurb: 'Runs in packs. A fallen mate makes the rest 30% faster for 4 s (stacks twice).',
+    counter: CHAPTER5_ENEMY_DEFS.duskhound.counterHint,
+    tags: ['Ground', 'Fast', 'Pack'],
+  },
+  veilcaster: {
+    blurb: 'Every 6 s veils the nearest tower in reach: its range drops 30% for 4 s.',
+    counter: CHAPTER5_ENEMY_DEFS.veilcaster.counterHint,
+    tags: ['Ground', 'Support', 'Range cut'],
+  },
+  eclipse_sovereign: {
+    blurb: 'At 66%: eclipse, towers lose 20% range for 8 s. At 40%: splits in two, calls 4 hounds.',
+    counter: CHAPTER5_ENEMY_DEFS.eclipse_sovereign.counterHint,
+    tags: ['Ground', 'Boss', 'Splits'],
+  },
+  eclipse_shade: {
+    blurb: 'Half of the split Sovereign, with 55% of the health it had left.',
+    counter: CHAPTER5_ENEMY_DEFS.eclipse_shade.counterHint,
+    tags: ['Ground', 'Boss'],
   },
   grunt: {
     blurb: 'Balanced foot soldier marching the road.',
@@ -335,8 +355,9 @@ export function towerEntry(type: TowerType): CodexTowerEntry {
   };
 }
 
+/** Every foe with a codex tile of its own (the Sovereign's Shadow Halves live in its entry). */
 export function allEnemyEntries(): CodexEnemyEntry[] {
-  return ENEMY_TYPES.map(enemyEntry);
+  return ENEMY_TYPES.filter((t) => ENEMY_DEFS[t].partOf === undefined).map(enemyEntry);
 }
 
 export function allTowerEntries(): CodexTowerEntry[] {

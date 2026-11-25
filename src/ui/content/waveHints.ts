@@ -35,12 +35,16 @@ export function airTowerNames(): string {
 /** Hint per enemy type, most urgent first. The first type present in the wave wins. */
 const HINT_ORDER: readonly EnemyType[] = [
   'boss',
+  'eclipse_sovereign',
+  'eclipse_shade',
   'glacier_warden',
   'tempest',
   'hexer',
+  'veilcaster',
   'sledguard',
   'rimebeetle',
   'reedpiper',
+  'duskhound',
   'carrier',
   'draftwing',
   'flyer',
@@ -103,6 +107,13 @@ function hintFor(type: EnemyType): string {
       return 'Sledge shields refreeze when left alone. Tesla and Mortar crack them fast.';
     case 'rimebeetle':
       return 'Rime Beetles leave frost that slows towers. Kill them before your towers.';
+    case 'eclipse_sovereign':
+    case 'eclipse_shade':
+      return 'Final boss. The eclipse shortens tower range; save burst for the split.';
+    case 'veilcaster':
+      return 'Veilcasters shorten a tower\'s range. Long-reach towers hit them first.';
+    case 'duskhound':
+      return 'Hounds speed up when a pack mate falls. Splash or slow the whole pack.';
   }
 }
 

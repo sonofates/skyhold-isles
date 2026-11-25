@@ -366,6 +366,27 @@ export const DATA_TR: DataTr = {
       desc: 'Kırağı Kalesi’nin bekçisi. Canı üçte ikiye ve üçte bire indiğinde en yakın kuleyi buz kesip dondurur ve buzdan üç Kırağı Böceği uyandırır.',
       counter: 'Kuleleri yolun iki yanına yay; kahramanı ve yetenekleri her evreye sakla. Aşırı Şarj donmuş kuleyi çözer.',
     },
+    // Chapter five (Tutulma Gökleri).
+    duskhound: {
+      name: 'Alacakaranlık Tazısı',
+      desc: 'Dörtlü, altılı sürüler halinde avlanır. Bir tazı düşünce yakındaki sürü uluyup birkaç saniye daha hızlı koşar.',
+      counter: 'Sürüyü Havan patlaması ya da Tesla zinciriyle birlikte vur veya yavaşlat. Tazıları tek tek avlamak kalanları hızlandırır.',
+    },
+    veilcaster: {
+      name: 'Örtü Büyücüsü',
+      desc: 'Birkaç saniyede bir, menzilindeki en yakın kuleye karanlık bir örtü atar. Örtülü kulenin menzili bir süre %30 kısalır.',
+      counter: 'İlk hedefin o olsun. Balista ve Havan gibi uzun menzilli kuleler ya da kahraman, onu kendi menzilinin dışından vurur.',
+    },
+    eclipse_sovereign: {
+      name: 'Tutulma Hükümdarı',
+      desc: 'Kararmış göğün son hükümdarı. Canı üçte ikiye inince güneşi tutar ve bütün kulelerin menzili kısalır; beşte ikiye inince iki Gölge Yarısı’na bölünür ve bir Alacakaranlık Tazısı sürüsü çağırır.',
+      counter: 'Patlama hasarını bölünmeye sakla, kuleleri yola yay ve Aşırı Şarj’ı tutulmaya ayır. İki yarı da düşmeden savaş bitmez.',
+    },
+    eclipse_shade: {
+      name: 'Gölge Yarısı',
+      desc: 'Bölünen Tutulma Hükümdarı’nın bir yarısı. İki yarı da düşmeden savaş bitmez.',
+      counter: 'Yarıları teker teker hedef al; sığınağa varan her yarı bir elebaşı gibi can götürür.',
+    },
   },
   tags: {
     Ground: 'Kara',
@@ -382,6 +403,8 @@ export const DATA_TR: DataTr = {
     Boss: 'Elebaşı',
     Frost: 'Ayaz',
     Shielded: 'Kalkanlı',
+    Pack: 'Av sürüsü',
+    'Range cut': 'Menzil kısaltır',
     'Air + Ground': 'Hava + Kara',
     'Single target': 'Tek hedef',
     'Ground only': 'Yalnız kara',

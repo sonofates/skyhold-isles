@@ -10,7 +10,7 @@ import {
   poolWeight,
   type EndlessMutatorEffects,
 } from '../data/endlessMutators.ts';
-import { CHAPTER4_ENEMY_TYPES, CHAPTER_ENEMY_TYPES, ENEMY_DEFS } from '../data/enemies.ts';
+import { CHAPTER4_ENEMY_TYPES, CHAPTER5_ENEMY_TYPES, CHAPTER_ENEMY_TYPES, ENEMY_DEFS } from '../data/enemies.ts';
 import { groundLaneCount, type LevelDef, type WaveDef, type WaveGroupDef } from '../data/levels/index.ts';
 
 export type WaveState =
@@ -130,6 +130,34 @@ export function hasChapterFourEnemies(level: LevelDef): boolean {
   return found;
 }
 
+/**
+ * Chapter-five endless spotlight rotation (Eclipse Skies islands): Dusk Hound packs and Veilcasters
+ * paired with the specialists they combine worst with (veils behind shields and golems, hounds with
+ * healers and hexers), plus a few older foes so the rotation stays varied.
+ */
+export const ENDLESS_CHAPTER5_SPOTLIGHTS: readonly (readonly EnemyType[])[] = [
+  ['duskhound', 'veilcaster'],
+  ['veilcaster', 'sledguard'],
+  ['duskhound', 'healer'],
+  ['rimebeetle', 'veilcaster'],
+  ['duskhound', 'hexer'],
+  ['veilcaster', 'golem'],
+  ['bellrunner', 'duskhound'],
+  ['veilcaster', 'warden'],
+];
+
+const CHAPTER5_STORY_SET: ReadonlySet<string> = new Set<string>(CHAPTER5_ENEMY_TYPES);
+const _chapterFiveLevelCache = new WeakMap<LevelDef, boolean>();
+
+/** True when `level`'s story waves include any chapter-five foe (`duskhound | veilcaster | eclipse_sovereign`). */
+export function hasChapterFiveEnemies(level: LevelDef): boolean {
+  const cached = _chapterFiveLevelCache.get(level);
+  if (cached !== undefined) return cached;
+  const found = level.waves.some((w) => w.groups.some((g) => CHAPTER5_STORY_SET.has(g.enemyType)));
+  _chapterFiveLevelCache.set(level, found);
+  return found;
+}
+
 const ENDLESS_SPOTLIGHT_TUNING: Partial<
   Record<EnemyType, { base: number; perWave: number; max: number; interval: number }>
 > = {
@@ -146,6 +174,9 @@ const ENDLESS_SPOTLIGHT_TUNING: Partial<
   draftwing: { base: 5, perWave: 0.85, max: 20, interval: 0.46 },
   rimebeetle: { base: 3, perWave: 0.6, max: 14, interval: 0.8 },
   sledguard: { base: 2, perWave: 0.4, max: 10, interval: 1.3 },
+  // Hounds come as a tight pack (pack enrage needs mates close by); casters stay few.
+  duskhound: { base: 5, perWave: 0.8, max: 20, interval: 0.45 },
+  veilcaster: { base: 2, perWave: 0.35, max: 8, interval: 1.4 },
 };
 
 /**
@@ -197,8 +228,11 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
 
   // Rotating "spotlight" pair of newer archetypes so every endless wave plays differently.
   const spotlightStart = groups.length;
-  const chapterFour = hasChapterFourEnemies(level);
-  const spotlights = chapterFour
+  const chapterFive = hasChapterFiveEnemies(level);
+  const chapterFour = !chapterFive && hasChapterFourEnemies(level);
+  const spotlights = chapterFive
+    ? ENDLESS_CHAPTER5_SPOTLIGHTS
+    : chapterFour
     ? ENDLESS_CHAPTER4_SPOTLIGHTS
     : hasChapterTwoEnemies(level)
       ? ENDLESS_CHAPTER2_SPOTLIGHTS
@@ -224,9 +258,10 @@ export function buildEndlessWaveDef(waveIndex: number, level: LevelDef): WaveDef
   if ((offset + 1) % 5 === 0) {
     const bossTier = Math.floor(offset / 5);
     // Every second boss wave brings a Tempest Colossus (the Glacier Warden on chapter-four
-    // islands) to lead the Dreadnoughts.
+    // islands, the Eclipse Sovereign on chapter-five ones) to lead the Dreadnoughts.
     if ((offset + 1) % 10 === 0) {
-      groups.push({ enemyType: chapterFour ? 'glacier_warden' : 'tempest', count: 1, spawnInterval: 1, startDelay: 2.6 });
+      const lead: EnemyType = chapterFive ? 'eclipse_sovereign' : chapterFour ? 'glacier_warden' : 'tempest';
+      groups.push({ enemyType: lead, count: 1, spawnInterval: 1, startDelay: 2.6 });
     }
     groups.push({
       enemyType: 'boss',

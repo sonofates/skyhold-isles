@@ -1,10 +1,18 @@
 import type { EventBus } from '../../src/core/eventBus.ts';
 import type { ObjectPool } from '../../src/core/pool.ts';
 import { BALANCE } from '../../src/data/balance.ts';
+import { ENEMY_DEFS } from '../../src/data/enemies.ts';
 import { HERO_RULES, HERO_XP_RULES } from '../../src/data/heroes.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
 import type { TowerEntity } from '../../src/sim/entities.ts';
 import type { SimWorld } from '../../src/sim/world.ts';
+
+const VEIL = ENEMY_DEFS.veilcaster.ability;
+/** Longest Veilcaster veil a tower can carry (veils never stack). */
+const VEIL_SEC = VEIL?.kind === 'veil' ? VEIL.veilSec : 0;
+const PACK = ENEMY_DEFS.duskhound.ability;
+/** Dusk Hound enrage cap. */
+const PACK_MAX_STACKS = PACK?.kind === 'pack' ? PACK.maxStacks : 0;
 
 export type InvariantKind =
   | 'nan_or_infinity'
@@ -586,6 +594,22 @@ export class InvariantMonitor {
       if (frostLock > t.stunTimer + 1e-9) {
         this.record('nan_or_infinity', tick, `tower ${t.id} frostLockTimer=${frostLock} outlasts stunTimer=${t.stunTimer}`);
       }
+      // Chapter five: a veil never outlasts its full length; the range cut stays in [0, 1).
+      const veil = t.veilTimer ?? 0;
+      this.assertFinite(veil, 'tower.veilTimer');
+      if (veil < 0 || veil > VEIL_SEC + 1e-9) {
+        this.record('nan_or_infinity', tick, `tower ${t.id} veilTimer=${veil} outside [0, ${VEIL_SEC}]`);
+      }
+      const rangeCut = t.rangeCut ?? 0;
+      this.assertFinite(rangeCut, 'tower.rangeCut');
+      if (rangeCut < 0 || rangeCut >= 1) {
+        this.record('nan_or_infinity', tick, `tower ${t.id} rangeCut=${rangeCut} outside [0, 1)`);
+      }
+    }
+    const eclipse = w.enemySystem.eclipseTimer;
+    this.assertFinite(eclipse, 'enemySystem.eclipseTimer');
+    if (eclipse < 0 || eclipse > w.enemySystem.eclipseDuration + 1e-9) {
+      this.record('nan_or_infinity', tick, `eclipseTimer=${eclipse} outside [0, ${w.enemySystem.eclipseDuration}]`);
     }
     for (const patch of w.enemySystem.frostPatches) {
       if (!patch.active) continue;
@@ -683,6 +707,11 @@ export class InvariantMonitor {
       this.assertFinite(e.stunTimer, 'enemy.stunTimer');
       this.assertFinite(e.markTimer, 'enemy.markTimer');
       this.assertFinite(e.channelTimer, 'enemy.channelTimer');
+      // Chapter five: Dusk Hound enrage stacks stay within the cap and never outlast their timer.
+      this.assertFinite(e.enrageTimer, 'enemy.enrageTimer');
+      if (e.enrageStacks < 0 || e.enrageStacks > PACK_MAX_STACKS || (e.enrageStacks > 0) !== (e.enrageTimer > 0)) {
+        this.record('nan_or_infinity', tick, `enemy ${e.uid} enrageStacks=${e.enrageStacks} enrageTimer=${e.enrageTimer}`);
+      }
 
       if (this.trackUid[idx] !== e.uid) {
         this.trackUid[idx] = e.uid;
@@ -973,6 +1002,9 @@ export class InvariantMonitor {
           `won run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
         );
       }
+      if (w.enemySystem.eclipseTimer > 0 || w.towers.some((t) => (t.veilTimer ?? 0) > 0 || (t.rangeCut ?? 0) > 0)) {
+        this.record('entity_leak', tick, `run end leaked an eclipse (${w.enemySystem.eclipseTimer} s) / veiled or range-cut towers`);
+      }
       if (w.enemySystem.frostPatchCount > 0 || w.towers.some((t) => (t.frostSlow ?? 0) > 0)) {
         this.record('entity_leak', tick, `run end leaked ${w.enemySystem.frostPatchCount} frost patch(es) / frost-slowed towers`);
       }
@@ -1083,6 +1115,9 @@ export class InvariantMonitor {
           tick,
           `lost run leaked active overchargeRemaining=${w.abilitySystem.getOverchargeRemaining()}`,
         );
+      }
+      if (w.enemySystem.eclipseTimer > 0 || w.towers.some((t) => (t.veilTimer ?? 0) > 0 || (t.rangeCut ?? 0) > 0)) {
+        this.record('entity_leak', tick, `run end leaked an eclipse (${w.enemySystem.eclipseTimer} s) / veiled or range-cut towers`);
       }
       if (w.enemySystem.frostPatchCount > 0 || w.towers.some((t) => (t.frostSlow ?? 0) > 0)) {
         this.record('entity_leak', tick, `run end leaked ${w.enemySystem.frostPatchCount} frost patch(es) / frost-slowed towers`);

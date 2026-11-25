@@ -1750,7 +1750,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 0.39
+   "shadow": 0.39,
+   "fallback": {
+    "art": "bellrunner",
+    "tint": "#9d8fd6",
+    "scale": 1.05
+   }
   },
   "veilcaster": {
    "mode": "sheet",
@@ -1772,7 +1777,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 0.43
+   "shadow": 0.43,
+   "fallback": {
+    "art": "hexer",
+    "tint": "#b8a0ff",
+    "scale": 1.05
+   }
   },
   "eclipse_sovereign": {
    "mode": "sheet",
@@ -1794,7 +1804,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 1.02
+   "shadow": 1.02,
+   "fallback": {
+    "art": "boss",
+    "tint": "#9a86d8",
+    "scale": 1.2
+   }
   },
   "eclipse_shade": {
    "mode": "sheet",
@@ -1816,7 +1831,12 @@
     0.9565
    ],
    "facing": "right",
-   "shadow": 0.62
+   "shadow": 0.62,
+   "fallback": {
+    "art": "eclipse_sovereign",
+    "tint": "#c8bcf0",
+    "scale": 0.82
+   }
   }
  },
  "enemyMap": {

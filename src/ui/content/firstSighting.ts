@@ -1,4 +1,5 @@
 import type { EnemyType, TowerType } from '../../core/types.ts';
+import { ENEMY_DEFS } from '../../data/enemies.ts';
 import type { LevelDef } from '../../data/levels/types.ts';
 import { ELITE_SEEN_ID, enemySeenId, towerSeenId, type SeenId } from '../../platform/contentStorage.ts';
 
@@ -31,6 +32,8 @@ export class SightingQueue {
   }
 
   offerEnemy(type: EnemyType): boolean {
+    // A form of another foe (the Sovereign's Shadow Halves) gets no card: its parent's covers it.
+    if (ENEMY_DEFS[type].partOf !== undefined) return false;
     return this.offer(enemySeenId(type), { kind: 'enemy', type });
   }
 

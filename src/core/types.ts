@@ -40,6 +40,14 @@ export type EnemyType =
   | 'rimebeetle'
   | 'sledguard'
   | 'glacier_warden'
+  /**
+   * Chapter five (i37–i45): see CHAPTER5_ENEMY_DEFS in src/data/enemies.ts. `eclipse_shade` is a
+   * Shadow Half — only ever spawned by the Eclipse Sovereign's split, no codex entry of its own.
+   */
+  | 'duskhound'
+  | 'veilcaster'
+  | 'eclipse_sovereign'
+  | 'eclipse_shade'
   | 'tempest'
   | 'boss';
 

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { ENEMY_TYPES } from '../../src/data/enemies.ts';
+import { ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
+
+/** Foes with a codex tile of their own (the Sovereign's Shadow Halves are part of its entry). */
+const CODEX_FOES = ENEMY_TYPES.filter((t) => ENEMY_DEFS[t].partOf === undefined);
 import { TOWER_DEFS, TOWER_TYPES } from '../../src/data/towers.ts';
 import { ContentStore } from '../../src/platform/contentStorage.ts';
 import { ENEMY_ICON_SVGS, TOWER_ICON_SVGS } from '../../src/ui/icons.ts';
@@ -33,7 +36,8 @@ describe('codex data', () => {
       expect(e.signatureName.length).toBeGreaterThan(2);
       expect(TOWER_ICON_SVGS[t]).toContain('<svg');
     }
-    expect(allEnemyEntries()).toHaveLength(ENEMY_TYPES.length);
+    expect(allEnemyEntries()).toHaveLength(CODEX_FOES.length);
+    expect(allEnemyEntries().some((e) => e.id === 'eclipse_shade')).toBe(false);
     expect(allTowerEntries()).toHaveLength(TOWER_TYPES.length);
   });
 
@@ -43,7 +47,7 @@ describe('codex data', () => {
     expect(enemyEntry('flyer').flying).toBe(true);
     expect(enemyEntry('grunt').isBoss).toBe(false);
     const ids = new Set([...allEnemyEntries(), ...allTowerEntries(), eliteEntry()].map((e) => e.seenId));
-    expect(ids.size).toBe(ENEMY_TYPES.length + TOWER_TYPES.length + 1);
+    expect(ids.size).toBe(CODEX_FOES.length + TOWER_TYPES.length + 1);
   });
 
   it('does not tell the player a tower can do something it cannot', () => {

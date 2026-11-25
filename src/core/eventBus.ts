@@ -205,6 +205,44 @@ export interface GameEventMap {
     towerZ: number;
     duration: number;
   };
+  /** A Dusk Hound died; `count` pack mates within `radius` gained an enrage stack. */
+  packEnrage: {
+    x: number;
+    y: number;
+    z: number;
+    radius: number;
+    count: number;
+  };
+  /** A Veilcaster veiled a tower: its attack range is cut by `rangeCut` for `duration` seconds. */
+  towerVeiled: {
+    enemyId: number;
+    towerId: number;
+    x: number;
+    y: number;
+    z: number;
+    towerX: number;
+    towerZ: number;
+    duration: number;
+    rangeCut: number;
+  };
+  /** The Eclipse Sovereign eclipsed the sun: every firing tower loses `rangeCut` of its range. */
+  eclipse: {
+    enemyId: number;
+    x: number;
+    y: number;
+    z: number;
+    duration: number;
+    rangeCut: number;
+  };
+  /** The Eclipse Sovereign split into `count` Shadow Halves of `halfHp` each. */
+  sovereignSplit: {
+    parentUid: number;
+    x: number;
+    y: number;
+    z: number;
+    count: number;
+    halfHp: number;
+  };
   bossSummon: {
     x: number;
     y: number;

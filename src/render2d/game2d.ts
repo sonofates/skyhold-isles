@@ -16,6 +16,7 @@ import { isTouchDevice, loadSettings } from '../platform/storage.ts';
 import type { EnemyEntity, TowerEntity } from '../sim/entities.ts';
 import { enemyArtFor } from './manifest.ts';
 import type { HeroInitConfig, HeroRuntimeState } from '../sim/heroSystem.ts';
+import { attackReach } from '../sim/targeting.ts';
 import { computeSellRefund, SimWorld, type AbilityRuntimeState } from '../sim/world.ts';
 import { collectArtTextureSources, type LoadedArt } from './assets2d.ts';
 import { Audio2D, bindAudio2D, bindBackgroundLifecycle2D, screenPan, type BackgroundLifecycleHandle2D } from './audio2d.ts';
@@ -57,6 +58,7 @@ import {
   type AudioSettings2D,
 } from './settings2d.ts';
 import { bindSpecialFx, createSpecialFxStats } from './specialFx.ts';
+import { EclipseLayer } from './eclipseLayer.ts';
 import { FrostPatchLayer } from './frostPatchLayer.ts';
 import { SoldierLayer, withBarracksArt } from './soldierLayer.ts';
 import { MeleeDirector } from './meleeDirector.ts';
@@ -158,11 +160,12 @@ function flushGpu(gl: WebGLRenderingContext | WebGL2RenderingContext | undefined
 
 /**
  * A built tower's reach as the sim uses it: base range (its own stats — a specialization's — or
- * another tier's / `baseRange` for a preview) × (1 + beacon aura + hero bonus).
+ * another tier's / `baseRange` for a preview) × (1 + beacon aura + hero bonus) × (1 − range cut),
+ * so a Veilcaster veil or the eclipse draws the range circle shrunk while it lasts.
  */
 function towerReach(t: TowerEntity, tier: 1 | 2 | 3 = t.tier as 1 | 2 | 3, baseRange?: number): number {
   const base = baseRange ?? (tier === t.tier ? towerStats(t).range : getTowerTierStats(t.type, tier).range);
-  return base * (1 + t.auraRange + (t.heroRangeBonus ?? 0));
+  return attackReach(t, base);
 }
 
 /**
@@ -182,6 +185,8 @@ export class Game2D {
   readonly plots: PlotLayer;
   /** Rime Beetle frost patches (ground decals under the plots). */
   private readonly frostPatches: FrostPatchLayer;
+  /** Eclipse Sovereign eclipse: screen-wide dusk shade below the HUD (state-driven). */
+  private readonly eclipse = new EclipseLayer();
   readonly projectiles: ProjectileLayer;
   readonly fx: FxLayer;
   readonly damageNumbers: DamageNumbers2D;
@@ -400,7 +405,7 @@ export class Game2D {
     this.ring.desktop = this.quality.isDesktop;
     this.hud.desktop = this.quality.isDesktop;
     this.end = new EndPanel(art);
-    this.screen.addChild(this.hud.root, this.ring.root, this.end.root);
+    this.screen.addChild(this.eclipse.root, this.hud.root, this.ring.root, this.end.root);
     app.stage.addChild(this.map.root, this.screen);
     const banned = hooks.modifiers?.bannedTowers ?? [];
     let minAllowed = Infinity;
@@ -1139,6 +1144,7 @@ export class Game2D {
     const cfg = this.currentSettings();
     this.towers.sync(world.towers, dtSec, simDt);
     this.frostPatches.sync(world.enemySystem.frostPatches, simDt);
+    this.eclipse.sync(world.enemySystem, this.app.screen.width, this.app.screen.height);
     for (let i = this.boltActive - 1; i >= 0; i--) {
       const b = this.boltQueue[i];
       b.t -= simDt;
@@ -1191,6 +1197,8 @@ export class Game2D {
     }
     this.ring.update(dtSec, world.gold);
     this.syncRangePreview();
+    // A veil or the eclipse can shrink the hovered tower's range while it is shown.
+    if (this.hoverTowerId !== -1 && this.hoverDisc.visible) this.setHoverTower(this.hoverTowerId);
     this.syncInspectRing();
 
     // A selected tower could be sold or the run reset.
@@ -2179,7 +2187,7 @@ export class Game2D {
         progress: this.replayProgress,
         matched: this.replayMatched,
       },
-      towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode, frostSlow: t.frostSlow ?? 0, frozen: t.frostLockTimer ?? 0 })),
+      towers: w.towers.map((t) => ({ id: t.id, type: t.type, tier: t.tier, plot: t.col, targeting: t.targetingMode, frostSlow: t.frostSlow ?? 0, frozen: t.frostLockTimer ?? 0, veil: t.veilTimer ?? 0, rangeCut: t.rangeCut ?? 0 })),
       ring: { open: this.ring.isOpen, mode: this.ring.mode, plot: this.ring.plot, tokens: this.ring.tokenPositions(), compare: this.ring.compareSpot(), layout: this.ring.layoutInfo, rangeShown: this.rangeDisc.visible },
       hud: this.hud.rects(),
       end: this.end.debug(),
@@ -2233,6 +2241,7 @@ export class Game2D {
         deathClips: this.enemies.deathsPlayed,
         sideFrames: this.enemies.sideFrames,
         frostPatches: this.frostPatches.drawn,
+        eclipse: { timer: w.enemySystem.eclipseTimer, cut: w.enemySystem.eclipseCut, shade: this.eclipse.alpha, drawn: this.eclipse.debug() },
       },
       foes: (() => {
         const n: Record<string, number> = {};

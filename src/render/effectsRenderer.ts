@@ -110,6 +110,10 @@ const _enemyShardColors: Record<EnemyType, number> = {
   rimebeetle: 0x9fd8ec,
   sledguard: 0x5f86a8,
   glacier_warden: 0x7fc4e8,
+  duskhound: 0x4a3a6e,
+  veilcaster: 0x6b4a9a,
+  eclipse_sovereign: 0x2a1f45,
+  eclipse_shade: 0x3d2c63,
 };
 
 export class EffectsRenderer {

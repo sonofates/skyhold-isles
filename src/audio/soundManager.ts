@@ -15,6 +15,7 @@ const DEATH_PITCH: Record<EnemyType, number> = {
   golem: 100, mite: 570, hexer: 370, tempest: 82, boss: 70,
   bellrunner: 440, kilnback: 115, reedpiper: 520, draftwing: 680,
   rimebeetle: 600, sledguard: 140, glacier_warden: 76,
+  duskhound: 380, veilcaster: 300, eclipse_sovereign: 62, eclipse_shade: 88,
 };
 
 const FIRE_INTERVAL_MS: Partial<Record<TowerType, number>> = {
@@ -587,6 +588,11 @@ export class SoundManager {
       events.on('frostPatch', () => this.playBrittleCrack()),
       events.on('guardShieldRestored', () => this.playWardPulse()),
       events.on('towerFrozen', () => this.playTowerHexed()),
+      // Chapter five, likewise: pack howl = blink whoosh, veil = hex charge, split = splitter burst
+      // (the eclipse itself plays the boss-phase cue).
+      events.on('packEnrage', () => this.playBlink()),
+      events.on('towerVeiled', () => this.playHexCharge()),
+      events.on('sovereignSplit', () => this.playEnemySplit()),
       events.on('abilityTargeted', () => this.playAbilityTarget()),
       events.on('meteorImpact', () => this.playMeteorImpact()),
       events.on('overchargeActivated', () => this.playOvercharge()),

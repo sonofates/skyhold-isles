@@ -14,7 +14,31 @@ type ChapterAbility =
   /** Sledge Warden: own shield pool (fraction of max HP), full refill after `regenSec` unhurt. */
   | { kind: 'guard'; shieldFrac: number; regenSec: number; breakerMul: number }
   /** Glacier Warden: at each HP threshold freezes the nearest tower and summons Rime Beetles. */
-  | { kind: 'glacier'; thresholds: readonly [number, number]; freezeSec: number; summonCount: number };
+  | { kind: 'glacier'; thresholds: readonly [number, number]; freezeSec: number; summonCount: number }
+  /**
+   * Dusk Hound: when a hound dies (not a leak), every other hound within `radius` world units gets
+   * one enrage stack (+`speedBonus` each, at most `maxStacks`) for `enrageSec`, refreshed per death.
+   */
+  | { kind: 'pack'; radius: number; speedBonus: number; enrageSec: number; maxStacks: number }
+  /**
+   * Veilcaster: every `interval` s veils the nearest un-veiled firing tower within `reach`: its
+   * attack range is cut by `rangeCut` for `veilSec` (never stacks on one tower).
+   */
+  | { kind: 'veil'; reach: number; interval: number; firstSec: number; veilSec: number; rangeCut: number }
+  /**
+   * Eclipse Sovereign: at `eclipseAt` the sky darkens and every firing tower loses `eclipseCut` of
+   * its attack range for `eclipseSec`; at `splitAt` it splits into two Shadow Halves (`eclipse_shade`)
+   * with `splitHpFrac` of its remaining HP each, and summons `summonCount` Dusk Hounds.
+   */
+  | {
+    kind: 'sovereign';
+    eclipseAt: number;
+    eclipseSec: number;
+    eclipseCut: number;
+    splitAt: number;
+    splitHpFrac: number;
+    summonCount: number;
+  };
 
 export interface EnemyDef<T extends EnemyType | ChapterEnemyType = EnemyType> {
   readonly type: T;
@@ -68,6 +92,11 @@ export interface EnemyDef<T extends EnemyType | ChapterEnemyType = EnemyType> {
   readonly jamRadius?: number;
   /** Short counterplay hint shown in tooltips / codex. */
   readonly counterHint?: string;
+  /**
+   * A form of another foe (the Eclipse Sovereign's Shadow Halves): spawned only by that foe, no
+   * codex tile or first-sighting card of its own.
+   */
+  readonly partOf?: EnemyType;
 }
 
 // Chapter-two roster (i17–i24). Spread into ENEMY_DEFS / ENEMY_TYPES below and into ENEMY_MELEE.
@@ -153,6 +182,70 @@ export const CHAPTER4_ENEMY_MELEE = {
   sledguard: { block: 'block', holdCost: 2, damage: 20, rate: 0.75 },
   glacier_warden: { block: 'block', holdCost: 3, damage: 42, rate: 0.75, sweep: true },
 } as const satisfies Record<Chapter4EnemyType, MeleeProfile>;
+
+// Chapter-five roster (i37–i45, Eclipse Skies; docs/chapter5-plan.md). Spread after the chapter-four
+// roster into ENEMY_DEFS / ENEMY_TYPES and into ENEMY_MELEE. Numbers: docs/handoff-ch5-foes.md.
+// `eclipse_shade` (Shadow Half) is part of the Sovereign: only its split spawns it, it has no codex
+// tile of its own (`partOf`) and story waves never list it.
+export const CHAPTER5_ENEMY_TYPES = ['duskhound', 'veilcaster', 'eclipse_sovereign', 'eclipse_shade'] as const;
+export type Chapter5EnemyType = typeof CHAPTER5_ENEMY_TYPES[number];
+
+export const CHAPTER5_ENEMY_DEFS = {
+  duskhound: {
+    type: 'duskhound', name: 'Dusk Hound',
+    description: 'Hunts in packs of four to six. When one hound falls, the rest of the pack nearby howls and runs faster for a few seconds.',
+    counterHint: 'Hit the whole pack at once with mortar splash or tesla chains, or slow it. Picking hounds off one by one makes the rest faster.',
+    maxHp: 95, speed: 2.6, armor: 1, reward: 4, livesCost: 1,
+    flying: false, radius: 0.42, height: 0.95,
+    // 5 tiles = 10 world units (one tile is 2 units).
+    ability: { kind: 'pack', radius: 10, speedBonus: 0.3, enrageSec: 4, maxStacks: 2 },
+  },
+  veilcaster: {
+    type: 'veilcaster', name: 'Veilcaster',
+    description: 'Every few seconds it throws a dark veil over the nearest tower in reach. A veiled tower sees 30% less far for a moment.',
+    counterHint: 'Make it your first target. Long-reach towers such as the ballista and mortar, or the hero, hit it from outside its reach.',
+    maxHp: 165, speed: 1.75, armor: 2, reward: 9, livesCost: 2,
+    flying: false, radius: 0.45, height: 1.4,
+    ability: { kind: 'veil', reach: 4.4, interval: 6, firstSec: 2, veilSec: 4, rangeCut: 0.3 },
+  },
+  eclipse_sovereign: {
+    type: 'eclipse_sovereign', name: 'Eclipse Sovereign',
+    description:
+      'The last lord of the darkened sky. At two-thirds health it eclipses the sun and every tower sees less far; at two-fifths it splits into two Shadow Halves and calls a pack of Dusk Hounds.',
+    counterHint: 'Save burst damage for the split, spread towers along the road and keep Overcharge for the eclipse. Both halves must fall.',
+    // `reward` is paid by the two halves (half each); the Sovereign itself always splits.
+    maxHp: 2400, speed: 0.9, armor: 9, reward: 80, livesCost: 8,
+    flying: false, radius: 0.95, height: 2.3,
+    isBoss: true,
+    phaseThresholds: [0.66, 0.4],
+    ability: {
+      kind: 'sovereign',
+      eclipseAt: 0.66,
+      eclipseSec: 8,
+      eclipseCut: 0.2,
+      splitAt: 0.4,
+      splitHpFrac: 0.55,
+      summonCount: 4,
+    },
+  },
+  eclipse_shade: {
+    type: 'eclipse_shade', name: 'Shadow Half',
+    description: 'One half of the split Eclipse Sovereign. The fight is not over until both halves fall.',
+    counterHint: 'Focus one half at a time; both cost lives like a boss if they reach the sanctuary.',
+    // Nominal HP = 55% of the Sovereign's 40% (a split spawns each half with 55% of what was left).
+    maxHp: 528, speed: 1.05, armor: 7, reward: 40, livesCost: 4,
+    flying: false, radius: 0.75, height: 1.85,
+    isBoss: true,
+    partOf: 'eclipse_sovereign',
+  },
+} as const satisfies { [T in Chapter5EnemyType]: EnemyDef<T> };
+
+export const CHAPTER5_ENEMY_MELEE = {
+  duskhound: { block: 'block', holdCost: 1, damage: 7, rate: 1.15 },
+  veilcaster: { block: 'block', holdCost: 1, damage: 6, rate: 0.8 },
+  eclipse_sovereign: { block: 'block', holdCost: 3, damage: 46, rate: 0.75, sweep: true },
+  eclipse_shade: { block: 'block', holdCost: 3, damage: 30, rate: 0.8, sweep: true },
+} as const satisfies Record<Chapter5EnemyType, MeleeProfile>;
 
 /** Empowered elite variant multipliers (wave groups with `elite: true`). */
 export const ELITE_MODIFIERS = {
@@ -402,6 +495,8 @@ export const ENEMY_DEFS: Record<EnemyType, EnemyDef> = {
   ...CHAPTER_ENEMY_DEFS,
   // Chapter four, appended after chapter two for the same reason.
   ...CHAPTER4_ENEMY_DEFS,
+  // Chapter five, appended last for the same reason.
+  ...CHAPTER5_ENEMY_DEFS,
 };
 
 export const ENEMY_TYPES: readonly EnemyType[] = [
@@ -421,7 +516,11 @@ export const ENEMY_TYPES: readonly EnemyType[] = [
   ...CHAPTER_ENEMY_TYPES,
   'rimebeetle',
   'sledguard',
+  'duskhound',
+  'veilcaster',
   'tempest',
   'glacier_warden',
+  'eclipse_sovereign',
+  'eclipse_shade',
   'boss',
 ];

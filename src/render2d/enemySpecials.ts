@@ -23,6 +23,8 @@ export interface SpecialState {
   readonly bossPhase?: number;
   readonly channelTimer?: number;
   readonly isSplitChild?: boolean;
+  /** Dusk Hound pack enrage stacks (0 = calm). */
+  readonly enrageStacks?: number;
 }
 
 export type ExtraSlot = 'glow' | 'bubble' | 'crack' | 'ring' | 'crown' | 'shieldBg' | 'shieldFill' | 'mound';
@@ -144,6 +146,14 @@ const SHIELD_FILL = 0x6cc8ff;
 const GUARD_FILL = 0xe6f8ff;
 /** Seconds between Glacier Warden ice-trail flakes (visual only). */
 const ICE_TRAIL_SEC = 0.16;
+/** Chapter five: Dusk Hound enrage (tint, glow, smoke trail), Veilcaster aura, Sovereign aura. */
+const HOUND_RAGE = 0xd05cff;
+const HOUND_SMOKE = 0x3a2a5e;
+const VEIL_RING = 0x7a4fa8;
+const DUSK_RING = 0x9a7cff;
+const ECLIPSE_GOLD = 0xffcf4d;
+/** Seconds between enraged-hound smoke puffs (visual only). */
+const RAGE_TRAIL_SEC = 0.07;
 
 export interface SpecialLayout {
   readonly px: number;
@@ -320,6 +330,9 @@ export class EnemySpecials {
     const elite = w.elite === true;
     if (elite) tint = mixTint(tint, GOLD, 0.18);
     if (w.isSplitChild) tint = mixTint(tint, SPLIT_PINK, 0.3);
+    // Dusk Hound pack enrage: a hot violet cast that deepens with the second stack.
+    const enrage = w.enrageStacks ?? 0;
+    if (enrage > 0) tint = mixTint(tint, HOUND_RAGE, 0.2 + 0.15 * enrage);
 
     // ---- shield bubble + bar (warden barrier, tempest Stormwall) -------------------------------
     const shield = w.shield ?? 0;
@@ -385,6 +398,11 @@ export class EnemySpecials {
       glowA = 0.32 + 0.22 * p;
       glowScale = 1.5;
       tint = mixTint(tint, 0xffb08a, 0.22 + 0.12 * p);
+    } else if (enrage > 0) {
+      const p = 0.5 + 0.5 * Math.sin(time * 16 + L.px * 0.1);
+      glowColor = HOUND_RAGE;
+      glowA = 0.22 + 0.14 * enrage + 0.12 * p;
+      glowScale = 1.15 + 0.15 * enrage;
     } else if (elite) {
       glowColor = GOLD;
       glowA = 0.16 + 0.1 * Math.sin(time * 3.4 + L.px * 0.07);
@@ -454,6 +472,16 @@ export class EnemySpecials {
       ringColor = GLACIER;
       ringA = 0.42 + 0.12 * (w.bossPhase ?? 0) + 0.15 * Math.sin(time * 3);
       ringR = L.shadowR * 1.65;
+    } else if (type === 'eclipse_sovereign' || type === 'eclipse_shade') {
+      // Dusk aura; gold rim once the sun is eclipsed (phase 1+, the halves are phase 2).
+      ringColor = (w.bossPhase ?? 0) >= 1 ? ECLIPSE_GOLD : DUSK_RING;
+      ringA = 0.45 + 0.15 * Math.sin(time * 2.6);
+      ringR = L.shadowR * (type === 'eclipse_shade' ? 1.5 : 1.7);
+    } else if (type === 'veilcaster') {
+      const p = 0.5 + 0.5 * Math.sin(time * 2 + L.px * 0.05);
+      ringColor = VEIL_RING;
+      ringA = 0.3 + 0.2 * p;
+      ringR = L.shadowR * (1.6 + 0.2 * p);
     }
     const ring = this.show(ex, 'ring', ringA > 0.02 && !w.burrowed, art);
     if (ring) {
@@ -506,6 +534,16 @@ export class EnemySpecials {
         const jx = (this.fx.random() - 0.5) * L.shadowR * 1.4;
         this.fx.spawn('puff', L.px + jx, L.py + 2, L.shadowR * (0.5 + 0.25 * this.fx.random()), 0, -4, 1.1, RIME);
         this.fx.spawn('spark', L.px + jx, L.py - 4, 6, 0, -10, 0.5, 0xffffff);
+      }
+    }
+    // Enraged Dusk Hound: a short smoke-and-ember trail (visual only; hounds never burrow).
+    if (enrage > 0 && this.fx && dt > 0 && !w.burrowed) {
+      anim.dustT -= dt;
+      if (anim.dustT <= 0) {
+        anim.dustT = RAGE_TRAIL_SEC;
+        const jx = (this.fx.random() - 0.5) * L.shadowR;
+        this.fx.spawn('puff', L.px + jx, L.py - 2, L.shadowR * (0.45 + 0.2 * this.fx.random()), 0, -10, 0.5, HOUND_SMOKE);
+        if (enrage > 1) this.fx.spawn('spark', L.px + jx, L.cy, 6, 0, -18, 0.35, HOUND_RAGE);
       }
     }
     if (bk > 0) {

@@ -18,6 +18,10 @@ const GOLD = 0xffd45a;
 const CORAL = 0xe85d5d;
 const INDIGO = 0x9a8cff;
 const CREAM = 0xfff4dc;
+/** Chapter five: Dusk Hound howl, Veilcaster veil, Eclipse Sovereign eclipse / split. */
+const DUSK = 0x9a7cff;
+const VEIL = 0x3a2a5e;
+const ECLIPSE_GOLD = 0xffcf4d;
 
 /** Height (world units) of a tower's body centre / turret, for beams that end on a tower. */
 const TOWER_BODY_H = 1.5;
@@ -52,6 +56,10 @@ export interface SpecialFxStats {
   frostPatch: number;
   guardShieldRestored: number;
   towerFrozen: number;
+  packEnrage: number;
+  towerVeiled: number;
+  eclipse: number;
+  sovereignSplit: number;
 }
 
 export function createSpecialFxStats(): SpecialFxStats {
@@ -77,6 +85,10 @@ export function createSpecialFxStats(): SpecialFxStats {
     frostPatch: 0,
     guardShieldRestored: 0,
     towerFrozen: 0,
+    packEnrage: 0,
+    towerVeiled: 0,
+    eclipse: 0,
+    sovereignSplit: 0,
   };
 }
 
@@ -255,6 +267,48 @@ export function bindSpecialFx(ev: EventBus, ctx: SpecialFxCtx, stats: SpecialFxS
     fx.spawn('flash', tx, ty, 60, 0, 0, 0.25, CREAM);
   });
 
+  ev.on('packEnrage', (e) => {
+    // A fallen hound's howl: a violet ring out to the pack radius (faint) and a burst where it fell.
+    stats.packEnrage++;
+    const px = X(e.x);
+    fx.spawn('wring', px, Y(e.z), e.radius * ppu * 0.35, 0, 0, 0.55, DUSK);
+    fx.burst('spark', px, Y(e.z, e.y), 6, 9, 70, 0.45, DUSK);
+  });
+
+  ev.on('towerVeiled', (e) => {
+    // A dark shroud thrown from the caster's staff onto the tower (the ring stays on via towerLayer).
+    stats.towerVeiled++;
+    const cx = X(e.x);
+    const cy = Y(e.z, e.y + 0.3);
+    const tx = X(e.towerX);
+    const ty = Y(e.towerZ, TOWER_BODY_H);
+    fx.beam(cx, cy, tx, ty, VEIL, 4.4, 0.4);
+    fx.beam(cx, cy, tx, ty, DUSK, 1.6, 0.4);
+    fx.spawn('wring', tx, Y(e.towerZ), 1.1 * ppu, 0, 0, 0.55, DUSK);
+    fx.puffs(tx, ty, 6, 16, 0x2a1f45);
+  });
+
+  ev.on('eclipse', (e) => {
+    // The sun goes out: a gold corona collapsing over the Sovereign (the screen dims in eclipseLayer).
+    stats.eclipse++;
+    const px = X(e.x);
+    const py = Y(e.z, e.y + 0.6);
+    fx.spawn('wring', px, py, 3.2 * ppu, 0, 0, 1.1, ECLIPSE_GOLD);
+    fx.spawn('orb', px, py, 2.2 * ppu, 0, 0, 0.9, 0x120c1f);
+    fx.burst('spark', px, py, 16, 14, 120, 0.9, ECLIPSE_GOLD);
+  });
+
+  ev.on('sovereignSplit', (e) => {
+    stats.sovereignSplit++;
+    const px = X(e.x);
+    const py = Y(e.z, e.y + 0.8);
+    fx.spawn('wring', px, Y(e.z), 3.4 * ppu, 0, 0, 0.9, DUSK);
+    fx.burst('shard', px, py, 16, 20, 150, 0.8, 0x4a3878, 300);
+    fx.burst('spark', px, py, 12, 12, 120, 0.7, ECLIPSE_GOLD);
+    fx.spawn('flash', px, py, 130, 0, 0, 0.34, 0xd7b8ff);
+    fx.puffs(px, py, 12, 40, 0x2a1f45);
+  });
+
   ev.on('bossSummon', (e) => {
     stats.bossSummon++;
     const px = X(e.x);
@@ -268,7 +322,12 @@ export function bindSpecialFx(ev: EventBus, ctx: SpecialFxCtx, stats: SpecialFxS
     stats.bossPhase++;
     const px = X(e.x);
     const py = Y(e.z, e.y + 1.4);
-    if (e.enemyType === 'glacier_warden') {
+    if (e.enemyType === 'eclipse_sovereign') {
+      // Eclipse (1) and split (2): dusk rings; the eclipse / split events add their own bursts.
+      fx.spawn('wring', px, Y(e.z), e.radius * ppu * 1.3, 0, 0, 1.0, DUSK);
+      fx.spawn('wring', px, Y(e.z), e.radius * ppu * 0.7, 0, 0, 0.8, ECLIPSE_GOLD);
+      fx.spawn('flash', px, py, 110, 0, 0, 0.3, 0xd7b8ff);
+    } else if (e.enemyType === 'glacier_warden') {
       // Both Glacier Warden phases: a frost nova (the freeze beam + summons have their own FX).
       fx.spawn('wring', px, Y(e.z), e.radius * ppu * 1.4, 0, 0, 0.9, ICE);
       fx.spawn('wring', px, Y(e.z), e.radius * ppu * 0.8, 0, 0, 0.7, CREAM);

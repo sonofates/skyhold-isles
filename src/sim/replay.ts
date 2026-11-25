@@ -229,6 +229,13 @@ export function computeSimStateHash(world: SimWorld): string {
     // Chapter-four state only when present, so hashes of older replays stay unchanged.
     if ((t.frostSlow ?? 0) > 0) h.f64(t.frostSlow ?? 0);
     if ((t.frostLockTimer ?? 0) > 0) h.f64(t.frostLockTimer ?? 0);
+    // Chapter-five state, likewise only while present.
+    if ((t.veilTimer ?? 0) > 0) h.f64(t.veilTimer ?? 0);
+    if ((t.rangeCut ?? 0) > 0) h.f64(t.rangeCut ?? 0);
+  }
+  if (world.enemySystem.eclipseTimer > 0) {
+    h.f64(world.enemySystem.eclipseTimer);
+    h.f64(world.enemySystem.eclipseCut);
   }
   for (const patch of world.enemySystem.frostPatches) {
     if (!patch.active) continue;
@@ -383,6 +390,11 @@ export function computeSimStateHash(world: SimWorld): string {
     h.f64(e.heroDamageReduction);
     h.f64(e.heroMeleeTimer);
     h.f64(world.heroSystem.getEnemyBurnRemaining(idx, e.uid));
+    // Dusk Hound pack enrage, only while a hound is enraged.
+    if (e.enrageStacks > 0) {
+      h.f64(e.enrageStacks);
+      h.f64(e.enrageTimer);
+    }
     h.f64(world.heroSystem.getEnemyBurnDps(idx, e.uid));
   }
 
