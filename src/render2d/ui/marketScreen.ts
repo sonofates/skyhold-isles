@@ -32,7 +32,7 @@ export interface CrystalShop {
 }
 
 export const STORE_SHOP: CrystalShop = {
-  enabled: () => crystalStoreEnabled(),
+  enabled: () => crystalStoreEnabled() && getIap().mode !== 'noop',
   list: () => listCrystalPacks(),
   purchase: (id) => purchaseCrystalPack(id),
   restore: () => getIap().restore(),

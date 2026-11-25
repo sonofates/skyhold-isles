@@ -1,7 +1,8 @@
 /**
  * Free-version scope + the store card (mobile builds only).
  *
- * On the iOS / Android builds the Prologue and Chapter 1 (`FREE_ISLANDS`) are free and Chapter 2
+ * Off while `MOBILE_STORE_LIVE` is false (2026-11-25: the mobile game is entirely free). When on:
+ * on the iOS / Android builds the Prologue and Chapter 1 (`FREE_ISLANDS`) are free and Chapter 2
  * onward needs the `full_unlock` purchase (`platform/iap.ts`). The world map shows those islands with a "full
  * adventure" lock (a chest seal and a red ribbon, unlike the grey padlock of an island not yet
  * reached) and opens this card: the store's products with their names and prices as the store

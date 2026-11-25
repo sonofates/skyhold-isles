@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { LEVELS_2D } from '../../src/data/levels2d/index.ts';
-import { createIapStore, createPlatformAdapter, FREE_ISLANDS, setIapStore, setPlatformAdapter, type IapStoreProduct, type PlatformAdapter } from '../../src/platform/index.ts';
+import { createIapStore, createPlatformAdapter, FREE_ISLANDS, listCrystalPacks, MOBILE_STORE_LIVE, setIapStore, setPlatformAdapter, type IapStoreProduct, type PlatformAdapter } from '../../src/platform/index.ts';
 import { canPlayIsland, needsFullAdventure, storeEnabled, storeOrder } from '../../src/render2d/ui/store2d.ts';
 
 const web = (): PlatformAdapter => createPlatformAdapter({ bridge: null, mobile: null, storage: null });
@@ -25,6 +25,18 @@ describe('free-version scope (store2d)', () => {
       expect(storeEnabled(iap)).toBe(false);
       for (const l of LEVELS_2D) expect(canPlayIsland(l.id, iap)).toBe(true);
     }
+  });
+
+  it('mobile release default: the game is entirely free (MOBILE_STORE_LIVE off) — no store, every island playable, no packs', async () => {
+    expect(MOBILE_STORE_LIVE).toBe(false);
+    const p = mobile();
+    setPlatformAdapter(p);
+    const iap = createIapStore({ platform: p, storage: null, locationSearch: '' });
+    setIapStore(iap);
+    expect(iap.mode).toBe('noop');
+    expect(storeEnabled(iap)).toBe(false);
+    for (const l of LEVELS_2D) expect(canPlayIsland(l.id, iap)).toBe(true);
+    expect(await listCrystalPacks()).toEqual([]);
   });
 
   it('Steam ignores ?iapmock=1', () => {

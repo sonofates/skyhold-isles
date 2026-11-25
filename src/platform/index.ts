@@ -40,6 +40,8 @@ export {
   IAP_SAVE_KEY,
   isIapMockEnabled,
   isUnlocked,
+  listCrystalPacks,
+  MOBILE_STORE_LIVE,
   setIapStore,
   type CreateIapStoreOptions,
   type CreateMockBackendOptions,

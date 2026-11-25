@@ -495,13 +495,21 @@ export function crystalStoreEnabled(platform: PlatformAdapter = getPlatform()): 
   return platform.isMobile && !platform.isSteam && !platform.isDesktop;
 }
 
+/**
+ * Owner decision (2026-11-25): the mobile game is entirely free — no island lock, no crystal packs,
+ * no purchases at all. The PC (Steam) version is the paid one. With this off the default store is
+ * `noop`, so the free-version gate (store2d.ts) and the Market's pack section never show. Set it to
+ * true (and add the RevenueCat keys) to bring the mobile store back; the catalogue and flows stay.
+ */
+export const MOBILE_STORE_LIVE = false;
+
 function resolveMode(
   explicitMode: IapStoreMode | undefined,
   platform: PlatformAdapter,
 ): IapStoreMode {
   if (!crystalStoreEnabled(platform)) return 'noop';
   if (explicitMode) return explicitMode;
-  return 'native';
+  return MOBILE_STORE_LIVE ? 'native' : 'noop';
 }
 
 export function createIapStore(options: CreateIapStoreOptions = {}): IapStoreAdapter {
@@ -808,12 +816,12 @@ export function getIap(): IapStoreAdapter {
 }
 
 export async function listCrystalPacks(): Promise<IapStoreProduct[]> {
-  if (!crystalStoreEnabled()) return [];
+  if (!crystalStoreEnabled() || getIap().mode === 'noop') return [];
   return (await getIap().products()).filter(p => isCrystalPack(p.id));
 }
 
 export async function purchaseCrystalPack(id: CrystalPackId): Promise<IapPurchaseResult> {
-  if (!crystalStoreEnabled() || !isCrystalPack(id)) return { ok: false, status: 'unavailable', productId: id, entitlements: [] };
+  if (!crystalStoreEnabled() || getIap().mode === 'noop' || !isCrystalPack(id)) return { ok: false, status: 'unavailable', productId: id, entitlements: [] };
   return getIap().purchase(id);
 }
 
