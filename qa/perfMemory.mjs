@@ -1,13 +1,19 @@
 // Island-switch memory check (docs/handoff-perf.md). ONE Chromium, through qa/withPreview.py:
 //   python3 qa/withPreview.py --port=4395 node qa/perfMemory.mjs [--size=932x430] [--islands=i01,i12,i24,i36,i42,i01]
-// 1. Switches islands the way the game does (world map → island → world map, full page loads)
-//    and records, on each battle page: GL texture MB (counted at the WebGL API), Pixi's resident
-//    texture MB (`__p0.gpu`), JS heap after a forced GC; and the heap back on the map.
-// 2. bfcache probe: leaves a battle, goes Back, and reports whether the battle page came back
-//    from the back/forward cache (it would then have kept its GPU textures alive meanwhile).
-// 3. In-page restarts (Retry) on one island: textures / heap must not grow.
-// Exits 1 when the last switch / restart holds more than the first (+ tolerance), or a battle
-// page was restored from bfcache with its WebGL context.
+//   ... node qa/perfMemory.mjs --bfcache=1   (full Chromium with the back/forward cache on)
+// 1. Switches islands the way the game does (world map → island → Menu → world map, full page
+//    loads) and records, on each battle page: GL texture MB (counted at the WebGL API), Pixi's
+//    resident texture MB (`__p0.gpu`), JS heap after a forced GC; and the heap back on the map.
+//    Each battle is left through `__p0.menu()` (navigateWithVeil, as the end board's Menu).
+// 2. What each battle page let go of on `pagehide` (pageCache.ts; only when bfcache keeps it).
+// 3. bfcache probe: leaves a battle, goes Back: a page kept in the cache must come back as a
+//    fresh load (never as the old page still holding its WebGL context).
+// 4. In-page restarts (Retry) on one island: textures / heap must not grow.
+// Exits 1 when the last switch / restart holds more than the first (+ tolerance), a cached
+// battle page kept its GPU context, or one came back from the cache with it.
+// Without --bfcache the browser has no back/forward cache (Playwright default): the switch
+// numbers are then the pure per-page cost; with it, cached pages add their JS heap (~12 MB each,
+// bounded by the browser's cache size) but no GPU textures or decoded sheets.
 import { chromium } from 'playwright';
 
 const arg = (k, d) => {
@@ -21,7 +27,11 @@ const islands = arg('islands', 'i01,i12,i24,i36,i42,i01').split(',');
 const restarts = Number(arg('restarts', 5));
 const settleMs = Number(arg('settle', 5000));
 
+const bfcacheOn = arg('bfcache', '') === '1';
+// Playwright disables the back/forward cache, and its headless shell has none: the probe uses
+// full Chromium (new headless) with the cache on, as a browser has it.
 const browser = await chromium.launch({
+  ...(bfcacheOn ? { ignoreDefaultArgs: ['--disable-back-forward-cache'], channel: 'chromium' } : {}),
   args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--disable-dev-shm-usage', '--enable-precise-memory-info'],
 });
 const fail = [];
@@ -84,7 +94,19 @@ try {
     // Let the background warm-up finish (all the run's art resident) before measuring.
     await page.waitForFunction(() => window.__p0.textureWarmup().pending === 0, null, { timeout: 180000 }).catch(() => undefined);
     await page.waitForTimeout(settleMs);
+    // Runs after the game's own pagehide handler (registered at boot): what it let go of.
+    await page.evaluate(() => addEventListener('pagehide', (e) => {
+      sessionStorage.setItem('qaHide', JSON.stringify({ persisted: e.persisted, release: window.__pageCacheRelease ?? null }));
+    }));
     return page.evaluate(() => ({ gl: window.__glMem(), pixi: window.__p0.gpu ? window.__p0.gpu().textureMB : null }));
+  };
+  // Leave a battle the way the game does (end board Menu → navigateWithVeil); older builds
+  // without `__p0.menu` navigate directly.
+  const leave = async () => {
+    await page.evaluate(() => (window.__p0.menu ? window.__p0.menu() : location.assign('/2d.html')));
+    await page.waitForURL((u) => !u.search.includes('level='), { timeout: 30000 });
+    await page.waitForTimeout(2500);
+    return page.evaluate(() => JSON.parse(sessionStorage.getItem('qaHide') ?? 'null'));
   };
 
   // 1. Island switches through the world map (full page loads, as navigateWithVeil does).
@@ -95,31 +117,36 @@ try {
     await page.evaluate((href) => location.assign(href), `/2d.html?level=${id}`);
     const b = await battle();
     const battleHeap = await heap();
-    await page.evaluate(() => location.assign('/2d.html'));
-    await page.waitForTimeout(2500);
+    const hide = await leave();
     const mapHeap = await heap();
     const mapGl = await page.evaluate(() => window.__glMem());
-    switches.push({ id, glMB: b.gl.MB, glTextures: b.gl.textures, pixiMB: b.pixi, heapMB: battleHeap, mapHeapMB: mapHeap, mapGlMB: mapGl.MB });
+    switches.push({ id, glMB: b.gl.MB, glTextures: b.gl.textures, pixiMB: b.pixi, heapMB: battleHeap, mapHeapMB: mapHeap, mapGlMB: mapGl.MB, hide });
+    if (hide?.persisted && !hide.release?.contextLost) fail.push(`${id}: page went to the back/forward cache with its WebGL context`);
   }
   const firstSame = switches.find((s) => s.id === islands.at(-1));
   const last = switches.at(-1);
   if (firstSame && last !== firstSame) {
     if (last.glMB > firstSame.glMB * 1.05 + 2) fail.push(`GL textures grew on ${last.id}: ${firstSame.glMB} → ${last.glMB} MB`);
-    if (last.heapMB > firstSame.heapMB * 1.25 + 3) fail.push(`JS heap grew on ${last.id}: ${firstSame.heapMB} → ${last.heapMB} MB`);
+    if (!bfcacheOn && last.heapMB > firstSame.heapMB * 1.25 + 3) fail.push(`JS heap grew on ${last.id}: ${firstSame.heapMB} → ${last.heapMB} MB`);
   }
-  if (switches.at(-1).mapHeapMB > switches[0].mapHeapMB * 1.25 + 3) fail.push(`map heap grew: ${switches[0].mapHeapMB} → ${switches.at(-1).mapHeapMB} MB`);
+  if (!bfcacheOn && switches.at(-1).mapHeapMB > switches[0].mapHeapMB * 1.25 + 3) fail.push(`map heap grew: ${switches[0].mapHeapMB} → ${switches.at(-1).mapHeapMB} MB`);
 
   // 2. bfcache: battle → map → Back.
   await page.evaluate((href) => location.assign(href), `/2d.html?level=${islands[0]}`);
   await battle();
-  await page.evaluate(() => location.assign('/2d.html'));
-  await page.waitForTimeout(2000);
-  await page.goBack();
-  await page.waitForTimeout(3000);
-  const restored = await page.evaluate(() => window.__restored).catch(() => null);
-  const restoredGl = restored ? await page.evaluate(() => window.__glMem()) : null;
-  const bfcache = { restored, restoredGl, notUsedReasons: bfcacheMisses.at(-1) ?? null };
-  if (restored && restoredGl && restoredGl.MB > 8) fail.push(`battle page kept ${restoredGl.MB} MB of GL textures in the back/forward cache`);
+  const hide = await leave();
+  // A page restored from bfcache fires no `load`: wait for the commit only.
+  await page.goBack({ waitUntil: 'commit' });
+  await page.waitForTimeout(4000);
+  await page.waitForFunction(() => !!window.__glMem, null, { timeout: 60000 }).catch(() => undefined);
+  const after = await page.evaluate(() => ({
+    oldPageShown: window.__restored,
+    nav: performance.getEntriesByType('navigation')[0]?.type ?? null,
+    gl: window.__glMem(),
+    contextLost: (() => { const c = document.querySelector('canvas'); const gl = c?.getContext('webgl2') ?? c?.getContext('webgl'); return gl ? gl.isContextLost() : null; })(),
+  })).catch((e) => ({ error: String(e) }));
+  const bfcache = { mode: bfcacheOn ? 'on' : 'off (Playwright default)', hide, back: after, notUsedReasons: bfcacheMisses.at(-1) ?? null };
+  if (after.oldPageShown && after.contextLost === false && after.gl?.MB > 8) fail.push(`battle page came back from the back/forward cache still holding ${after.gl.MB} MB of GL textures`);
 
   // 3. In-page restarts on one island.
   await page.goto(`${base}/2d.html?level=${islands.at(-2) ?? islands[0]}`);

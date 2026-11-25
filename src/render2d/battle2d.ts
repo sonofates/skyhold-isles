@@ -21,6 +21,7 @@ import type { EnemyType } from '../core/types.ts';
 import { enemyArtKeys, runEnemyTypes } from './enemyArtSet.ts';
 import { FrameStats } from './frameStats.ts';
 import { gpuTextureStats } from './gpuStats.ts';
+import { releaseOnPageCache } from './pageCache.ts';
 import { Game2D, REPLAY_SPEEDS, type Game2DHooks } from './game2d.ts';
 import { heroLevelProgress, resolveHeroForRun } from './heroes2d.ts';
 import type { HeroHud2D } from './ui/heroHud2d.ts';
@@ -95,6 +96,8 @@ declare global {
       hudWave?: () => string;
       /** QA: GPU texture residency (count, MB, biggest uploads) and the canvas size (gpuStats.ts). */
       gpu?: (topN?: number) => import('./gpuStats.ts').GpuTextureStats;
+      /** QA: leave to the world map the way the end board's Menu does (navigateWithVeil). */
+      menu?: () => void;
       setGold?: (g: number) => void;
       setLives?: (n: number) => void;
       artcheck?: () => ReturnType<typeof artCheckSummary>;
@@ -1169,6 +1172,7 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
     skipToWave: (n) => game.world.debugSkipToWave(n),
     hudWave: () => game.hud.waveLabel,
     gpu: (topN) => gpuTextureStats(app, topN),
+    menu: () => hooks.onMenu?.(),
     artcheck: () => artCheckSummary(art),
     abilities: () => abilities?.debug() ?? null,
     pad: () => padCursor?.state() ?? null,
@@ -1320,6 +1324,9 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
   if (!document.hidden || isDebugScene) app.ticker.start();
   bootPhase('interactive');
   reportBoot();
+  // Leaving through the game's own navigation may park this page in the back/forward cache:
+  // let go of the GPU context and decoded sheets then (pageCache.ts).
+  releaseOnPageCache(app, () => game.textureSources());
   window.__p0.textureWarmup = warmTextureSources(app, game.textureSources(), () => {
     bootPhase('all-textures-resident');
     reportBoot();

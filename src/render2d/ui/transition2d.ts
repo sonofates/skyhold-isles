@@ -12,11 +12,19 @@ function reduced(): boolean {
   return typeof document !== 'undefined' && document.documentElement.classList.contains('pu-reduce-motion');
 }
 
+let leaving = false;
+
+/** True once the game itself has started leaving this page (`navigateWithVeil`). */
+export function isLeavingPage(): boolean {
+  return leaving;
+}
+
 /** Starts the veil while navigating to `href` (once; a second call while leaving is ignored). */
 export function navigateWithVeil(href: string, replace = false): void {
   if (typeof document === 'undefined') return;
   if (document.getElementById('pu-veil')) return;
   const go = (): void => {
+    leaving = true;
     if (replace) location.replace(href);
     else location.assign(href);
   };
