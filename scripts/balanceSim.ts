@@ -50,12 +50,14 @@ export interface GuardShieldTally {
 
 /**
  * Chapter five over a run (islands with chapter-five foes only): Veilcaster veils cast, Dusk Hound pack
- * howls (a hound died with mates nearby), eclipses and Sovereign splits, plus attack-tower seconds
+ * howls (a hound died with mates nearby) and the mates each howl enraged, eclipses and Sovereign splits, plus attack-tower seconds
  * while a wave runs and the share of their reach lost to veils / the eclipse (Σ rangeCut·dt).
  */
 export interface ShadowTally {
   veils: number;
   packHowls: number;
+  /** Σ pack mates enraged per howl (one hound counts again each time a new howl reaches it). */
+  houndsEnraged: number;
   eclipses: number;
   splits: number;
   towerSec: number;
@@ -279,11 +281,14 @@ export function runLevelBalanceSim(
   events.on('guardShieldRestored', () => {
     guardShield.refreezes++;
   });
-  const shadow: ShadowTally = { veils: 0, packHowls: 0, eclipses: 0, splits: 0, towerSec: 0, rangeLostSec: 0 };
+  const shadow: ShadowTally = { veils: 0, packHowls: 0, houndsEnraged: 0, eclipses: 0, splits: 0, towerSec: 0, rangeLostSec: 0 };
   const chapterFive = hasChapterFiveEnemies(level);
   if (chapterFive) {
     events.on('towerVeiled', () => shadow.veils++);
-    events.on('packEnrage', () => shadow.packHowls++);
+    events.on('packEnrage', (ev) => {
+      shadow.packHowls++;
+      shadow.houndsEnraged += ev.count;
+    });
     events.on('eclipse', () => shadow.eclipses++);
     events.on('sovereignSplit', () => shadow.splits++);
   }
@@ -700,7 +705,9 @@ export function evaluateBalance(
     if (hasChapterFiveEnemies(level)) {
       const sd = greedyRes.shadow;
       const lost = sd.towerSec > 0 ? (sd.rangeLostSec / sd.towerSec) * 100 : 0;
-      summary[summary.length - 1] += ` | dusk: greedy ${sd.veils} veils, ${sd.packHowls} pack howls, ` +
+      const houndLeaks = greedyRes.waves.reduce((n, w) => n + (w.leaksByType.duskhound ?? 0), 0);
+      summary[summary.length - 1] += ` | dusk: greedy ${sd.veils} veils, ${sd.packHowls} pack howls ` +
+        `(${sd.houndsEnraged} mates enraged, ${houndLeaks} hounds leaked), ` +
         `eclipse ${sd.eclipses}, split ${sd.splits}, ${lost.toFixed(1)}% of tower reach lost`;
     }
     // Sledge Warden shields: how much they soak and how much of it tesla/mortar breaks (informational).

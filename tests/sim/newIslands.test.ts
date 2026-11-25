@@ -45,9 +45,11 @@ it.each(CHAPTER4_ISLANDS)('$id uses its shipping chapter roster, wave count and 
   expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.layout2d.entrances.map((_, lane) => lane)));
 });
 
+// i37 opens the chapter with the older roster only; the Dusk Hound joins from i38 (docs/handoff-ch5-waves-1.md).
 it.each(CHAPTER5_ISLANDS)('$id uses established foes across all its ground lanes', level => {
-  const roster = new Set(LEVELS_2D.filter(l => chapterOf(l.id)?.id !== 'ch5')
+  const roster = new Set<string>(LEVELS_2D.filter(l => chapterOf(l.id)?.id !== 'ch5')
     .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
+  if (level.id !== 'i37') roster.add('duskhound');
   const groups = level.waves.flatMap(w => w.groups);
   expect(level.difficulty).toBe('Master');
   expect(level.waves).toHaveLength(14);
