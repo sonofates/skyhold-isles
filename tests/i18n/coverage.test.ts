@@ -173,6 +173,8 @@ const UI_FILES = [
   'src/render2d/uiKit.ts',
   'src/render2d/uiLayout.ts',
   'src/render2d/main2d.ts',
+  'src/render2d/battle2d.ts',
+  'src/render2d/bootShared2d.ts',
 ];
 
 /** Literal strings that are code, not words for the player. */
