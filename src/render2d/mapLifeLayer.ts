@@ -204,6 +204,8 @@ export interface MapLifeStats {
   readonly swayReady: boolean;
   readonly waterReady: boolean;
   readonly hazeReady: boolean;
+  /** Surface pass cells drawn / of the grid (null: full quad or no surface pass). */
+  readonly surfaceCells: { readonly active: number; readonly total: number } | null;
   readonly activeClouds: number;
   readonly activeBirds: number;
   readonly activeButterflies: number;
@@ -217,6 +219,8 @@ export interface MapLifeController {
   step(dtSec: number, tier?: QualityTier): void;
   /** QA: inspect runtime state. */
   debug(): MapLifeStats;
+  /** QA: surface pass on the full quad instead of its mask cells (pixel-equality check). */
+  qaFullQuad(on: boolean): void;
   /** Explicitly tear down all GPU resources and listeners. */
   destroy(): void;
 }
@@ -233,6 +237,97 @@ export function listMapLifeConfigs(): readonly MapLifeConfig[] {
 }
 
 // --- Pure helpers (unit-tested) ------------------------------------------------------------------
+
+/** Columns of the surface pass's cell grid (rows follow the map's aspect). */
+export const LIFE_CELL_COLS = 48;
+
+/** A mask's pixels as read back from its image (R channel = the value the shaders sample). */
+export interface MaskPixels {
+  readonly data: ArrayLike<number>;
+  readonly width: number;
+  readonly height: number;
+}
+
+/**
+ * Cells of a `cols`×`rows` grid over the map that any mask texel above zero can reach: a texel's
+ * footprint grown by `margin` texels (the shaders sample the masks bilinearly, without mips), so a
+ * fragment in an unmarked cell samples zero from every mask — the one the shaders `discard`.
+ */
+export function activeLifeCells(masks: readonly MaskPixels[], cols: number, rows: number, margin = 2): Uint8Array {
+  const active = new Uint8Array(cols * rows);
+  for (const m of masks) {
+    const { data, width: w, height: h } = m;
+    for (let y = 0; y < h; y++) {
+      const cy0 = Math.max(0, Math.floor(((y - margin) / h) * rows));
+      const cy1 = Math.min(rows - 1, Math.floor(((y + 1 + margin) / h) * rows));
+      for (let x = 0; x < w; x++) {
+        if (data[(y * w + x) * 4] === 0) continue;
+        const cx0 = Math.max(0, Math.floor(((x - margin) / w) * cols));
+        const cx1 = Math.min(cols - 1, Math.floor(((x + 1 + margin) / w) * cols));
+        for (let cy = cy0; cy <= cy1; cy++) for (let cx = cx0; cx <= cx1; cx++) active[cy * cols + cx] = 1;
+      }
+    }
+  }
+  return active;
+}
+
+/**
+ * Mesh over the active cells only (shared grid vertices, so neighbouring cells meet without
+ * cracks; positions and UVs on the same linear map as the full quad). Null when every cell is
+ * active (the full quad is then the cheaper mesh).
+ */
+export function lifeCellGeometry(
+  active: Uint8Array, cols: number, rows: number, width: number, height: number,
+): { positions: Float32Array; uvs: Float32Array; indices: Uint32Array } | null {
+  let n = 0;
+  for (let i = 0; i < active.length; i++) n += active[i];
+  if (n === active.length) return null;
+  const vx = cols + 1;
+  const positions = new Float32Array(vx * (rows + 1) * 2);
+  const uvs = new Float32Array(vx * (rows + 1) * 2);
+  for (let cy = 0; cy <= rows; cy++) {
+    for (let cx = 0; cx <= cols; cx++) {
+      const v = (cy * vx + cx) * 2;
+      uvs[v] = cx / cols;
+      uvs[v + 1] = cy / rows;
+      positions[v] = uvs[v] * width;
+      positions[v + 1] = uvs[v + 1] * height;
+    }
+  }
+  const indices = new Uint32Array(n * 6);
+  let k = 0;
+  for (let cy = 0; cy < rows; cy++) {
+    for (let cx = 0; cx < cols; cx++) {
+      if (!active[cy * cols + cx]) continue;
+      const tl = cy * vx + cx;
+      const tr = tl + 1;
+      const br = tl + vx + 1;
+      const bl = tl + vx;
+      indices[k++] = tl; indices[k++] = tr; indices[k++] = br;
+      indices[k++] = tl; indices[k++] = br; indices[k++] = bl;
+    }
+  }
+  return { positions, uvs, indices };
+}
+
+/** A loaded mask image's pixels (null when it cannot be read back: then the full quad is drawn). */
+function readMaskPixels(img: HTMLImageElement | null): MaskPixels | null {
+  if (!img || !img.naturalWidth || typeof document === 'undefined') return null;
+  try {
+    const c = document.createElement('canvas');
+    c.width = img.naturalWidth;
+    c.height = img.naturalHeight;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.drawImage(img, 0, 0);
+    const px = ctx.getImageData(0, 0, c.width, c.height);
+    c.width = 1;
+    c.height = 1;
+    return { data: px.data, width: px.width, height: px.height };
+  } catch {
+    return null;
+  }
+}
 
 /** Normalizes a 2D wind direction vector, falling back to `[1, 0]`. */
 export function normalizeDir(dir: readonly [number, number] | undefined): readonly [number, number] {
@@ -899,6 +994,10 @@ class SurfacePass {
   private swayFailed = false;
   private waterFailed = false;
   private destroyed = false;
+  /** Cells the surface mesh covers / of the grid (null: full quad). */
+  cells: { readonly active: number; readonly total: number } | null = null;
+  private qaCellGeometry: MeshGeometry | null = null;
+  private qaQuadGeometry: MeshGeometry | null = null;
 
   constructor(
     host: Container,
@@ -1035,22 +1134,17 @@ class SurfacePass {
   private ensureMesh(): void {
     if (this.destroyed || this.mesh || !this.lastMapSource || this.host.destroyed) return;
 
-    const geometry = new MeshGeometry({
-      positions: new Float32Array([0, 0, this.width, 0, this.width, this.height, 0, this.height]),
-      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
-      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
-    });
-
+    // The masks the chosen shader samples: fragments where all of them are zero are discarded, so
+    // the mesh only needs to cover the cells they touch (`activeLifeCells`; same image, fewer
+    // fragments — late islands mask 5-20 % of the map).
+    let cellMasks: (HTMLImageElement | null)[];
     let shader: Shader;
     if (this.water) {
       // Wait for all configured mask images (sway + water) to settle before creating the combined shader
       // so both sampler bindings and uFlags are final on frame 1 with zero hot-swap race.
       const swaySettled = !this.wind || this.swayLoaded || this.swayFailed;
       const waterSettled = this.waterLoaded || this.waterFailed;
-      if (!swaySettled || !waterSettled || (!this.swayMaskSource && !this.waterMaskSource)) {
-        geometry.destroy(true);
-        return;
-      }
+      if (!swaySettled || !waterSettled || (!this.swayMaskSource && !this.waterMaskSource)) return;
       if (!this.swayMaskSource || !this.waterMaskSource) {
         this.dummySource ??= createDummyBlackSource();
       }
@@ -1098,6 +1192,7 @@ class SurfacePass {
         uFlowVecs: { value: packed.vecs, type: 'vec4<f32>', size: MAX_WATER_REGIONS },
       });
 
+      cellMasks = [this.swayLoaded && strength > 0 ? this.swayImage : null, this.waterLoaded ? this.waterImage : null];
       shader = new Shader({
         glProgram: GlProgram.from({ vertex: SWAY_VERTEX, fragment: SURFACE_WATER_FRAGMENT, name: 'map-life-surface-water' }),
         resources: {
@@ -1108,10 +1203,7 @@ class SurfacePass {
         },
       });
     } else if (this.heatHaze && !this.wind) {
-      if (!this.hazeMaskSource) {
-        geometry.destroy(true);
-        return;
-      }
+      if (!this.hazeMaskSource) return;
       const [hdx, hdy] = normalizeDir(this.heatHaze.dir ?? [0.84, -0.54]);
       const hStrength = clampedHazeStrength(this.heatHaze.strength);
       const hSpeed = Math.max(0.3, Math.min(3.0, this.heatHaze.speed ?? 1.45));
@@ -1125,6 +1217,7 @@ class SurfacePass {
         uAspect: { value: new Float32Array([this.width / Math.max(1, this.height), 1]), type: 'vec2<f32>' },
       });
 
+      cellMasks = [this.hazeImage];
       shader = new Shader({
         glProgram: GlProgram.from({ vertex: SWAY_VERTEX, fragment: SURFACE_HAZE_FRAGMENT, name: 'map-life-heat-haze' }),
         resources: {
@@ -1150,6 +1243,7 @@ class SurfacePass {
         uAspect: { value: new Float32Array([this.width / Math.max(1, this.height), 1]), type: 'vec2<f32>' },
       });
 
+      cellMasks = [this.swayImage];
       shader = new Shader({
         glProgram: GlProgram.from({ vertex: SWAY_VERTEX, fragment: SWAY_FRAGMENT, name: 'map-life-sway' }),
         resources: {
@@ -1159,14 +1253,52 @@ class SurfacePass {
         },
       });
     } else {
-      geometry.destroy(true);
       return;
     }
 
-    const mesh = new Mesh({ geometry, shader });
+    const mesh = new Mesh({ geometry: this.surfaceGeometry(cellMasks), shader });
     mesh.eventMode = 'none';
     this.mesh = mesh;
     this.host.addChild(mesh);
+  }
+
+  /** QA: draw the surface pass on the full quad (`on`) or on its cells again — the same pixels. */
+  qaFullQuad(on: boolean): void {
+    if (!this.mesh || !this.cells) return;
+    this.qaCellGeometry ??= this.mesh.geometry;
+    this.qaQuadGeometry ??= new MeshGeometry({
+      positions: new Float32Array([0, 0, this.width, 0, this.width, this.height, 0, this.height]),
+      uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+      indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+    });
+    this.mesh.geometry = on ? this.qaQuadGeometry : this.qaCellGeometry;
+  }
+
+  /** The surface mesh: the cells `masks` touch, or the full quad when a mask cannot be read. */
+  private surfaceGeometry(masks: readonly (HTMLImageElement | null)[]): MeshGeometry {
+    const full = (): MeshGeometry => {
+      this.cells = null;
+      return new MeshGeometry({
+        positions: new Float32Array([0, 0, this.width, 0, this.width, this.height, 0, this.height]),
+        uvs: new Float32Array([0, 0, 1, 0, 1, 1, 0, 1]),
+        indices: new Uint32Array([0, 1, 2, 0, 2, 3]),
+      });
+    };
+    const pixels: MaskPixels[] = [];
+    for (const img of masks) {
+      if (!img) continue;
+      const px = readMaskPixels(img);
+      if (!px) return full();
+      pixels.push(px);
+    }
+    if (pixels.length === 0) return full();
+    const cols = LIFE_CELL_COLS;
+    const rows = Math.max(1, Math.round((cols * this.height) / Math.max(1, this.width)));
+    const active = activeLifeCells(pixels, cols, rows);
+    const geo = lifeCellGeometry(active, cols, rows, this.width, this.height);
+    if (!geo) return full();
+    this.cells = { active: geo.indices.length / 6, total: cols * rows };
+    return new MeshGeometry(geo);
   }
 
   sync(time: number, mapSource: TextureSource | null, tier: QualityTier = 'high'): void {
@@ -1203,6 +1335,9 @@ class SurfacePass {
       }
     }
     if (this.mesh) {
+      if (this.qaCellGeometry) this.mesh.geometry = this.qaCellGeometry;
+      this.qaQuadGeometry?.destroy(true);
+      this.qaQuadGeometry = null;
       const { geometry, shader } = this.mesh;
       if (!this.mesh.destroyed) this.mesh.destroy();
       geometry.destroy(true);
@@ -1942,6 +2077,10 @@ export class MapLifeLayer {
     this.step(dtSec, tier);
   }
 
+  qaFullQuad(on: boolean): void {
+    this.surfacePass?.qaFullQuad(on);
+  }
+
   debug(): MapLifeStats {
     return {
       island: this.config.island,
@@ -1954,6 +2093,7 @@ export class MapLifeLayer {
       swayReady: this.surfacePass?.swayReady ?? false,
       waterReady: this.surfacePass?.waterReady ?? false,
       hazeReady: this.surfacePass?.hazeReady ?? false,
+      surfaceCells: this.surfacePass?.cells ?? null,
       activeClouds: this.built && this.enabled ? this.activeClouds : 0,
       activeBirds: this.built && this.enabled ? this.activeBirds : 0,
       activeButterflies: this.built && this.enabled ? this.activeButterflies : 0,
@@ -2100,6 +2240,9 @@ export function mapLifeLayer(
       layer.skyRoot.visible = true;
       layer.step(dtSec, tier);
     },
+    qaFullQuad(on: boolean): void {
+      life?.qaFullQuad(on);
+    },
     debug(): MapLifeStats {
       if (life) return life.debug();
       return {
@@ -2113,6 +2256,7 @@ export function mapLifeLayer(
         swayReady: false,
         waterReady: false,
         hazeReady: false,
+        surfaceCells: null,
         activeClouds: 0,
         activeBirds: 0,
         activeButterflies: 0,
