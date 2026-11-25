@@ -1,0 +1,10 @@
+{
+  "island": "i39",
+  "maxParticles": 12,
+  "glows": [
+    { "id": "honeycaps", "x": 535, "y": 545, "rx": 34, "ry": 20, "color": "#ffba68", "minAlpha": 0.08, "maxAlpha": 0.23, "speed": 0.65 }
+  ],
+  "zones": [
+    { "id": "honeycap-spores", "kind": "firefly", "rect": [506, 533, 52, 39], "rate": 1.4, "color": "#ffbe6a", "color2": "#f8d9ab", "size": 6, "drift": [9, -8], "life": 3.8, "alpha": 0.54 }
+  ]
+}

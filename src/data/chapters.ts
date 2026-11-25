@@ -7,7 +7,7 @@
  * never change, so saves, stars, the Daily and challenges keep working; a chapter is only an
  * ordering and grouping layer on top of the ids.
  *
- * Unregistered chapter slots are skipped. Frostveil opens after Lastlight Head.
+ * Unregistered chapter slots are skipped. Eclipse Skies opens after Frostveil Citadel.
  *
  * Pure data, no DOM and no i18n runtime (only the message key names).
  */
@@ -105,9 +105,10 @@ export const CHAPTERS: readonly ChapterDef[] = [
     n: 5,
     nameKey: 'chapter.ch5.name',
     blurbKey: 'chapter.ch5.blurb',
-    islands: [],
-    finale: null,
-    status: 'soon',
+    islands: ['i37', 'i38', 'i39', 'i40', 'i41', 'i42', 'i43', 'i44', 'i45'],
+    finale: 'i45',
+    playableThrough: 'i39',
+    status: 'playable',
     accent: '#8a6cc8',
     sea: [0.78, 0.68, 1.0, 0.7],
   },

@@ -96,6 +96,10 @@ function verdict(rows: Row[]): void {
   const finaleApproach = ['i33', 'i34', 'i35', 'i36'].map(normalLives);
   check(finaleApproach.every((n, i) => n > 0 && (i === 0 || n < finaleApproach[i - 1])),
     `Normal first clears tighten from Stillfall to the Citadel: ${finaleApproach.join(' > ')} lives`);
+  const eclipse = ['i37', 'i38', 'i39'].map(normalLives);
+  check(eclipse[0] > normalLives('i36') && eclipse[0] <= normalLives('i36') + 6
+    && eclipse.every((n, i) => n > 0 && (i === 0 || n < eclipse[i - 1])),
+    `Eclipse eases after the Citadel and rises through the grove: i36 ${normalLives('i36')}, then ${eclipse.join(' > ')} lives`);
   const twos = normal.filter(r => r.stars === 2).length;
   const threes = normal.filter(r => r.stars === 3).length;
   check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),

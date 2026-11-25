@@ -29,6 +29,7 @@ import { I22 } from './i22.ts';
 import { I23 } from './i23.ts';
 import { I24 } from './i24.ts';
 import { CHAPTER4_ISLANDS } from './chapter4.ts';
+import { CHAPTER5_ISLANDS } from './chapter5.ts';
 import { NEW_ISLANDS } from './newIslands.ts';
 import type { ChapterIsland } from './chapterIsland.ts';
 import { orderByChapters } from '../chapters.ts';
@@ -54,6 +55,7 @@ const ISLAND_POOL: readonly LevelDef[] = [
   ...registeredChapterIslands(),
   ...NEW_ISLANDS,
   ...CHAPTER4_ISLANDS,
+  ...CHAPTER5_ISLANDS,
 ];
 
 /**

@@ -533,6 +533,10 @@ function islandLossWindow(index: number, id: string): readonly [number, number] 
   if (id === 'i34') return [16, 18];
   if (id === 'i35') return [18, 20];
   if (id === 'i36') return [20, 21];
+  // Eclipse opens just below Citadel pressure, then tightens across the two new approaches.
+  if (id === 'i37') return [14, 16];
+  if (id === 'i38') return [15, 17];
+  if (id === 'i39') return [16, 18];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
