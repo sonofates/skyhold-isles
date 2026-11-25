@@ -1,0 +1,10 @@
+{
+  "island": "i45",
+  "maxParticles": 12,
+  "glows": [
+    { "id": "corona-bowl", "x": 971, "y": 637, "rx": 32, "ry": 34, "color": "#ffc267", "minAlpha": 0.10, "maxAlpha": 0.31, "speed": 1.27 }
+  ],
+  "zones": [
+    { "id": "solar-embers", "kind": "ember", "rect": [952, 628, 37, 15], "rate": 1.8, "color": "#ffdf83", "color2": "#eb813f", "size": 5, "drift": [-9, -19], "life": 2.6, "alpha": 0.75 }
+  ]
+}

@@ -3,7 +3,7 @@
  * spread": the painting on the left page, the words on the right):
  * - the title card when a chapter first opens (the painting of its first island's intro story),
  * - "Chapter complete" after its finale is won (the finale's outro painting, the chapter's stars,
- *   and the next chapter button, or the "coming soon" line before chapters 4-5 exist).
+ *   and the next chapter button, or the return to the chart after the campaign finale).
  * Which card is due is decided in chapterState.ts (`cardsDue`).
  */
 import type { ChapterDef } from '../../data/chapters.ts';
@@ -54,10 +54,12 @@ export interface ChapterDoneOptions {
   readonly onDone: () => void;
 }
 
-/** "Chapter complete": the chapter's stars, its islands, then on to the next chapter. */
+/** Show the chapter tally and return to the chart after the campaign finale. */
 export function showChapterDone(o: ChapterDoneOptions): ChapterCard {
   let next = false;
-  const sheet = openSheet(t('chapter.doneTitle'), {
+  // TODO(campaignComplete): start the ending sequence when this one-time final card closes.
+  const campaignComplete = o.next === null;
+  const sheet = openSheet(t(campaignComplete ? 'chapter.campaignComplete' : 'chapter.doneTitle'), {
     cls: 'pu-story pu-chapter-card done',
     testid: 'chapter2d-done',
     onClose: () => {

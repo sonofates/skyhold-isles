@@ -89,7 +89,7 @@ function assertProgressInvariants(
 
 /**
  * Pure headless campaign save/load mid-progress sweep covering:
- * - Incremental progression across every island in chapter order (`l1c` -> `i39`, Prologue -> Eclipse Skies)
+ * - Incremental progression across every island in chapter order (`l1c` -> `i45`, Prologue -> Eclipse Skies)
  * - Difficulty wins (`Easy` 1★ cap & `bestLives` preservation, `Normal` 1–3★, `Hard` ribbons)
  * - Hero unlocks (`bran` -> `wren` -> `mira` -> `tobb` -> `sela`), XP/levels, skill nodes & respec
  * - Workshop purchases, Daily Squall streaks on Chapter 2 islands, Endless records
@@ -193,7 +193,7 @@ export async function runMidProgressSaveSweep(): Promise<readonly InvariantViola
       if (withNode) p.heroes = withNode.heroes;
     }
 
-    if (['i16', 'i20', 'i24', 'i28', 'i30', 'i33', 'i34', 'i35', 'i36', 'i37', 'i38', 'i39'].includes(lvl.id)) {
+    if (['i16', 'i20', 'i24', 'i28', 'i30', 'i33', 'i34', 'i35', 'i36', 'i37', 'i38', 'i39', 'i43', 'i44', 'i45'].includes(lvl.id)) {
       assertProgressInvariants(p, `mid-campaign-${lvl.id}`, violations);
       const code = encodeSaveCode2D(p, LEVELS_2D);
       const decoded = decodeSaveCode2D(code, LEVELS_2D);

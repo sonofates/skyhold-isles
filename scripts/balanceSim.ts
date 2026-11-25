@@ -58,6 +58,8 @@ export interface ShadowTally {
   packHowls: number;
   eclipses: number;
   splits: number;
+  shadeKills: number;
+  splitProgress: number;
   towerSec: number;
   rangeLostSec: number;
 }
@@ -279,13 +281,18 @@ export function runLevelBalanceSim(
   events.on('guardShieldRestored', () => {
     guardShield.refreezes++;
   });
-  const shadow: ShadowTally = { veils: 0, packHowls: 0, eclipses: 0, splits: 0, towerSec: 0, rangeLostSec: 0 };
+  const shadow: ShadowTally = { veils: 0, packHowls: 0, eclipses: 0, splits: 0, shadeKills: 0, splitProgress: 0, towerSec: 0, rangeLostSec: 0 };
   const chapterFive = hasChapterFiveEnemies(level);
   if (chapterFive) {
     events.on('towerVeiled', () => shadow.veils++);
     events.on('packEnrage', () => shadow.packHowls++);
     events.on('eclipse', () => shadow.eclipses++);
-    events.on('sovereignSplit', () => shadow.splits++);
+    events.on('sovereignSplit', ev => {
+      shadow.splits++;
+      const path = world.groundPath;
+      shadow.splitProgress = path.nearestDist(ev.x, ev.z) / path.totalLength;
+    });
+    events.on('enemyKilled', ev => { if (ev.enemyType === 'eclipse_shade') shadow.shadeKills++; });
   }
 
   events.on('waveStarted', (ev) => {
@@ -537,6 +544,9 @@ function islandLossWindow(index: number, id: string): readonly [number, number] 
   if (id === 'i37') return [14, 16];
   if (id === 'i38') return [15, 17];
   if (id === 'i39') return [16, 18];
+  if (id === 'i43') return [17, 19];
+  if (id === 'i44') return [18, 20];
+  if (id === 'i45') return [20, 21];
   if (index <= 1) return [1, 3];
   if (index <= 5) return [2, 6];
   if (index === 6) return [6, 8]; // Three bosses, five lives apiece.
@@ -785,6 +795,14 @@ export function evaluateBalance(
       }
       if ((level.difficulty === 'Heroic' || level.difficulty === 'Master') && weakRes.outcome !== 'lost') {
         failures.push(`${label} weak must lose with the campaign kit`);
+      }
+      if (level.id === 'i45') {
+        const { eclipses, splits, shadeKills, splitProgress } = greedyRes.shadow;
+        const last = greedyRes.waves.at(-1);
+        if (eclipses !== 1 || splits !== 1 || shadeKills !== 2 || last?.bossSummons !== 4 || splitProgress < 0.25 || splitProgress > 0.85) {
+          failures.push('i45 must eclipse, split with road remaining, summon four hounds and defeat both Shadow Halves');
+        }
+        summary[summary.length - 1] += ` | Throne: split at ${(100 * splitProgress).toFixed(1)}% of the processional, ${shadeKills} halves defeated`;
       }
       if (level.id === 'i36') {
         const last = greedyRes.waves.at(-1);

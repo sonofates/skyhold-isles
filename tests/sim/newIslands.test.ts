@@ -50,7 +50,18 @@ it.each(CHAPTER5_ISLANDS)('$id uses established foes across all its ground lanes
     .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
   const groups = level.waves.flatMap(w => w.groups);
   expect(level.difficulty).toBe('Master');
-  expect(level.waves).toHaveLength(14);
+  const isFinalLeg = ['i43', 'i44', 'i45'].includes(level.id);
+  if (isFinalLeg) {
+    roster.add('duskhound');
+    roster.add('veilcaster');
+    for (const type of ['duskhound', 'veilcaster']) expect(groups.some(g => g.enemyType === type)).toBe(true);
+    for (const pack of groups.filter(g => g.enemyType === 'duskhound')) {
+      expect(pack.count).toBeGreaterThanOrEqual(4);
+      expect(pack.count).toBeLessThanOrEqual(6);
+    }
+  }
+  if (level.id === 'i45') roster.add('eclipse_sovereign');
+  expect(level.waves).toHaveLength(isFinalLeg ? (level.id === 'i43' ? 15 : 16) : 14);
   const chart: Record<string, string> = manifest.paintedUi;
   expect(chart[`island-${level.id}`]).toBe(`ui/island-${level.id}.webp`);
   expect(existsSync('public/art2d/' + chart[`island-${level.id}`])).toBe(true);

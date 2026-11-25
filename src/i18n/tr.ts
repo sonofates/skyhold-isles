@@ -271,6 +271,12 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'story.i38.outro': 'Son pim yerine oturdu. Telden gelen sepetin içinde bir düzine minik ışık var. Mantar bunlar! Demek o kara koruya bakan biri var.',
   'story.i39.intro': 'İki mahzenin ağzını da gözle. Korucu şu yaprakların altında kendi şafağını yetiştiriyor. Her mantar yatağı ayrı bir ışık.',
   'story.i39.outro': 'Esinti yaprakları araladı. Korucu son koru avcunda saklıyor ama yüzündeki ışık uzaktan geliyor. Korunun ardına bir yıldız düşmüş.',
+  'story.i43.intro': 'Eski ustalar ilk gök çivisine burada su vermiş. Çekici dinle. Üçüncü vuruşta kepçeyi alt oluğa gönder.',
+  'story.i43.outro': 'Işığa tut. Delikler küçük bir takımyıldız çiziyor! Arşivde bunu okuyacak bir lamba biliyorum.',
+  'story.i44.intro': 'Çiviyi dizin lambasının altına sür. İki kitap asansörünü de açık tut. Halkalar birlikte dönerse bir sayfa rafına geri gelecek.',
+  'story.i44.outro': 'İşte burada. Lambanın sıcaklığı hâlâ üstünde. Sekiye üç yol çıkıyor. Yalnız birinde tacın izi var.',
+  'story.i45.intro': 'Yüksek kemeri gözle, Hükümdar oradan gelecek. Güneş karardığında yerini koru. Taç ikiye ayrıldığında iki yarıyı da durdurmalısın.',
+  'story.i45.outro': 'En alttaki basamakta iki parça kara demir kaldı. Elimi yeniden gün ışığında görebiliyorum. Gel, şu çekici eve götürelim.',
   'story.generic.intro': 'Sıradaki durak: {name}. {subtitle}.',
   'story.generic.introShort': 'Sıradaki durak: {name}. Akıncılar karaya çıkmadan kuleleri hazırla.',
   'story.generic.outro': '{name} yeniden güvende. Haritaya işaretliyorum, yola devam ediyoruz.',
@@ -638,6 +644,7 @@ export const TR: { readonly [K in MsgKey]: Msg } = {
   'chapter.doneStarsAria': '{max} yıldızdan {n} tanesi',
   'chapter.doneNext': '{n}. Bölüme geç',
   'chapter.doneSoon': '{n}. Bölüm yakında geliyor. O zamana dek kaçırdığın yıldızların peşine düş!',
+  'chapter.campaignComplete': 'Sefer tamamlandı!',
   'chapter.doneMap': 'Haritaya dön',
 
   // --- store (mobile builds: free-version scope) ---------------------------------------------

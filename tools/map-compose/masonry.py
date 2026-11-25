@@ -253,7 +253,7 @@ def timber_approach(surface, path, paint, width, length, scale):
     project_strip(surface, strip, course, half, scale, density, end=end)
 
 
-def project_strip(surface, strip, course, half, scale, density, end=None):
+def project_strip(surface, strip, course, half, scale, density, end=None, repeat=False):
     """Sample a continuous course of paving along the road's local tangent."""
     size = surface.size
     texture = np.asarray(strip)
@@ -285,7 +285,7 @@ def project_strip(surface, strip, course, half, scale, density, end=None):
                 best = np.minimum(best, sq)
                 along = np.where(closer, stations[i]+t*(stations[i+1]-stations[i]), along)
                 across = np.where(closer, np.copysign(np.sqrt(sq), dx*ay-dy*ax), across)
-            u = np.clip(along*density, 0, strip.width-1.001)
+            u = (along*density) % (strip.width-1) if repeat else np.clip(along*density, 0, strip.width-1.001)
             v = np.clip((across+half)*density, 0, strip.height-1.001)
             ix, iy = u.astype(int), v.astype(int)
             fx, fy = (u-ix)[:,:,None], (v-iy)[:,:,None]

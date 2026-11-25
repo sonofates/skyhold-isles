@@ -1,0 +1,10 @@
+{
+  "island": "i44",
+  "maxParticles": 8,
+  "glows": [
+    { "id": "reading-lamp", "x": 846, "y": 616, "rx": 25, "ry": 24, "color": "#ffda90", "minAlpha": 0.07, "maxAlpha": 0.21, "speed": 0.77 }
+  ],
+  "zones": [
+    { "id": "vellum", "kind": "petal", "rect": [1416, 346, 33, 23], "rate": 0.45, "color": "#ffedc0", "color2": "#dcbd81", "size": 12, "drift": [-12, 5], "life": 3.6, "alpha": 0.82 }
+  ]
+}

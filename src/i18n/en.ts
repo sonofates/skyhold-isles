@@ -265,6 +265,12 @@ export const EN = {
   'story.i38.outro': 'The last pin slides home. A basket comes across the wire with a dozen little lights inside. Mushrooms! Someone is tending that black grove.',
   'story.i39.intro': 'Watch both cellar mouths. Under these leaves the keeper grows her own dawn, one bed of honeycaps at a time.',
   'story.i39.outro': 'A breeze parts the leaves. The keeper cups her last ember, but the light on her face comes from farther off. A star has fallen beyond the grove.',
+  'story.i43.intro': 'The old smiths cooled the first sky-nail here. Listen to the hammer. On the third stroke, send the ladle along the lower channel.',
+  'story.i43.outro': 'Hold it to the light. Those holes make a little constellation! I know a lamp in the archive that will read it.',
+  'story.i44.intro': 'Slip the nail under the index lamp. Keep both book lifts clear. If the rings turn together, one page will come back to its shelf.',
+  'story.i44.outro': 'Here it is, still warm from the lamp. Three ways onto the terrace. Only one bears the mark of the crown.',
+  'story.i45.intro': 'Watch the tall arch for the Sovereign. When the sun goes black, hold your ground. When the crown divides, both halves must fall.',
+  'story.i45.outro': 'Two pieces of black iron on the lowest step. I can see my hand in the sunlight again. Help me carry this hammer home.',
   'story.generic.intro': 'Next stop: {name}. {subtitle}.',
   'story.generic.introShort': 'Next stop: {name}. Ready the towers before the raiders land.',
   'story.generic.outro': '{name} is safe again. I will mark it on the chart, and we sail on.',
@@ -632,6 +638,7 @@ export const EN = {
   'chapter.doneStarsAria': '{n} of {max} stars',
   'chapter.doneNext': 'On to Chapter {n}',
   'chapter.doneSoon': 'Chapter {n} is coming soon. Until then, chase the stars you missed!',
+  'chapter.campaignComplete': 'Campaign complete!',
   'chapter.doneMap': 'Back to the map',
 
   // --- store (mobile builds: free-version scope) ---------------------------------------------

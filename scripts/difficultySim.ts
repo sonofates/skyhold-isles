@@ -100,6 +100,11 @@ function verdict(rows: Row[]): void {
   check(eclipse[0] > normalLives('i36') && eclipse[0] <= normalLives('i36') + 6
     && eclipse.every((n, i) => n > 0 && (i === 0 || n < eclipse[i - 1])),
     `Eclipse eases after the Citadel and rises through the grove: i36 ${normalLives('i36')}, then ${eclipse.join(' > ')} lives`);
+  const throne = ['i43', 'i44', 'i45'].map(normalLives);
+  const otherEclipse = rows.filter(r => chapterOf(r.level.id)?.id === 'ch5' && r.level.id !== 'i45');
+  check(throne[0] > throne[1] && throne[1] > throne[2] && throne[2] > 0
+    && otherEclipse.every(r => r.runs.normal.campaign.finalLives > throne[2]),
+    `Normal reaches its Eclipse peak at the throne: ${throne.join(' > ')} lives`);
   const twos = normal.filter(r => r.stars === 2).length;
   const threes = normal.filter(r => r.stars === 3).length;
   check(twos > rows.length / 2 && threes <= Math.floor(rows.length * 0.4),

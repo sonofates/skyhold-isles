@@ -107,7 +107,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     blurbKey: 'chapter.ch5.blurb',
     islands: ['i37', 'i38', 'i39', 'i40', 'i41', 'i42', 'i43', 'i44', 'i45'],
     finale: 'i45',
-    playableThrough: 'i39',
+    playableThrough: 'i45',
     status: 'playable',
     accent: '#8a6cc8',
     sea: [0.78, 0.68, 1.0, 0.7],
@@ -117,9 +117,13 @@ export const CHAPTERS: readonly ChapterDef[] = [
 /** Every island slot in campaign order: the Prologue, then each chapter's islands. */
 export const CAMPAIGN_ORDER: readonly string[] = [...PROLOGUE.islands, ...CHAPTERS.flatMap((c) => c.islands)];
 
+// Remove these three exclusions when the parallel Chainward Bastion batch is registered.
+const pendingEclipseIslands = new Set(['i40', 'i41', 'i42']);
+
 /** Published slots for metadata consumers that do not load the 2D game. */
 export const PLAYABLE_ISLAND_IDS = [PROLOGUE, ...CHAPTERS].filter(c => c.status === 'playable')
-  .flatMap(c => c.playableThrough ? c.islands.slice(0, c.islands.indexOf(c.playableThrough) + 1) : c.islands);
+  .flatMap(c => c.playableThrough ? c.islands.slice(0, c.islands.indexOf(c.playableThrough) + 1) : c.islands)
+  .filter(id => !pendingEclipseIslands.has(id));
 
 /**
  * The flat 2D island order every save before chapters was written in (`l1c`, `i01`-`i24`). A save

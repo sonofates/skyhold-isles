@@ -91,3 +91,18 @@ Original storybook gouache adventure illustration, wide 3:2 landscape, intimate 
 ### story-i39-outro-1
 
 Original storybook gouache adventure illustration, wide 3:2 landscape, intimate expressive people with practical workwear, tangible brushwork, layered silhouettes, violet-indigo dusk and pockets of warm copper lantern light. No text, border or UI. The grove keeper peers through a gap in the black leaves. Beyond her luminous shelf mushrooms a star has fallen; a far crater in violet clouds burns copper gold. Her face warmly lit from below.
+
+## The First Forge, Lumen Archive and Eclipse Throne
+
+These original ImageGen paintings use the Eclipse kit camera. Each terrain is mounted at 1846 × 852. The desktop and phone crops share the same road and gate thresholds. The final rim framing leaves the ground beneath the northern build sites clear. The archive and throne had a second framing pass to keep the index and the solar disc visible above the battle.
+
+| Asset family | The First Forge | Lumen Archive | Eclipse Throne |
+| --- | --- | --- | --- |
+| Terrain plate | A suspended hammer and anvil large enough to forge a ship’s keel. Hammer-bearing founders overlook molten star-metal gutters. Repair plates and hammered blue slag break up the casting floor. | An open-air library above indigo cloud. Ladders follow the rim stacks. A brass orrery files punched cards on elliptical rings above an inlaid tile floor. | A great ruby-cushioned seat between gold crescent armrests. The throne back holds a round black sun with a bright corona. A fractured ring of pillars, hanging standards and braziers frame the slate terrace. |
+| Transparent scenery sheet, clockwise from upper left | A furnace-mouth portal, a hammer bearer, a spare bench anvil, a pouring ladle. | A book-vault portal, a stepped folio shelf, an index trolley, a lit reading desk. | The Sovereign’s obsidian arch, a fallen pillar, a broken solar ring with garnet cloth, a bowl of solar flame. |
+| Road swatch | Iron grates set into worn silver and red firebrick, with rivets and a few visible embers. | Honey-walnut and limestone chevrons with bronze pins and worn bevels. | Blue-silver marble, cracked solar inlay and transverse midnight-blue bands. |
+| Chart miniature | The anvil and furnace on a cutaway islet. | The index above tiny stacks and reading lamps. | The crown of the empty throne under a solar eclipse. |
+| Intro panel | A smith holds the unfinished sky-nail against the first anvil. | An archivist inserts the punched nail in the index lamp. | A split-crowned figure emerges from the ceremonial gate. |
+| Outro panel | The cooled nail projects a constellation through its punched holes. | A page carrying a chart of the broken colonnade returns to the archivist. | Two cold crown fragments lie on the stair. A hand retrieves a builder’s hammer in the returning sunlight. |
+
+The scenery prompt called for four separate cells on true transparency with an east-facing open gate in the first cell. The composer mirrors that entrance for west-facing routes. The road prompt called for top-down paving from left to right, distinct dark joints, worn light faces and no perspective convergence. Each swatch repeats at its own material scale along the lane tangent. At a junction the main processional or aisle is painted across the incoming branch. The nine UI images were painted separately.

@@ -15,6 +15,7 @@ import {
 import { ENDLESS_UNSCALED_TYPES } from '../../src/data/endlessMutators.ts';
 import type { LevelDef } from '../../src/data/levels/types.ts';
 import { I16 } from '../../src/data/levels2d/i16.ts';
+import { getLevelById, LEVELS_2D } from '../../src/data/levels2d/index.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
 import { towerStats } from '../../src/data/towers.ts';
 import { DATA_TR } from '../../src/i18n/dataTr.ts';
@@ -511,6 +512,43 @@ describe('Eclipse Sovereign', () => {
     for (let i = 0; i < 30 && world.outcome === 'ongoing'; i++) world.fixedTick(DT);
     expect(world.outcome).toBe('won');
     expect(world.gold - gold0).toBe(ENEMY_DEFS.eclipse_sovereign.reward);
+  });
+
+  it('reserves the Sovereign for the final procession and both halves for its split', () => {
+    const encounters = LEVELS_2D.flatMap(level => level.waves.flatMap((wave, i) =>
+      wave.groups.filter(g => g.enemyType === 'eclipse_sovereign' || g.enemyType === 'eclipse_shade')
+        .map(g => [level.id, i + 1, g.enemyType, g.count, g.lane])));
+    expect(encounters).toEqual([['i45', 16, 'eclipse_sovereign', 1, 0]]);
+    const world = new SimWorld(getLevelById('i45')!, new EventBus());
+    expect(world.extraGroundPaths).toHaveLength(2);
+    for (const spur of world.extraGroundPaths) expect(world.groundPath.totalLength).toBeGreaterThan(spur.totalLength);
+    world.dispose();
+  });
+
+  it.each(['eclipse_sovereign', 'eclipse_shade'] as const)('a %s breach ends the Throne story, even at full lives', type => {
+    const events = new EventBus();
+    const world = new SimWorld(getLevelById('i45')!, events);
+    let breachCost = 0;
+    events.on('enemyLeaked', e => { breachCost = e.livesLost; });
+    world.debugSkipToWave(16);
+    const foe = world.enemySystem.spawnEnemy(type)!;
+    foe.dist = foe.totalDist;
+    world.fixedTick(DT);
+    expect(breachCost).toBe(world.startingLives);
+    expect(world.outcome).toBe('lost');
+    world.dispose();
+  });
+
+  it('charges the ordinary Shadow Half cost in Throne Endless', () => {
+    const world = new SimWorld(getLevelById('i45')!, new EventBus());
+    world.startEndlessFromStart();
+    world.startNextWave();
+    const half = world.enemySystem.spawnEnemy('eclipse_shade')!;
+    half.dist = half.totalDist;
+    world.fixedTick(DT);
+    expect(world.outcome).toBe('ongoing');
+    expect(world.startingLives - world.lives).toBe(ENEMY_DEFS.eclipse_shade.livesCost);
+    world.dispose();
   });
 
   it('a Shadow Half that reaches the sanctuary costs boss lives', () => {

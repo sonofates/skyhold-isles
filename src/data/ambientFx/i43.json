@@ -1,0 +1,10 @@
+{
+  "island": "i43",
+  "maxParticles": 9,
+  "glows": [
+    { "id": "pouring-ladle", "x": 936, "y": 653, "rx": 24, "ry": 17, "color": "#ff963b", "minAlpha": 0.09, "maxAlpha": 0.28, "speed": 1.52 }
+  ],
+  "zones": [
+    { "id": "ladle-sparks", "kind": "ember", "rect": [919, 647, 32, 9], "rate": 1.5, "color": "#ffe5a3", "color2": "#fb8132", "size": 4, "drift": [5, -17], "life": 2.2, "alpha": 0.72 }
+  ]
+}

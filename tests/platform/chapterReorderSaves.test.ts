@@ -102,14 +102,14 @@ function expectOnTheRightIds(p: ProgressData, old: ProgressData): void {
   expect(p.bestEndlessWaves[at('i16')]).toBe(100 + 16);
   expect(p.bestEndlessWaves[at('i24')]).toBe(100 + 24);
   // The new islands start empty, but nothing is relocked: clearing i24 opens i28, and i25..i27 are already open.
-  for (const id of ['i25', 'i26', 'i27', 'i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36', 'i37', 'i38', 'i39']) {
+  for (const id of NEW_IDS.filter(id => !LEGACY_2D_ORDER.includes(id))) {
     expect(p.bestStars[at(id)], id).toBe(0);
     expect(p.difficultyWins?.hard[at(id)] ?? 0, id).toBe(0);
     expect(p.bestEndlessWaves[at(id)], id).toBe(0);
   }
   expect(LEVELS_2D[p.unlockedLevelIndex].id).toBe('i28');
   const st = islandStates(p, LEVELS_2D);
-  expect(st.filter(s => !s.unlocked).map(s => s.level.id)).toEqual(['i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36', 'i37', 'i38', 'i39']);
+  expect(st.filter(s => !s.unlocked).map(s => s.level.id)).toEqual(NEW_IDS.slice(at('i29')));
   expect(st[at('i16')].hardWon).toBe(true);
   expect(st[at('i24')].hardWon).toBe(true);
   expect(st[at('i25')].hardWon).toBe(false);

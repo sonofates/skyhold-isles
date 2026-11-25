@@ -197,6 +197,33 @@ export const DATA_TR: DataTr = {
         'Kül Yağmuru', 'Son Kor',
       ],
     },
+    i43: {
+      name: 'İlk Ocak', subtitle: 'Soğutma olukları ilk örsün çevresini dolanıyor. Gök çivisi biçimini alana dek dökümhaneyi savun.',
+      waves: [
+        'Çekiç Pulu', 'İlk Tav', 'Kalıp Örsü', 'Kömür Tazıları',
+        'Maşanın Altında', 'Demiri Uzat', 'Kızgın Perçinler', 'Bakır Kepçeler',
+        'Kiraz Kızılı', 'Örsün Boynuzu', 'Eğri Çivi', 'Kurucuların Ateşi',
+        'Soğuk Çatlak', 'Ak Tav', 'Gök Çivisini Döv',
+      ],
+    },
+    i44: {
+      name: 'Işık Arşivi', subtitle: 'Rafların karşılıklı uçlarında iki kitap asansörü açılıyor. Dizin kayıp haritayı bulana kadar batıdaki mahzeni koru.',
+      waves: [
+        'Gece Okuması', 'Kitap Asansörü', 'Uçuşan Yapraklar', 'Bakır Tokalar',
+        'Dar Koridor', 'Mürekkep Lekesi', 'Ödünç Masası', 'Yaldızlı Kenar',
+        'Gezgin Ciltler', 'Denge Taşı', 'Kayıp Yaprak', 'Sökük Cilt',
+        'İkinci Defter', 'Kilitli Raflar', 'Gölgelerin Dizini', 'Kayıp Harita',
+      ],
+    },
+    i45: {
+      name: 'Tutulma Tahtı', subtitle: 'Taht sekisinin üç kapısını tut. Hükümdar ya da Gölge Yarıları’ndan biri kaleye ulaşırsa Skyhold düşer.',
+      waves: [
+        'Bazalt Basamaklar', 'Yırtık Sancaklar', 'Alt Geçit', 'Bakır Borular',
+        'Boş Taht', 'Seki Boyunca', 'Kırık Halka', 'Sessiz Koro',
+        'İç Muhafızlar', 'Kara Mermer', 'Uzun Alay', 'Çanaktaki Köz',
+        'Çatlak Mühür', 'Tacın Gölgesi', 'Tam Tutulma', 'Tutulma Hükümdarı',
+      ],
+    },
   },
   towers: {
     archer: {

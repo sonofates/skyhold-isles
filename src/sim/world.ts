@@ -1040,6 +1040,9 @@ export class SimWorld {
       leaked.heroDamageReduction = 0;
       return;
     }
+    if (!this.waveSystem.isEndless && this.level.defeatOnStoryLeak?.includes(leaked.type)) {
+      leaked.livesCost = this.lives;
+    }
     this.lives = Math.max(0, this.lives - leaked.livesCost);
     const justLost = this.lives <= 0;
     if (justLost) {

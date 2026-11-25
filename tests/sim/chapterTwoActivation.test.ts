@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { applyWin } from '../../src/game/progression.ts';
-import { CAMPAIGN_ORDER } from '../../src/data/chapters.ts';
+import { CAMPAIGN_ORDER, PLAYABLE_ISLAND_IDS } from '../../src/data/chapters.ts';
 import { CHAPTER4_ENEMY_TYPES, CHAPTER5_ENEMY_TYPES, CHAPTER_ENEMY_DEFS, CHAPTER_ENEMY_MELEE, CHAPTER_ENEMY_TYPES, ENEMY_DEFS, ENEMY_TYPES } from '../../src/data/enemies.ts';
 import { getLevelById, LEVELS_2D, registeredChapterIslands } from '../../src/data/levels2d/index.ts';
 import { ENEMY_MELEE } from '../../src/data/soldiers.ts';
@@ -22,8 +22,8 @@ const CHAPTER = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24'];
 describe('chapter two is in the shipping campaign', () => {
   it('LEVELS_2D registers every shipping island exactly once, in chapter order', () => {
     const ids = LEVELS_2D.map((l) => l.id);
-    expect(ids).toHaveLength(40);
-    expect(new Set(ids)).toEqual(new Set(['l1c', ...Array.from({ length: 39 }, (_, i) => `i${String(i + 1).padStart(2, '0')}`)]));
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual(PLAYABLE_ISLAND_IDS);
     expect(ids).toEqual(CAMPAIGN_ORDER.filter((id) => getLevelById(id) !== null));
     expect(registeredChapterIslands().map((l) => l.id)).toEqual(CHAPTER);
     for (const id of CHAPTER) expect(getLevelById(id)).toBe(LEVELS_2D[ids.indexOf(id)]);

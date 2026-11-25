@@ -91,7 +91,7 @@ from gates import (  # noqa: E402
     blend_placement, clip_road_at_gate, contact_shadow, cut_front, draw_threshold_road, entrance_dir, entrance_facing, gate_alpha_hit, goal_dir, goal_facing, light_interior, output_box, output_sprite, place_gate, point_in_opening, resolve_prop,
 )
 from banks import shore_foundation, water_reflection  # noqa: E402
-from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road, timber_approach  # noqa: E402
+from masonry import RoadArcade, arch_bridge, brick_spur, cart_tracks, marble_road, moat_wall, paved_road, project_strip, RoadCourse, timber_approach  # noqa: E402
 from keeps import Keep  # noqa: E402
 from ground import (  # noqa: E402
     ROAD_WIDTH_FRACTION, Decals, DressingArea, brushed_surface, catmull, dusty_road_coverage, fine_detail, inner_band, paint_over_road, ragged_mask,
@@ -758,6 +758,15 @@ if dressing.get('waterCrossings'):
 road_material = load(dressing.get('roadMaterial', 'tex-dirt.png'))
 if dressing.get('roadPlate'):
     dirt = road_material.resize((W, H), Image.Resampling.BICUBIC)
+elif dressing.get('roadStrip') == 'repeat':
+    # Keep the painted joints at material scale through branch bends and shared approaches.
+    strip = road_material.convert('RGB')
+    dirt = Image.new('RGBA', (W, H), strip.getpixel((0, 0)) + (255,))
+    half = ROAD_W * .62
+    for lane in reversed(spl_paths):
+        course = RoadCourse(lane)
+        project_strip(dirt, strip, course, half, S, (strip.height - 1) / (2 * half),
+                      end=course.length + 1, repeat=True)
 elif dressing.get('roadStrip'):
     dirt = paved_road((W, H), road_material, spl_paths[0], ROAD_W, S)
 elif dressing.get('layMarble'):
