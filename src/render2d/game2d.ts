@@ -2241,7 +2241,7 @@ export class Game2D {
         deathClips: this.enemies.deathsPlayed,
         sideFrames: this.enemies.sideFrames,
         frostPatches: this.frostPatches.drawn,
-        eclipse: { timer: w.enemySystem.eclipseTimer, cut: w.enemySystem.eclipseCut, shade: this.eclipse.alpha },
+        eclipse: { timer: w.enemySystem.eclipseTimer, cut: w.enemySystem.eclipseCut, shade: this.eclipse.alpha, drawn: this.eclipse.debug() },
       },
       foes: (() => {
         const n: Record<string, number> = {};

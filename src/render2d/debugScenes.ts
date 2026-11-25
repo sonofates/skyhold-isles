@@ -121,10 +121,10 @@ function force(world: SimWorld, e: EnemyEntity, slot: ZooSlot, age: number): voi
       break;
     case 'eclipse_sovereign':
       // Eclipse (screen shade, every range circle shrinks), then the split into two Shadow Halves
-      // and four Dusk Hounds. Late enough that it has walked into the map (it is slow).
+      // and four Dusk Hounds. Late enough that it has left L1c's top-edge road (it is slow).
       // The split comes inside the 8 s eclipse so one frame shows the dark sky and both halves.
-      if (step(1, 14)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
-      else if (step(2, 18)) e.hp = Math.min(e.hp, e.maxHp * 0.38);
+      if (step(1, 27)) e.hp = Math.min(e.hp, e.maxHp * 0.64);
+      else if (step(2, 31)) e.hp = Math.min(e.hp, e.maxHp * 0.38);
       break;
     case 'duskhound':
       // Pack enrage without a pack: one stack at 2 s, the second at 5 s (tint, glow, smoke trail).

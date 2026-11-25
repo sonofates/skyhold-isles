@@ -50,6 +50,14 @@ export class EclipseLayer {
     this.shade.height = screenH;
   }
 
+  /** QA: what is drawn (screen px box, visibility up the parent chain). */
+  debug(): { alpha: number; visible: boolean; worldVisible: boolean; w: number; h: number; x: number; y: number } {
+    const b = this.shade.getBounds();
+    let worldVisible = this.shade.visible;
+    for (let n = this.shade.parent; n && worldVisible; n = n.parent) worldVisible = n.visible && n.alpha > 0;
+    return { alpha: this.alpha, visible: this.shade.visible, worldVisible, w: b.width, h: b.height, x: b.x, y: b.y };
+  }
+
   destroy(): void {
     this.root.destroy({ children: true });
   }

@@ -51,8 +51,8 @@ const GLACIER_SUMMON_REWARD = 3;
 const GLACIER_PHASE_RADIUS = 3.2;
 /** Veilcaster: retry cadence when no un-veiled tower stands in reach. */
 const VEIL_RETRY_INTERVAL = 0.4;
-/** Eclipse Sovereign: the second Shadow Half lands this far behind the first. */
-const SHADE_STEP = 0.6;
+/** Eclipse Sovereign: the second Shadow Half lands this far behind the first (two bodies, not one). */
+const SHADE_STEP = 1.2;
 /** Eclipse Sovereign: summoned Dusk Hounds land this far behind the split, spaced by the step. */
 const SOVEREIGN_SUMMON_BACK = 0.9;
 const SOVEREIGN_SUMMON_STEP = 0.45;
