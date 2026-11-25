@@ -41,6 +41,7 @@ import type { AbilityBar2D } from './ui/abilityBar2d.ts';
 import type { AbilityId } from '../core/types.ts';
 import { mapAnimLayer } from './mapAnimLayer.ts';
 import { mapLifeLayer } from './mapLifeLayer.ts';
+import { loadIslandTables } from './islandTable.ts';
 import type { MapView } from './mapView.ts';
 import type { GateLayer } from './gateLayer.ts';
 import { MASTER_SCALE, maxMapScale, pickMapVariant } from './mapVariant.ts';
@@ -313,6 +314,8 @@ export async function runBattle2D(q: URLSearchParams, boot: BattleBoot): Promise
     ),
     !ab && bench === 0 ? import('./ui/battleHud.ts') : null,
     fontsReady,
+    // This island's ambient / map-life tables (one small lazy chunk each; islandTable.ts).
+    loadIslandTables(level.id),
   ]);
   bootPhase('art-ready');
   if (art.notes.length > 0) console.info('[art2d] fallbacks:\n  ' + art.notes.join('\n  '));

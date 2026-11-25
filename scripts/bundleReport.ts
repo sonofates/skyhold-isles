@@ -119,7 +119,14 @@ function report(bundle: Bundle): void {
   if (asJson) {
     const order = (set: Set<string>): string[] => [...set].sort();
     const paths = { initial: order(initial), map: order(map), battle: order(battle) };
-    process.stdout.write(JSON.stringify({ rows: Object.fromEntries(rows), modules: mods, chunks: big, paths }, null, 1) + '\n');
+    const chunkModules: Record<string, [string, number][]> = {};
+    for (const [f, o] of Object.entries(bundle)) {
+      if (o.type !== 'chunk') continue;
+      chunkModules[f] = Object.entries(o.modules)
+        .map(([id, m]) => [id.startsWith(ROOT) ? id.slice(ROOT.length) : id, m.renderedLength] as [string, number])
+        .sort((a, b) => b[1] - a[1]);
+    }
+    process.stdout.write(JSON.stringify({ rows: Object.fromEntries(rows), modules: mods, chunks: big, paths, chunkModules }, null, 1) + '\n');
     return;
   }
   process.stdout.write('\n2D bundle (2d.html)\n');
