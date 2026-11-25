@@ -135,7 +135,7 @@ describe('chapter five roster wiring', () => {
   it('the Shadow Halves fall back to the Sovereign art first (art id eclipse_shade)', () => {
     expect(M.enemies.eclipse_shade.fallback?.art).toBe('eclipse_sovereign');
     // Sovereign painted, halves still pending → the halves draw the (tinted) Sovereign.
-    const sovereignOnly = (p: string): boolean => p.includes('eclipse_sovereign') || onDisk(p);
+    const sovereignOnly = (p: string): boolean => !p.includes('eclipse_shade') && (p.includes('eclipse_sovereign') || onDisk(p));
     expect(resolveEnemyType(M, 'eclipse_shade', false, sovereignOnly)).toMatchObject({ key: 'eclipse_sovereign', own: false });
   });
 
