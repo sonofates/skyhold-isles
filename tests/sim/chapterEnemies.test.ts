@@ -220,7 +220,7 @@ describe('chapter two enemy decisions', () => {
 });
 
 describe('chapter two balance', () => {
-  const islands = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24', 'i25', 'i26', 'i27', 'i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36', 'i37', 'i38', 'i39'];
+  const islands = ['i17', 'i18', 'i19', 'i20', 'i21', 'i22', 'i23', 'i24', 'i25', 'i26', 'i27', 'i28', 'i29', 'i30', 'i31', 'i32', 'i33', 'i34', 'i35', 'i36', 'i37', 'i38', 'i39', 'i40', 'i41', 'i42'];
 
   it('sends the finale boss down the long fort road and its ground reinforcements out of both landings', () => {
     const level = getLevelById('i24')!;

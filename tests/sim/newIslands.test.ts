@@ -9,6 +9,7 @@ import { CHAPTER5_ISLANDS } from '../../src/data/levels2d/chapter5.ts';
 import { NEW_ISLANDS } from '../../src/data/levels2d/newIslands.ts';
 import { islandName, islandSubtitle, islandWaveTitle } from '../../src/i18n/data.ts';
 import { setLocale } from '../../src/i18n/index.ts';
+import { seenFromCleared, waveTypes } from '../../src/render2d/ui/newFoes2d.ts';
 import { storyBeats } from '../../src/render2d/ui/storyBeats.ts';
 
 afterEach(() => setLocale('en'));
@@ -50,12 +51,24 @@ it.each(CHAPTER5_ISLANDS)('$id uses established foes across all its ground lanes
     .flatMap(l => l.waves.flatMap(w => w.groups.map(g => g.enemyType))));
   const groups = level.waves.flatMap(w => w.groups);
   expect(level.difficulty).toBe('Master');
-  expect(level.waves).toHaveLength(14);
+  const secondBatch = ['i40', 'i41', 'i42'].includes(level.id);
+  if (level.id !== 'i37') roster.add('duskhound');
+  if (secondBatch) {
+    roster.add('veilcaster');
+    expect(groups.some(g => g.enemyType === 'veilcaster')).toBe(true);
+  }
+  expect(level.waves).toHaveLength(secondBatch ? 15 : 14);
   const chart: Record<string, string> = manifest.paintedUi;
   expect(chart[`island-${level.id}`]).toBe(`ui/island-${level.id}.webp`);
   expect(existsSync('public/art2d/' + chart[`island-${level.id}`])).toBe(true);
   for (const g of groups) expect(roster.has(g.enemyType), g.enemyType).toBe(true);
   expect(new Set(groups.map(g => g.lane))).toEqual(new Set(level.layout2d.paths.map((_, i) => i)));
+});
+
+it('shows the Veilcaster as the sole new foe on the opening crater card', () => {
+  const crater = LEVELS_2D.find(l => l.id === 'i40')!;
+  const seen = seenFromCleared(LEVELS_2D.slice(0, LEVELS_2D.indexOf(crater)), () => true);
+  expect(waveTypes(crater, 0).filter(type => !seen.has(type))).toEqual(['veilcaster']);
 });
 
 it.each([...NEW_ISLANDS, ...CHAPTER4_ISLANDS, ...CHAPTER5_ISLANDS])('$id has distinct localized wave names and both illustrated story beats', level => {

@@ -1,0 +1,4 @@
+{
+  "island": "i41",
+  "wind": { "mask": "life/i41-sway.webp", "dir": [0.94, -0.35], "strength": 0.85, "gustPeriod": 8.2, "gustSpeed": 105, "breezeFreq": 0.57, "sheen": 0.018 }
+}

@@ -1,0 +1,10 @@
+{
+  "island": "i40",
+  "maxParticles": 10,
+  "glows": [
+    {"id": "star-seam", "x": 931, "y": 171, "rx": 50, "ry": 22, "color": "#ff9b45", "minAlpha": 0.06, "maxAlpha": 0.21, "speed": 1.1}
+  ],
+  "zones": [
+    {"id": "meteor-embers", "kind": "ember", "rect": [895, 156, 67, 24], "rate": 1.15, "color": "#ffd07a", "color2": "#ed814d", "size": 5, "drift": [8, -15], "life": 2.5, "alpha": 0.53}
+  ]
+}

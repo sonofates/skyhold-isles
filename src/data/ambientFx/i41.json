@@ -1,0 +1,10 @@
+{
+  "island": "i41",
+  "maxParticles": 10,
+  "glows": [
+    {"id": "hour-lamp", "x": 1204, "y": 652, "rx": 18, "ry": 19, "color": "#f6ce82", "minAlpha": 0.06, "maxAlpha": 0.21, "speed": 1.1}
+  ],
+  "zones": [
+    {"id": "lamp-moths", "kind": "firefly", "rect": [1187, 637, 36, 28], "rate": 0.65, "color": "#ffe8a1", "color2": "#e6cf88", "size": 4, "drift": [-6, -5], "life": 3.3, "alpha": 0.49}
+  ]
+}

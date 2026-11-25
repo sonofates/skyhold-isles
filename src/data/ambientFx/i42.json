@@ -1,0 +1,10 @@
+{
+  "island": "i42",
+  "maxParticles": 10,
+  "glows": [
+    {"id": "chain-trough", "x": 934, "y": 682, "rx": 94, "ry": 19, "color": "#ff9d54", "minAlpha": 0.06, "maxAlpha": 0.21, "speed": 1.1}
+  ],
+  "zones": [
+    {"id": "quench-steam", "kind": "mist", "rect": [786, 671, 270, 15], "rate": 0.9, "color": "#f2d4b7", "color2": "#c3b3bd", "size": 42, "drift": [10, -13], "life": 3.1, "alpha": 0.18}
+  ]
+}
