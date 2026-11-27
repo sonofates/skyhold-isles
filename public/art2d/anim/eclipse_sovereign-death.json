@@ -1,7 +1,7 @@
 {
  "frameW": 303,
  "frameH": 252,
- "count": 28,
+ "count": 26,
  "cols": 8,
  "fps": 12.0,
  "anchor": [
@@ -9,7 +9,7 @@
   239
  ],
  "source": "es-death.mp4",
- "figureH": 274,
+ "figureH": 267,
  "frames": [
   19,
   24,
@@ -33,8 +33,6 @@
   90,
   94,
   98,
-  102,
-  106,
   110,
   114,
   118,

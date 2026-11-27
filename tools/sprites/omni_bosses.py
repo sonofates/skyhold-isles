@@ -41,9 +41,11 @@ JOBS = {
               '--fill', '0.842', '--recolor', '235,325,55,1.35']),
     'es-attack': (f'{ES}-attack', 'es-attack.mp4', ['--max-seconds', '5', '--unmix', '--core', '3', '--glow', '--glow-reach', '140',
                   '--fixed-anchor', '--pick', '96,10,16,22,27,31,34,36,38,42,58,72,76,80,85,90', '--play-fps', '12', '--impact', '8']),
+    # 102 / 106 dropped: the body fades into the magenta there and unmixes pink; 98 -> 110 reads as
+    # bursting into embers
     'es-death': (f'{ES}-death', 'es-death.mp4', ['--max-seconds', '5.5', '--unmix', '--core', '1', '--glow', '--fixed-anchor',
                  '--clip-box', '-190,-300,190,16',
-                 '--pick', '19,24,28,32,38,45,50,52,54,56,58,61,64,67,70,74,78,82,86,90,94,98,102,106,110,114,118,124',
+                 '--pick', '19,24,28,32,38,45,50,52,54,56,58,61,64,67,70,74,78,82,86,90,94,98,110,114,118,124',
                  '--play-fps', '12', '--fig-px', 'FIG:es-down']),
 }
 

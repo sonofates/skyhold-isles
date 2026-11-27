@@ -707,6 +707,9 @@ export class Game2D {
         triggerShake2D(this.shake, BALANCE.camera.bossHitShake, this.currentSettings());
       }
     });
+    // The Eclipse Sovereign never dies (even a lethal hit splits it into the Shadow Halves), so its
+    // death clip (halo cracks, flash, embers) plays as the split: the halves step out of the light.
+    ev.on('sovereignSplit', (e) => this.enemies.playDeath(e.parentUid));
     ev.on('towerBuilt', (e) => {
       this.hudGoldDirty = true;
       const px = m.pxX(e.x);
