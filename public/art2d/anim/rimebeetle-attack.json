@@ -1,13 +1,29 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 264,
+ "frameH": 256,
+ "count": 12,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  123,
+  238
  ],
- "image": "rimebeetle-attack.webp",
- "impact": 3
+ "source": "rb-attack.mp4",
+ "impact": 7,
+ "figureH": 208,
+ "frames": [
+  24,
+  27,
+  30,
+  32,
+  34,
+  36,
+  38,
+  40,
+  42,
+  45,
+  48,
+  52
+ ],
+ "image": "rimebeetle-attack.webp"
 }

@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 205,
+ "frameH": 256,
+ "count": 20,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  103,
+  251
  ],
+ "source": "sg-walk-back.mp4",
+ "loop": [
+  23,
+  63
+ ],
+ "loopScore": 13.59,
+ "figureH": 213,
  "image": "sledguard-walk-up.webp"
 }

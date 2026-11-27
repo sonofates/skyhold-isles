@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 278,
+ "frameH": 256,
+ "count": 11,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  139,
+  250
  ],
+ "source": "dh-walk-back.mp4",
+ "loop": [
+  22,
+  43
+ ],
+ "loopScore": 8.96,
+ "figureH": 225,
  "image": "duskhound-walk-up.webp"
 }

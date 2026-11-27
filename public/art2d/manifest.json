@@ -1770,10 +1770,9 @@
    "sheet": {
     "down": "anim/rimebeetle-walk-down.json",
     "up": "anim/rimebeetle-walk-up.json",
-    "side": "anim/rimebeetle-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.0
+    "stride": 2.97
    },
    "attack": "anim/rimebeetle-attack.json",
    "death": "anim/rimebeetle-death.json",
@@ -1797,10 +1796,9 @@
    "sheet": {
     "down": "anim/sledguard-walk-down.json",
     "up": "anim/sledguard-walk-up.json",
-    "side": "anim/sledguard-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.5
+    "stride": 2.15
    },
    "attack": "anim/sledguard-attack.json",
    "death": "anim/sledguard-death.json",
@@ -1850,10 +1848,9 @@
    "sheet": {
     "down": "anim/duskhound-walk-down.json",
     "up": "anim/duskhound-walk-up.json",
-    "side": "anim/duskhound-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.35
+    "stride": 2.38
    },
    "attack": "anim/duskhound-attack.json",
    "death": "anim/duskhound-death.json",
@@ -1877,10 +1874,9 @@
    "sheet": {
     "down": "anim/veilcaster-walk-down.json",
     "up": "anim/veilcaster-walk-up.json",
-    "side": "anim/veilcaster-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.15
+    "stride": 2.99
    },
    "attack": "anim/veilcaster-attack.json",
    "death": "anim/veilcaster-death.json",
@@ -1930,10 +1926,9 @@
    "sheet": {
     "down": "anim/eclipse_shade-walk-down.json",
     "up": "anim/eclipse_shade-walk-up.json",
-    "side": "anim/eclipse_shade-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.5
+    "stride": 1.66
    },
    "attack": "anim/eclipse_shade-attack.json",
    "death": "anim/eclipse_shade-death.json",

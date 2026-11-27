@@ -1,12 +1,37 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 10,
+ "frameW": 349,
+ "frameH": 260,
+ "count": 21,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  172,
+  247
+ ],
+ "source": "es5-death.mp4",
+ "figureH": 206,
+ "frames": [
+  3,
+  9,
+  15,
+  21,
+  27,
+  33,
+  39,
+  48,
+  57,
+  62,
+  65,
+  68,
+  71,
+  74,
+  77,
+  80,
+  83,
+  86,
+  89,
+  93,
+  98
  ],
  "image": "eclipse_shade-death.webp"
 }

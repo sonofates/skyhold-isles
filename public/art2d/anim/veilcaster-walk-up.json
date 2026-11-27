@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 258,
+ "frameH": 256,
+ "count": 21,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  129,
+  251
  ],
+ "source": "vc-walk-back.mp4",
+ "loop": [
+  137,
+  178
+ ],
+ "loopScore": 14.6,
+ "figureH": 216,
  "image": "veilcaster-walk-up.webp"
 }

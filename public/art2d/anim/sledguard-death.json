@@ -1,12 +1,34 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 10,
+ "frameW": 229,
+ "frameH": 255,
+ "count": 18,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  122,
+  237
+ ],
+ "source": "sg-death.mp4",
+ "figureH": 224,
+ "frames": [
+  22,
+  27,
+  31,
+  35,
+  38,
+  41,
+  44,
+  47,
+  51,
+  55,
+  59,
+  62,
+  65,
+  68,
+  71,
+  74,
+  78,
+  84
  ],
  "image": "sledguard-death.webp"
 }

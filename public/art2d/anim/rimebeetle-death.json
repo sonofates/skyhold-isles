@@ -1,12 +1,33 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 10,
+ "frameW": 264,
+ "frameH": 232,
+ "count": 17,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  141,
+  225
+ ],
+ "source": "rb-death.mp4",
+ "figureH": 184,
+ "frames": [
+  40,
+  46,
+  50,
+  53,
+  56,
+  58,
+  60,
+  62,
+  64,
+  66,
+  68,
+  70,
+  73,
+  76,
+  80,
+  84,
+  88
  ],
  "image": "rimebeetle-death.webp"
 }

@@ -1,13 +1,33 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 306,
+ "frameH": 256,
+ "count": 16,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  117,
+  249
  ],
- "image": "sledguard-attack.webp",
- "impact": 3
+ "source": "sg-attack.mp4",
+ "impact": 8,
+ "figureH": 223,
+ "frames": [
+  15,
+  20,
+  24,
+  27,
+  30,
+  32,
+  34,
+  36,
+  38,
+  40,
+  44,
+  56,
+  68,
+  76,
+  84,
+  90
+ ],
+ "image": "sledguard-attack.webp"
 }

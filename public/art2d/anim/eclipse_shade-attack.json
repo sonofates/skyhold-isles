@@ -1,13 +1,32 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 307,
+ "frameH": 256,
+ "count": 15,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  192,
+  223
  ],
- "image": "eclipse_shade-attack.webp",
- "impact": 3
+ "source": "es5-attack.mp4",
+ "impact": 7,
+ "figureH": 211,
+ "frames": [
+  22,
+  28,
+  34,
+  38,
+  42,
+  46,
+  49,
+  52,
+  55,
+  58,
+  62,
+  68,
+  76,
+  86,
+  96
+ ],
+ "image": "eclipse_shade-attack.webp"
 }

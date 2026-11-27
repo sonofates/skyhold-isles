@@ -34,7 +34,6 @@ const noop = (): void => {};
 const ROOT = resolve(import.meta.dirname, '../..');
 const M = parseManifest(JSON.parse(readFileSync(resolve(ROOT, 'public/art2d/manifest.json'), 'utf8')) as Record<string, unknown>);
 const onDisk = (p: string): boolean => existsSync(resolve(ROOT, 'public/art2d', p));
-const OMNI_BOSSES: ReadonlySet<string> = new Set(['glacier_warden', 'eclipse_sovereign']);
 
 /** A 2D plot island (I16) with every plot built as `type` and plenty of gold. */
 function plotWorld(type: TowerType = 'archer', plots = Infinity) {
@@ -86,10 +85,9 @@ describe('chapter four roster wiring', () => {
     expect(enemyArtFor(M, type, false).art).toBe(type);
     const art = M.enemies[type];
     expect(art.file).toBe(`enemy-${type}.webp`);
-    // The bosses walk with Omni video sheets (down/up, mirrored), no painted side strip
-    // (tests/render/omniBosses.test.ts).
-    if (OMNI_BOSSES.has(type)) expect(art.sheet?.side).toBeUndefined();
-    else expect(art.sheet?.side).toBe(`anim/${type}-walk-side.json`);
+    // Every foe walks with Omni video sheets (down/up, mirrored), no painted side strip
+    // (tests/render/omniBosses.test.ts, tests/render/omniUnits.test.ts).
+    expect(art.sheet?.side).toBeUndefined();
     expect(art.death).toBe(`anim/${type}-death.json`);
     expect(art.attack).toBe(`anim/${type}-attack.json`);
     // Today: whatever is drawn has its front file on disk (own art, or the tinted fallback).

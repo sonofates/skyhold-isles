@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 203,
+ "frameH": 256,
+ "count": 19,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  102,
+  251
  ],
+ "source": "es5-walk-front.mp4",
+ "loop": [
+  84,
+  122
+ ],
+ "loopScore": 6.9,
+ "figureH": 218,
  "image": "eclipse_shade-walk-down.webp"
 }
