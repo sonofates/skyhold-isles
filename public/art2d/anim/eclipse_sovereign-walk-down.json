@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 221,
+ "frameH": 256,
+ "count": 18,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  111,
+  251
  ],
+ "source": "es-walk-2.mp4",
+ "loop": [
+  140,
+  175
+ ],
+ "loopScore": 14.85,
+ "figureH": 224,
  "image": "eclipse_sovereign-walk-down.webp"
 }

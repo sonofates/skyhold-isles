@@ -1824,10 +1824,9 @@
    "sheet": {
     "down": "anim/glacier_warden-walk-down.json",
     "up": "anim/glacier_warden-walk-up.json",
-    "side": "anim/glacier_warden-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.8
+    "stride": 1.5
    },
    "attack": "anim/glacier_warden-attack.json",
    "death": "anim/glacier_warden-death.json",
@@ -1905,10 +1904,9 @@
    "sheet": {
     "down": "anim/eclipse_sovereign-walk-down.json",
     "up": "anim/eclipse_sovereign-walk-up.json",
-    "side": "anim/eclipse_sovereign-walk-side.json",
     "facing": "right",
     "facingUp": "right",
-    "stride": 1.9
+    "stride": 1.35
    },
    "attack": "anim/eclipse_sovereign-attack.json",
    "death": "anim/eclipse_sovereign-death.json",

@@ -1,13 +1,33 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 238,
+ "frameH": 256,
+ "count": 16,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  107,
+  238
  ],
- "image": "glacier_warden-attack.webp",
- "impact": 3
+ "source": "gw-attack.mp4",
+ "impact": 9,
+ "figureH": 189,
+ "frames": [
+  2,
+  8,
+  13,
+  18,
+  22,
+  36,
+  40,
+  42,
+  43,
+  44,
+  48,
+  58,
+  67,
+  72,
+  76,
+  80
+ ],
+ "image": "glacier_warden-attack.webp"
 }

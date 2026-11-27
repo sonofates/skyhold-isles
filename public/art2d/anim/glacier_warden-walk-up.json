@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 218,
+ "frameH": 256,
+ "count": 19,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  109,
+  251
  ],
+ "source": "gw-walk-back.mp4",
+ "loop": [
+  15,
+  53
+ ],
+ "loopScore": 17.65,
+ "figureH": 211,
  "image": "glacier_warden-walk-up.webp"
 }

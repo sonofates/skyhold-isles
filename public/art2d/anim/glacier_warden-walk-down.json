@@ -1,12 +1,19 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 12,
+ "frameW": 244,
+ "frameH": 256,
+ "count": 19,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  122,
+  251
  ],
+ "source": "gw-walk-front.mp4",
+ "loop": [
+  21,
+  59
+ ],
+ "loopScore": 5.27,
+ "figureH": 206,
  "image": "glacier_warden-walk-down.webp"
 }

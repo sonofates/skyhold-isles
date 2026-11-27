@@ -1,12 +1,39 @@
 {
- "frameW": 240,
- "frameH": 184,
- "count": 6,
- "cols": 6,
- "fps": 10,
+ "frameW": 337,
+ "frameH": 230,
+ "count": 23,
+ "cols": 8,
+ "fps": 12.0,
  "anchor": [
-  120,
-  176
+  182,
+  212
+ ],
+ "source": "gw-death.mp4",
+ "figureH": 188,
+ "frames": [
+  20,
+  26,
+  32,
+  38,
+  44,
+  50,
+  56,
+  62,
+  66,
+  69,
+  71,
+  73,
+  75,
+  77,
+  79,
+  81,
+  83,
+  85,
+  87,
+  90,
+  93,
+  96,
+  100
  ],
  "image": "glacier_warden-death.webp"
 }
