@@ -1,20 +1,19 @@
 {
- "frameW": 183,
+ "frameW": 193,
  "frameH": 256,
- "count": 18,
+ "count": 19,
  "cols": 8,
  "fps": 12.0,
  "anchor": [
-  92,
-  252
+  96,
+  251
  ],
- "source": "es-walk-1.mp4",
+ "source": "es-walk-back.mp4",
  "loop": [
-  9,
-  44
+  89,
+  127
  ],
- "loopScore": 3.62,
- "start": 2.5,
+ "loopScore": 6.4,
  "figureH": 216,
  "image": "eclipse_sovereign-walk-up.webp"
 }

@@ -35,10 +35,10 @@ JOBS = {
                  '--play-fps', '12', '--fig-px', 'FIG:gw-down']),
     'es-down': (f'{ES}-walk-down', 'es-walk-2.mp4', ['--unmix', '--core', '3', '--glow', '--glow-reach', '12', '--fill', '0.875',
                 '--max-seconds', '8', '--loop-from', '0:150']),
-    # es-walk-1 starts on the front view and turns away; the back-view walk from 2.5 s on. Its cape
-    # came out navy, the front clip's is plum: --recolor turns the blue-violet band to plum.
-    'es-up': (f'{ES}-walk-up', 'es-walk-1.mp4', ['--start', '2.5', '--unmix', '--core', '3', '--glow', '--glow-reach', '12',
-              '--fill', '0.842', '--recolor', '235,325,55,1.35']),
+    # es-walk-back: a dedicated clip from the back start frame (2026-11-27); it replaces es-walk-1,
+    # which started on the front view, turned away and came out with a navy cape.
+    'es-up': (f'{ES}-walk-up', 'es-walk-back.mp4', ['--unmix', '--core', '3', '--glow', '--glow-reach', '12',
+              '--fill', '0.842', '--max-seconds', '8', '--loop-from', '0:150']),
     'es-attack': (f'{ES}-attack', 'es-attack.mp4', ['--max-seconds', '5', '--unmix', '--core', '3', '--glow', '--glow-reach', '140',
                   '--fixed-anchor', '--pick', '96,10,16,22,27,31,34,36,38,42,58,72,76,80,85,90', '--play-fps', '12', '--impact', '8']),
     # 102 / 106 dropped: the body fades into the magenta there and unmixes pink; 98 -> 110 reads as
